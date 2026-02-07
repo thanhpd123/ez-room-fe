@@ -1,0 +1,130 @@
+import { useState, useMemo } from 'react';
+import { Search, ArrowUpDown, RotateCcw } from 'lucide-react';
+import type { Room, SortOption } from '../types';
+import { SORT_OPTIONS } from '../constants';
+import { sortRooms } from '../utils';
+import { SearchResultCard } from './SearchResultCard';
+
+interface SearchResultsProps {
+    results: Room[];
+    isSearching: boolean;
+    hasSearched: boolean;
+    onReset?: () => void;
+}
+
+export function SearchResults({ results, isSearching, hasSearched, onReset }: SearchResultsProps) {
+    const [sortBy, setSortBy] = useState<SortOption>('relevant');
+    const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+
+    const sortedResults = useMemo(() => sortRooms(results, sortBy), [results, sortBy]);
+
+    const toggleFavorite = (roomId: string) => {
+        setFavoriteIds((prev) => {
+            const newSet = new Set(prev);
+            if (newSet.has(roomId)) {
+                newSet.delete(roomId);
+            } else {
+                newSet.add(roomId);
+            }
+            return newSet;
+        });
+    };
+
+    const handleViewDetails = (roomId: string) => {
+        console.log('View details:', roomId);
+        // Navigate to room detail page
+    };
+
+    // Loading state
+    if (isSearching) {
+        return (
+            <div className="mt-12 text-center py-12">
+                <div className="inline-flex items-center gap-3 text-primary">
+                    <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    <span className="font-medium">Đang tìm kiếm...</span>
+                </div>
+            </div>
+        );
+    }
+
+    // Not searched yet
+    if (!hasSearched) {
+        return null;
+    }
+
+    // Empty state
+    if (results.length === 0) {
+        return (
+            <div className="mt-12">
+                <div className="bg-card rounded-2xl shadow-lg p-12 text-center">
+                    <div className="flex flex-col items-center space-y-4">
+                        <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                            <Search className="w-10 h-10 text-foreground/40" />
+                        </div>
+                        <div className="space-y-2">
+                            <h3 className="text-lg font-semibold text-foreground">
+                                Không tìm thấy kết quả phù hợp
+                            </h3>
+                            <p className="text-foreground/60 max-w-md">
+                                Không có phòng trọ nào khớp với tiêu chí tìm kiếm của bạn. Hãy thử
+                                điều chỉnh bộ lọc hoặc tìm kiếm với các tiêu chí khác.
+                            </p>
+                        </div>
+                        {onReset && (
+                            <button
+                                onClick={onReset}
+                                className="px-6 py-3 border border-border rounded-xl font-medium hover:bg-muted transition-all flex items-center gap-2"
+                            >
+                                <RotateCcw className="w-4 h-4" />
+                                Thử tìm kiếm khác
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="mt-12 space-y-6">
+            {/* Results Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h2 className="text-xl font-semibold text-foreground">Kết quả tìm kiếm</h2>
+                    <p className="text-foreground/60 mt-1">
+                        Tìm thấy {results.length} phòng trọ phù hợp
+                    </p>
+                </div>
+
+                {/* Sort Options */}
+                <div className="flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4 text-foreground/50" />
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as SortOption)}
+                        className="px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                    >
+                        {SORT_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* Results Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {sortedResults.map((room) => (
+                    <SearchResultCard
+                        key={room.id}
+                        room={room}
+                        isFavorite={favoriteIds.has(room.id)}
+                        onToggleFavorite={toggleFavorite}
+                        onViewDetails={handleViewDetails}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}

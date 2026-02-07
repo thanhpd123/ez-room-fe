@@ -1,15 +1,18 @@
+import { useNavigate } from 'react-router-dom';
 import { Users, Shield, Wallet, ChevronRight } from 'lucide-react';
 import { Header, Footer, SearchForm, ListingCard, LocationCard } from './components';
 import type { SearchFilters } from './components';
 import { FEATURED_LISTINGS, POPULAR_LOCATIONS } from './constants';
 
 export function HomePage() {
+    const navigate = useNavigate();
+
     const handleSearch = (query: string, filters: SearchFilters) => {
         console.log('Search:', { query, filters });
     };
 
     const handleAdvancedSearch = () => {
-        console.log('Advanced search');
+        navigate('/search');
     };
 
     const handleLogin = () => {
