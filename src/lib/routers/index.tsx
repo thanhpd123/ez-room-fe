@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { HomePage } from '@/app/features/home';
+import { SearchPage } from '@/app/features/search';
 
 export const router = createBrowserRouter([
     {
@@ -9,5 +10,9 @@ export const router = createBrowserRouter([
     {
         path: '/home',
         element: <HomePage />,
+    },
+    {
+        path: '/search',
+        element: <SearchPage />,
     },
 ]);
