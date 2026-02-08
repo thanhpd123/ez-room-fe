@@ -11,6 +11,7 @@ export interface Room {
     image: string;
     rating: number;
     available: boolean;
+    rentalId?: string;
 }
 
 export interface SearchCriteria {

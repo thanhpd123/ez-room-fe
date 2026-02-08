@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, ArrowUpDown, RotateCcw } from 'lucide-react';
 import type { Room, SortOption } from '../types';
 import { SORT_OPTIONS } from '../constants';
@@ -13,6 +14,7 @@ interface SearchResultsProps {
 }
 
 export function SearchResults({ results, isSearching, hasSearched, onReset }: SearchResultsProps) {
+    const navigate = useNavigate();
     const [sortBy, setSortBy] = useState<SortOption>('relevant');
     const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
@@ -31,8 +33,10 @@ export function SearchResults({ results, isSearching, hasSearched, onReset }: Se
     };
 
     const handleViewDetails = (roomId: string) => {
-        console.log('View details:', roomId);
-        // Navigate to room detail page
+        const room = results.find(r => r.id === roomId);
+        if (room?.rentalId) {
+            navigate(`/rental/${room.rentalId}`);
+        }
     };
 
     // Loading state

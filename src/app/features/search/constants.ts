@@ -39,6 +39,7 @@ export const MOCK_ROOMS: Room[] = [
         image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
         rating: 4.5,
         available: true,
+        rentalId: 'rental-1',
     },
     {
         id: '2',
@@ -51,6 +52,7 @@ export const MOCK_ROOMS: Room[] = [
         image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800',
         rating: 4.8,
         available: true,
+        rentalId: 'rental-1',
     },
     {
         id: '3',
@@ -63,6 +65,7 @@ export const MOCK_ROOMS: Room[] = [
         image: 'https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?w=800',
         rating: 4.9,
         available: true,
+        rentalId: 'rental-1',
     },
     {
         id: '4',
@@ -75,6 +78,7 @@ export const MOCK_ROOMS: Room[] = [
         image: 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800',
         rating: 5.0,
         available: true,
+        rentalId: 'rental-1',
     },
     {
         id: '5',
@@ -87,6 +91,7 @@ export const MOCK_ROOMS: Room[] = [
         image: 'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=800',
         rating: 4.2,
         available: true,
+        rentalId: 'rental-1',
     },
     {
         id: '6',
@@ -99,6 +104,7 @@ export const MOCK_ROOMS: Room[] = [
         image: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800',
         rating: 4.6,
         available: false,
+        rentalId: 'rental-1',
     },
 ];
 
