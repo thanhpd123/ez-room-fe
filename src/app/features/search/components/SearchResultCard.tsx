@@ -33,7 +33,7 @@ export function SearchResultCard({
                         className="absolute top-3 right-3 w-9 h-9 rounded-full bg-background/90 hover:bg-background flex items-center justify-center transition-colors shadow-md"
                     >
                         <Heart
-                            className={`w-5 h-5 transition-colors ${isFavorite ? 'fill-accent text-accent' : 'text-foreground/50'
+                            className={`w-5 h-5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-foreground/50'
                                 }`}
                         />
                     </button>
