@@ -6,6 +6,7 @@ import { RentalDetailPage } from '@/app/features/rental-detail';
 import { RoomDetailPage } from '@/app/features/room-detail';
 import LayoutRentalManagements from '@/app/layouts/layout_rentalManagements/Layout_rentalManagements';
 import { CreateRentalPage, ViewListRentalPage, ViewRentalDetailPage } from '@/app/features/rentalManagement';
+import { CreateRoomPostPage, ViewListRoomPostPage, ViewRoomPostDetailPage } from '@/app/features/roomManagement';
 
 export const router = createBrowserRouter([
     {
@@ -43,6 +44,18 @@ export const router = createBrowserRouter([
             {
                 path: 'rentals/:rentalId',
                 element: <ViewRentalDetailPage />,
+            },
+            {
+                path: 'rentals/:rentalId/room-posts',
+                element: <ViewListRoomPostPage />,
+            },
+            {
+                path: 'rentals/:rentalId/room-posts/create',
+                element: <CreateRoomPostPage />,
+            },
+            {
+                path: 'rentals/:rentalId/room-posts/:roomPostId',
+                element: <ViewRoomPostDetailPage />,
             },
         ],
     },
