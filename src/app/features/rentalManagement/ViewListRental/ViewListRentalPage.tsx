@@ -198,15 +198,28 @@ export function ViewListRentalPage() {
                                     </dl>
 
                                     <div className="pt-1">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                navigate(`/rental-management/rentals/${item.rental_id}`)
-                                            }
-                                            className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                                        >
-                                            View detail
-                                        </button>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    navigate(`/rental-management/rentals/${item.rental_id}`)
+                                                }
+                                                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                            >
+                                                View detail
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/rental-management/rentals/${item.rental_id}/room-posts`
+                                                    )
+                                                }
+                                                className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                                            >
+                                                ViewListRoomPost
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
