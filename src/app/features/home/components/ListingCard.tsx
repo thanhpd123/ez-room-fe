@@ -1,5 +1,6 @@
-import { MapPin, Star, BadgeCheck } from 'lucide-react';
+import { MapPin, Star, BadgeCheck, Heart } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+import { useFavorites } from '@/app/context/FavoritesContext';
 
 interface Listing {
     id: string;
@@ -18,6 +19,26 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, onClick }: ListingCardProps) {
+    const { isFavorite, addFavorite, removeFavorite } = useFavorites();
+    const favorited = isFavorite(listing.id);
+
+    const handleFavoriteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (favorited) {
+            removeFavorite(listing.id);
+        } else {
+            addFavorite({
+                id: listing.id,
+                name: listing.title,
+                price: parseFloat(listing.price.replace(/[^0-9]/g, '')),
+                area: parseFloat(listing.area),
+                address: listing.location,
+                image: listing.image,
+                available: true,
+            });
+        }
+    };
+
     return (
         <div
             onClick={() => onClick?.(listing.id)}
@@ -29,12 +50,25 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
                     alt={listing.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                {listing.verified && (
-                    <div className="absolute top-3 right-3 bg-card/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1">
-                        <BadgeCheck className="w-4 h-4 text-primary" />
-                        <span className="text-xs font-medium">Xác thực</span>
-                    </div>
-                )}
+                <div className="absolute top-3 right-3 flex gap-2">
+                    <button
+                        onClick={handleFavoriteClick}
+                        className="p-2 bg-white rounded-full shadow-sm hover:shadow-md transition-all"
+                        title={favorited ? 'Bỏ yêu thích' : 'Yêu thích'}
+                    >
+                        <Heart
+                            className={`w-5 h-5 transition-colors ${
+                                favorited ? 'fill-red-500 text-red-500' : 'text-foreground/60 hover:text-red-500'
+                            }`}
+                        />
+                    </button>
+                    {listing.verified && (
+                        <div className="bg-card/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1">
+                            <BadgeCheck className="w-4 h-4 text-primary" />
+                            <span className="text-xs font-medium">Xác thực</span>
+                        </div>
+                    )}
+                </div>
             </div>
             <div className="p-4">
                 <h3 className="font-semibold mb-2 truncate">{listing.title}</h3>

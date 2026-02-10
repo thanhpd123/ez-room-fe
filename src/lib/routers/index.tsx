@@ -4,6 +4,7 @@ import { SearchPage } from '@/app/features/search';
 import { BookingHistoryPage } from '@/app/features/booking-history';
 import { RentalDetailPage } from '@/app/features/rental-detail';
 import { RoomDetailPage } from '@/app/features/room-detail';
+import FavoritesPage from '@/app/features/favorites';
 import LayoutRentalManagements from '@/app/layouts/layout_rentalManagements/Layout_rentalManagements';
 import { CreateRentalPage, ViewListRentalPage, ViewRentalDetailPage } from '@/app/features/rentalManagement';
 import { CreateRoomPostPage, ViewListRoomPostPage, ViewRoomPostDetailPage } from '@/app/features/roomManagement';
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
     {
         path: '/history',
         element: <BookingHistoryPage />,
+    },
+    {
+        path: '/favorites',
+        element: <FavoritesPage />,
     },
     {
         path: '/rental-management',
