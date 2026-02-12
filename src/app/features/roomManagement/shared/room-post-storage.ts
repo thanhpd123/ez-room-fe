@@ -15,6 +15,7 @@ const DEFAULT_ROOM_POSTS: ManagedRoomPostItem[] = [
         floor: 2,
         gender_preference: 'any',
         status: 'available',
+        moderation_status: 'approved',
         created_at: '2026-02-06T06:00:00.000Z',
         thumbnail_url:
             'https://images.unsplash.com/photo-1616486029423-aaa4789e8c9a?auto=format&fit=crop&w=900&q=80',
@@ -30,6 +31,7 @@ const DEFAULT_ROOM_POSTS: ManagedRoomPostItem[] = [
         floor: 3,
         gender_preference: 'female',
         status: 'rented',
+        moderation_status: 'approved',
         created_at: '2026-02-07T08:00:00.000Z',
         thumbnail_url:
             'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80',
@@ -45,6 +47,7 @@ const DEFAULT_ROOM_POSTS: ManagedRoomPostItem[] = [
         floor: 1,
         gender_preference: 'any',
         status: 'available',
+        moderation_status: 'pending_review',
         created_at: '2026-02-08T09:10:00.000Z',
         thumbnail_url:
             'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=900&q=80',
@@ -78,7 +81,13 @@ function readStorage(): ManagedRoomPostItem[] {
     try {
         const parsed = JSON.parse(raw) as ManagedRoomPostItem[];
         if (!Array.isArray(parsed)) return [...DEFAULT_ROOM_POSTS];
-        return parsed.sort((a, b) => {
+
+        const normalized = parsed.map((item) => ({
+            ...item,
+            moderation_status: item.moderation_status ?? 'pending_review',
+        }));
+
+        return normalized.sort((a, b) => {
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
     } catch {
@@ -94,6 +103,11 @@ function writeStorage(posts: ManagedRoomPostItem[]) {
 export async function listRoomPostsByRentalId(rentalId: string) {
     await wait();
     return readStorage().filter((item) => item.rental_id === rentalId);
+}
+
+export async function listManagedRoomPosts() {
+    await wait();
+    return readStorage();
 }
 
 export async function getRoomPostById(rentalId: string, roomPostId: string) {
@@ -118,6 +132,7 @@ export async function createRoomPost(payload: CreateManagedRoomPostInput) {
         floor: payload.floor,
         gender_preference: payload.gender_preference,
         status: payload.status,
+        moderation_status: payload.moderation_status ?? 'pending_review',
         thumbnail_url: payload.thumbnail_url?.trim() || undefined,
         created_at: new Date().toISOString(),
     };
@@ -126,4 +141,22 @@ export async function createRoomPost(payload: CreateManagedRoomPostInput) {
     const next = [post, ...current];
     writeStorage(next);
     return post;
+}
+
+export async function updateRoomPostModerationStatus(
+    roomPostId: string,
+    moderationStatus: ManagedRoomPostItem['moderation_status']
+) {
+    await wait();
+    const current = readStorage();
+    const next = current.map((post) =>
+        post.room_post_id === roomPostId
+            ? {
+                  ...post,
+                  moderation_status: moderationStatus,
+              }
+            : post
+    );
+    writeStorage(next);
+    return next.find((post) => post.room_post_id === roomPostId) ?? null;
 }

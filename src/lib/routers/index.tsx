@@ -7,6 +7,13 @@ import { RoomDetailPage } from '@/app/features/room-detail';
 import LayoutRentalManagements from '@/app/layouts/layout_rentalManagements/Layout_rentalManagements';
 import { CreateRentalPage, ViewListRentalPage, ViewRentalDetailPage } from '@/app/features/rentalManagement';
 import { CreateRoomPostPage, ViewListRoomPostPage, ViewRoomPostDetailPage } from '@/app/features/roomManagement';
+import {
+    HandleReportsPage,
+    ModerateRentalListPage,
+    ModerateReviewsPage,
+    ModerateRoomPostListPage,
+    ModeratorDashboardPage,
+} from '@/app/features/moderator';
 
 export const router = createBrowserRouter([
     {
@@ -66,5 +73,25 @@ export const router = createBrowserRouter([
     {
         path: '/room/:id',
         element: <RoomDetailPage />,
+    },
+    {
+        path: '/moderator',
+        element: <ModeratorDashboardPage />,
+    },
+    {
+        path: '/moderator/rentals',
+        element: <ModerateRentalListPage />,
+    },
+    {
+        path: '/moderator/room-posts',
+        element: <ModerateRoomPostListPage />,
+    },
+    {
+        path: '/moderator/reports',
+        element: <HandleReportsPage />,
+    },
+    {
+        path: '/moderator/reviews',
+        element: <ModerateReviewsPage />,
     },
 ]);

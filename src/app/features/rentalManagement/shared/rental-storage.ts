@@ -115,3 +115,21 @@ export async function createManagedRental(payload: CreateManagedRentalInput) {
     writeStorage(next);
     return rental;
 }
+
+export async function updateManagedRentalStatus(
+    rentalId: string,
+    status: ManagedRentalItem['status']
+) {
+    await wait();
+    const current = readStorage();
+    const next = current.map((rental) =>
+        rental.rental_id === rentalId
+            ? {
+                  ...rental,
+                  status,
+              }
+            : rental
+    );
+    writeStorage(next);
+    return next.find((item) => item.rental_id === rentalId) ?? null;
+}

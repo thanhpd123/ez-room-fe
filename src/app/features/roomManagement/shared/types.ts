@@ -1,6 +1,7 @@
 import type { RoomStatus } from '@/lib/models/room.model';
 
 export type RoomPostGenderPreference = 'any' | 'male' | 'female';
+export type RoomPostModerationStatus = 'pending_review' | 'approved' | 'rejected';
 
 export interface ManagedRoomPostItem {
     room_post_id: string;
@@ -13,6 +14,7 @@ export interface ManagedRoomPostItem {
     floor?: number;
     gender_preference: RoomPostGenderPreference;
     status: RoomStatus;
+    moderation_status: RoomPostModerationStatus;
     thumbnail_url?: string;
     created_at: string;
 }
@@ -27,6 +29,7 @@ export interface CreateManagedRoomPostInput {
     floor?: number;
     gender_preference: RoomPostGenderPreference;
     status: RoomStatus;
+    moderation_status?: RoomPostModerationStatus;
     thumbnail_url?: string;
 }
 
