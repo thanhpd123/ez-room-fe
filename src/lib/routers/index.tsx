@@ -15,6 +15,8 @@ import {
     ModerateRoomPostListPage,
     ModeratorDashboardPage,
 } from '@/app/features/moderator';
+import { LoginPage } from '@/app/features/auth';
+import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 
 export const router = createBrowserRouter([
     {
@@ -31,15 +33,31 @@ export const router = createBrowserRouter([
     },
     {
         path: '/history',
-        element: <BookingHistoryPage />,
+        element: (
+            <ProtectedRoute>
+                <BookingHistoryPage />
+            </ProtectedRoute>
+        ),
     },
     {
         path: '/favorites',
-        element: <FavoritesPage />,
+        element: (
+            <ProtectedRoute>
+                <FavoritesPage />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/login',
+        element: <LoginPage />,
     },
     {
         path: '/rental-management',
-        element: <LayoutRentalManagements />,
+        element: (
+            <ProtectedRoute>
+                <LayoutRentalManagements />
+            </ProtectedRoute>
+        ),
         children: [
             {
                 index: true,

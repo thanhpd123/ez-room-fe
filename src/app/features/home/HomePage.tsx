@@ -16,11 +16,11 @@ export function HomePage() {
     };
 
     const handleLogin = () => {
-        console.log('Login');
+        navigate('/login');
     };
 
     const handleRegister = () => {
-        console.log('Register');
+        navigate('/login');
     };
 
     const handleListingClick = (id: string) => {
