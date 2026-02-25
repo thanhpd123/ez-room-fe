@@ -15,14 +15,6 @@ export function HomePage() {
         navigate('/search');
     };
 
-    const handleLogin = () => {
-        console.log('Login');
-    };
-
-    const handleRegister = () => {
-        console.log('Register');
-    };
-
     const handleListingClick = (id: string) => {
         console.log('Listing clicked:', id);
     };
@@ -33,7 +25,7 @@ export function HomePage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <Header onLogin={handleLogin} onRegister={handleRegister} />
+            <Header />
 
             {/* Hero Section */}
             <section className="relative bg-linear-to-br from-primary/5 via-background to-accent/5 overflow-hidden">

@@ -1,12 +1,9 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Home as HomeIcon, BookOpen, LogIn } from 'lucide-react';
 
-interface HeaderProps {
-    onLogin: () => void;
-    onRegister: () => void;
-}
+export function Header() {
+    const navigate = useNavigate();
 
-export function Header({ onLogin, onRegister }: HeaderProps) {
     return (
         <header className="border-b border-border sticky top-0 z-40 backdrop-blur-sm bg-card/95">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -33,14 +30,14 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
 
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={onLogin}
+                            onClick={() => navigate('/login')}
                             className="hidden sm:flex items-center gap-2 px-4 py-2 text-foreground/70 hover:text-foreground transition-colors"
                         >
                             <LogIn className="w-4 h-4" />
                             Đăng nhập
                         </button>
                         <button
-                            onClick={onRegister}
+                            onClick={() => navigate('/register')}
                             className="hidden sm:block px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
                         >
                             Đăng ký
