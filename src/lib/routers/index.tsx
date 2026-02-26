@@ -16,12 +16,17 @@ import {
     ModeratorDashboardPage,
 } from '@/app/features/moderator';
 import { LoginPage } from '@/app/features/auth';
+import { RegisterPage } from '@/app/features/common';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 
 export const router = createBrowserRouter([
     {
         path: '/',
         element: <Navigate to="/home" replace />,
+    },
+    {
+        path: '/register',
+        element: <RegisterPage />,
     },
     {
         path: '/home',

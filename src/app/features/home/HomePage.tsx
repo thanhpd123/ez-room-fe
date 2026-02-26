@@ -20,9 +20,8 @@ export function HomePage() {
     };
 
     const handleRegister = () => {
-        navigate('/login');
+        navigate('/register');
     };
-
     const handleListingClick = (id: string) => {
         console.log('Listing clicked:', id);
     };

@@ -18,6 +18,11 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
         else navigate('/login');
     };
 
+    const handleRegister = () => {
+        if (onRegister) onRegister();
+        else navigate('/register');
+    };
+
     return (
         <header className="border-b border-border sticky top-0 z-40 backdrop-blur-sm bg-card/95">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -90,14 +95,12 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                     <LogIn className="w-4 h-4" />
                                     Đăng nhập
                                 </button>
-                                {onRegister && (
-                                    <button
-                                        onClick={onRegister}
-                                        className="hidden sm:block px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
-                                    >
-                                        Đăng ký
-                                    </button>
-                                )}
+                                <button
+                                    onClick={handleRegister}
+                                    className="hidden sm:block px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+                                >
+                                    Đăng ký
+                                </button>
                             </>
                         )}
                     </div>
