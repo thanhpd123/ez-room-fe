@@ -14,8 +14,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-muted/30">
-                <div className="animate-pulse text-muted-foreground">Đang tải...</div>
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <p className="text-muted-foreground font-medium">Đang tải...</p>
             </div>
         );
     }

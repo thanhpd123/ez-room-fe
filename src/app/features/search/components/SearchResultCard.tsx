@@ -17,8 +17,7 @@ export function SearchResultCard({
     onViewDetails,
 }: SearchResultCardProps) {
     return (
-        <div className="bg-card rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 group">
-            {/* Image */}
+        <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border hover:shadow-md transition-shadow duration-300 group">
             <div className="relative h-48 overflow-hidden bg-muted">
                 <ImageWithFallback
                     src={room.image}
@@ -26,24 +25,24 @@ export function SearchResultCard({
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
 
-                {/* Favorite Button */}
                 {onToggleFavorite && (
                     <button
+                        type="button"
                         onClick={() => onToggleFavorite(room.id)}
-                        className="absolute top-3 right-3 w-9 h-9 rounded-full bg-background/90 hover:bg-background flex items-center justify-center transition-colors shadow-md"
+                        className="absolute top-3 right-3 w-10 h-10 rounded-full bg-card/95 border border-border flex items-center justify-center transition-colors shadow-sm hover:shadow-md"
                     >
                         <Heart
-                            className={`w-5 h-5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-foreground/50'
-                                }`}
+                            className={`w-5 h-5 transition-colors ${isFavorite ? 'fill-accent text-accent' : 'text-muted-foreground'}`}
+                            strokeWidth={2}
                         />
                     </button>
                 )}
 
                 {/* Available Badge */}
                 <span
-                    className={`absolute top-3 left-3 px-2 py-1 rounded-lg text-xs font-medium ${room.available
+                    className={`absolute top-3 left-3 px-2.5 py-1.5 rounded-xl text-xs font-medium ${room.available
                         ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground/60'
+                        : 'bg-muted text-muted-foreground'
                         }`}
                 >
                     {room.available ? 'Còn trống' : 'Đã cho thuê'}
@@ -58,13 +57,13 @@ export function SearchResultCard({
                 </h3>
 
                 {/* Location */}
-                <div className="flex items-center gap-2 text-foreground/60">
-                    <MapPin className="w-4 h-4 shrink-0" />
+                <div className="flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="w-4 h-4 shrink-0" strokeWidth={2} />
                     <span className="text-sm truncate">{room.location}</span>
                 </div>
 
                 {/* Details */}
-                <div className="flex items-center gap-4 text-sm text-foreground/60">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                         <Maximize className="w-4 h-4" />
                         <span>{room.area}m²</span>
@@ -76,7 +75,7 @@ export function SearchResultCard({
                 </div>
 
                 {/* Room Type Badge */}
-                <span className="inline-block px-2 py-1 rounded-lg border border-border text-xs font-medium text-foreground/70">
+                <span className="inline-block px-2.5 py-1 rounded-xl border border-border text-xs font-medium text-muted-foreground">
                     {getRoomTypeLabel(room.roomType)}
                 </span>
 
@@ -103,11 +102,12 @@ export function SearchResultCard({
                     <div className="flex items-end justify-between">
                         <div>
                             <p className="text-2xl font-bold text-primary">{formatPrice(room.price)}</p>
-                            <p className="text-xs text-foreground/50">/ tháng</p>
+                            <p className="text-xs text-muted-foreground">/ tháng</p>
                         </div>
                         <button
+                            type="button"
                             onClick={() => onViewDetails?.(room.id)}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all"
+                            className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm"
                         >
                             Xem chi tiết
                         </button>
