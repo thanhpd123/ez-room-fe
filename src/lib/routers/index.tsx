@@ -14,21 +14,14 @@ import {
     ModerateRoomPostListPage,
     ModeratorDashboardPage,
 } from '@/app/features/moderator';
-import { RegisterPage, LoginPage } from '@/app/features/common';
+
 
 export const router = createBrowserRouter([
     {
         path: '/',
         element: <Navigate to="/home" replace />,
     },
-    {
-        path: '/register',
-        element: <RegisterPage />,
-    },
-    {
-        path: '/login',
-        element: <LoginPage />,
-    },
+
     {
         path: '/home',
         element: <HomePage />,
