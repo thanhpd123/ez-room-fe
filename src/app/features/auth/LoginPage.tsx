@@ -3,6 +3,20 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Loader2, Home } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 
+// Helper function để redirect theo role
+function getRedirectByRole(role?: string): string {
+    switch (role) {
+        case 'ADMIN':
+            return '/admin';
+        case 'MODERATOR':
+            return '/moderator';
+        case 'LANDLORD':
+            return '/rental-management';
+        default:
+            return '/home';
+    }
+}
+
 export function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -20,7 +34,9 @@ export function LoginPage() {
     useEffect(() => {
         if (!isLoading && user) {
             const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
-            navigate(from || '/home', { replace: true });
+            // Redirect theo role nếu không có destination trước đó
+            const destination = from || getRedirectByRole(user.role);
+            navigate(destination, { replace: true });
         }
     }, [user, isLoading, navigate, location.state]);
 
@@ -35,8 +51,7 @@ export function LoginPage() {
         setSubmitLoading(true);
         try {
             await signInWithEmail(form.email.trim(), form.password);
-            const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
-            navigate(from || '/home', { replace: true });
+            // Redirect sẽ được handle bởi useEffect khi user state thay đổi
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Đăng nhập thất bại');
         } finally {

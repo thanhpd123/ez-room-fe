@@ -48,7 +48,7 @@ export function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-accent/5 via-background to-primary/5 px-4 py-8">
+        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-accent/5 via-background to-primary/5 px-4 py-8">
             <div className="w-full max-w-md">
                 {/* Card */}
                 <div className="bg-card rounded-2xl shadow-xl border border-border/50 px-8 py-10">
