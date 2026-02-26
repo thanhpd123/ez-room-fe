@@ -19,9 +19,9 @@ const defaultSidebarWidth = 264;
 const defaultCollapsedWidth = 76;
 
 const items = [
-    { label: 'Overview', path: '/rental-management', Icon: LayoutDashboard },
-    { label: 'View list rental', path: '/rental-management/rentals', Icon: Building2 },
-    { label: 'Create rental', path: '/rental-management/rentals/create', Icon: CirclePlus },
+    { label: 'Tổng quan', path: '/rental-management', Icon: LayoutDashboard },
+    { label: 'Danh sách nhà cho thuê', path: '/rental-management/rentals', Icon: Building2 },
+    { label: 'Thêm nhà cho thuê', path: '/rental-management/rentals/create', Icon: CirclePlus },
 ] as const;
 
 export default function SidebarRentalManagements({
@@ -32,7 +32,7 @@ export default function SidebarRentalManagements({
 }: SidebarProps) {
     return (
         <aside
-            className="fixed inset-y-0 left-0 z-50 border-r border-slate-200 bg-white pt-16"
+            className="fixed inset-y-0 left-0 z-50 border-r border-border bg-card pt-16"
             style={{
                 width: open ? sidebarWidth : collapsedWidth,
                 transition: 'width 220ms ease',
@@ -47,9 +47,9 @@ export default function SidebarRentalManagements({
                                 end={item.path === '/rental-management'}
                                 className={({ isActive }) =>
                                     cn(
-                                        'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition-colors',
-                                        'hover:bg-slate-100 hover:text-slate-900',
-                                        isActive && 'bg-slate-100 text-slate-900'
+                                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                                        'hover:bg-muted hover:text-foreground text-muted-foreground',
+                                        isActive && 'bg-primary/10 text-primary hover:bg-primary/15'
                                     )
                                 }
                             >
@@ -67,12 +67,12 @@ export default function SidebarRentalManagements({
                     ))}
                 </ul>
 
-                <div className="border-t border-slate-200 p-2">
+                <div className="border-t border-border p-2">
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="flex w-full items-center justify-center rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                        aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
+                        className="flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        aria-label={open ? 'Thu gọn' : 'Mở rộng'}
                     >
                         {open ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                     </button>

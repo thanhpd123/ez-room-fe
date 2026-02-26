@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft,
     Bell,
     Clock3,
+    Home,
     LogOut,
     Menu,
     Search,
@@ -11,6 +12,7 @@ import {
     UserCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/app/context/AuthContext';
 
 type RentalManagementNavbarProps = {
     onToggleDrawer: () => void;
@@ -42,10 +44,14 @@ function useDesktop(breakpoint = 768) {
 }
 
 function toTitleFromPath(pathname: string) {
-    const segments = pathname.split('/').filter(Boolean);
-    if (segments.length <= 1) return 'Property Management';
-    const raw = segments[segments.length - 1].replace(/-/g, ' ');
-    return raw.replace(/\b\w/g, (char) => char.toUpperCase());
+    if (pathname.includes('/room-posts/create')) return 'Thêm phòng';
+    if (pathname.includes('/room-posts/') && pathname.match(/\/room-posts\/[^/]+$/)) return 'Chi tiết phòng';
+    if (pathname.includes('/room-posts')) return 'Danh sách phòng';
+    if (pathname.includes('/rentals/create')) return 'Thêm nhà cho thuê';
+    if (pathname.includes('/rentals/') && pathname.match(/\/rentals\/[^/]+$/)) return 'Chi tiết nhà cho thuê';
+    if (pathname.includes('/rentals')) return 'Danh sách nhà cho thuê';
+    if (pathname.includes('/rental-management')) return 'Quản lý cho thuê';
+    return 'Quản lý cho thuê';
 }
 
 export default function NavbarRentalManagements({
@@ -60,6 +66,7 @@ export default function NavbarRentalManagements({
 }: RentalManagementNavbarProps) {
     const navigate = useNavigate();
     const location = useLocation();
+    const { signOut } = useAuth();
     const isDesktop = useDesktop();
     const [menuOpen, setMenuOpen] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -87,7 +94,7 @@ export default function NavbarRentalManagements({
 
     return (
         <header
-            className="fixed top-0 z-40 h-16 border-b border-slate-200 bg-white/95 backdrop-blur"
+            className="fixed top-0 z-40 h-16 border-b border-border bg-card/95 backdrop-blur"
             style={{
                 left: leftOffset,
                 width: navbarWidth,
@@ -99,7 +106,7 @@ export default function NavbarRentalManagements({
                     <button
                         type="button"
                         onClick={() => navigate(-1)}
-                        className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                         aria-label="Back"
                     >
                         <ArrowLeft className="h-5 w-5" />
@@ -109,42 +116,49 @@ export default function NavbarRentalManagements({
                 <button
                     type="button"
                     onClick={onToggleDrawer}
-                    className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                    className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    aria-label={isSidebarOpen ? 'Thu gọn menu' : 'Mở rộng menu'}
                 >
                     <Menu className="h-5 w-5" />
                 </button>
 
-                <h1 className="truncate text-base font-semibold text-slate-900 sm:text-lg">{computedTitle}</h1>
+                <h1 className="font-heading truncate text-base font-semibold text-foreground sm:text-lg">{computedTitle}</h1>
 
                 <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                    <Link
+                        to="/home"
+                        className="hidden items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground sm:flex transition-colors"
+                    >
+                        <Home className="h-4 w-4" />
+                        Trang chủ
+                    </Link>
                     {showSearch ? (
                         <label
                             className={cn(
-                                'hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 md:flex',
-                                'focus-within:border-slate-300 focus-within:bg-white'
+                                'hidden items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-1.5 md:flex',
+                                'focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10'
                             )}
                         >
-                            <Search className="h-4 w-4 text-slate-500" />
+                            <Search className="h-4 w-4 text-muted-foreground" />
                             <input
                                 value={searchText}
                                 onChange={(event) => setSearchText(event.target.value)}
-                                placeholder="Search..."
-                                className="w-40 bg-transparent text-sm text-slate-700 outline-none lg:w-56"
+                                placeholder="Tìm kiếm..."
+                                className="w-40 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground lg:w-56"
                                 aria-label="Search"
                             />
                         </label>
                     ) : null}
 
-                    <span className="hidden items-center gap-1 text-xs text-slate-500 lg:flex">
+                    <span className="hidden items-center gap-1 text-xs text-muted-foreground lg:flex">
                         <Clock3 className="h-4 w-4" />
                         {now}
                     </span>
 
                     <button
                         type="button"
-                        className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                        aria-label="Notifications"
+                        className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        aria-label="Thông báo"
                     >
                         <Bell className="h-5 w-5" />
                     </button>
@@ -155,35 +169,36 @@ export default function NavbarRentalManagements({
                         <button
                             type="button"
                             onClick={() => setMenuOpen((prev) => !prev)}
-                            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                            aria-label="Profile menu"
+                            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                            aria-label="Menu tài khoản"
                         >
                             <UserCircle2 className="h-6 w-6" />
                         </button>
 
                         {menuOpen ? (
-                            <div className="absolute right-0 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                            <div className="absolute right-0 mt-2 w-44 rounded-xl border border-border bg-card p-1 shadow-lg">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setMenuOpen(false);
                                         navigate('/profile');
                                     }}
-                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors"
                                 >
                                     <Settings className="h-4 w-4" />
-                                    Profile
+                                    Hồ sơ
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setMenuOpen(false);
-                                        navigate('/login');
+                                        signOut();
+                                        navigate('/home');
                                     }}
-                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors"
                                 >
                                     <LogOut className="h-4 w-4" />
-                                    Logout
+                                    Đăng xuất
                                 </button>
                             </div>
                         ) : null}
