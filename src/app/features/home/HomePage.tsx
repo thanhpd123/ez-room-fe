@@ -15,6 +15,14 @@ export function HomePage() {
         navigate('/search');
     };
 
+    const handleLogin = () => {
+        navigate('/login');
+    };
+
+    const handleRegister = () => {
+        navigate('/register');
+    };
+
     const handleListingClick = (id: string) => {
         console.log('Listing clicked:', id);
     };

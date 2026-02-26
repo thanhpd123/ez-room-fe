@@ -1,8 +1,22 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Home as HomeIcon, BookOpen, LogIn } from 'lucide-react';
+import { Home as HomeIcon, BookOpen, LogIn, Heart, LogOut, User } from 'lucide-react';
+import { useFavorites } from '@/app/context/FavoritesContext';
+import { useAuth } from '@/app/context/AuthContext';
 
-export function Header() {
+interface HeaderProps {
+    onLogin?: () => void;
+    onRegister?: () => void;
+}
+
+export function Header({ onLogin, onRegister }: HeaderProps) {
     const navigate = useNavigate();
+    const { favorites } = useFavorites();
+    const { user, signOut } = useAuth();
+
+    const handleLogin = () => {
+        if (onLogin) onLogin();
+        else navigate('/login');
+    };
 
     return (
         <header className="border-b border-border sticky top-0 z-40 backdrop-blur-sm bg-card/95">
@@ -30,18 +44,62 @@ export function Header() {
 
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => navigate('/login')}
-                            className="hidden sm:flex items-center gap-2 px-4 py-2 text-foreground/70 hover:text-foreground transition-colors"
+                            onClick={() => navigate('/favorites')}
+                            className="relative p-2 hover:bg-muted rounded-lg transition-colors group"
+                            title="Phòng yêu thích"
                         >
-                            <LogIn className="w-4 h-4" />
-                            Đăng nhập
+                            <Heart className="w-5 h-5 text-foreground group-hover:text-primary transition-colors" />
+                            {favorites.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-xs rounded-full flex items-center justify-center font-semibold">
+                                    {favorites.length}
+                                </span>
+                            )}
                         </button>
-                        <button
-                            onClick={() => navigate('/register')}
-                            className="hidden sm:block px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
-                        >
-                            Đăng ký
-                        </button>
+
+                        {user ? (
+                            <div className="flex items-center gap-2">
+                                <span className="hidden sm:flex items-center gap-2 text-foreground/80 text-sm max-w-[140px] truncate">
+                                    {user.avatarUrl ? (
+                                        <img
+                                            src={user.avatarUrl}
+                                            alt=""
+                                            className="w-8 h-8 rounded-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                                            <User className="w-4 h-4 text-primary" />
+                                        </span>
+                                    )}
+                                    {user.fullName || user.email}
+                                </span>
+                                <button
+                                    onClick={() => signOut()}
+                                    className="flex items-center gap-2 px-4 py-2 text-foreground/70 hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                                    title="Đăng xuất"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Đăng xuất</span>
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={handleLogin}
+                                    className="hidden sm:flex items-center gap-2 px-4 py-2 text-foreground/70 hover:text-foreground transition-colors"
+                                >
+                                    <LogIn className="w-4 h-4" />
+                                    Đăng nhập
+                                </button>
+                                {onRegister && (
+                                    <button
+                                        onClick={onRegister}
+                                        className="hidden sm:block px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
+                                    >
+                                        Đăng ký
+                                    </button>
+                                )}
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

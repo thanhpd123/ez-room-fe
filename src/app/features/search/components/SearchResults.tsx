@@ -5,6 +5,7 @@ import type { Room, SortOption } from '../types';
 import { SORT_OPTIONS } from '../constants';
 import { sortRooms } from '../utils';
 import { SearchResultCard } from './SearchResultCard';
+import { useFavorites } from '@/app/context/FavoritesContext';
 
 interface SearchResultsProps {
     results: Room[];
@@ -16,20 +17,27 @@ interface SearchResultsProps {
 export function SearchResults({ results, isSearching, hasSearched, onReset }: SearchResultsProps) {
     const navigate = useNavigate();
     const [sortBy, setSortBy] = useState<SortOption>('relevant');
-    const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+    const { isFavorite, addFavorite, removeFavorite } = useFavorites();
 
     const sortedResults = useMemo(() => sortRooms(results, sortBy), [results, sortBy]);
 
     const toggleFavorite = (roomId: string) => {
-        setFavoriteIds((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(roomId)) {
-                newSet.delete(roomId);
-            } else {
-                newSet.add(roomId);
-            }
-            return newSet;
-        });
+        const room = results.find((r) => r.id === roomId);
+        if (!room) return;
+
+        if (isFavorite(roomId)) {
+            removeFavorite(roomId);
+        } else {
+            addFavorite({
+                id: room.id,
+                name: room.title,
+                price: room.price,
+                area: room.area,
+                address: room.location,
+                image: room.image,
+                available: room.available,
+            });
+        }
     };
 
     const handleViewDetails = (roomId: string) => {
@@ -123,7 +131,7 @@ export function SearchResults({ results, isSearching, hasSearched, onReset }: Se
                     <SearchResultCard
                         key={room.id}
                         room={room}
-                        isFavorite={favoriteIds.has(room.id)}
+                        isFavorite={isFavorite(room.id)}
                         onToggleFavorite={toggleFavorite}
                         onViewDetails={handleViewDetails}
                     />
