@@ -19,7 +19,7 @@ export interface RentalDetailData {
   description: string;
   summary: string;
   availableRoom: number;
-  status: 'active' | 'inactive' | 'full';
+  status: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN' | 'VIOLATE' | 'PENDING' | 'SUSPEND';
   address: string;
   images: string[];
   totalRooms: number;

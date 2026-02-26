@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Plus, Search, LayoutGrid, FileText } from 'lucide-react';
 import type { RentalStatus } from '@/lib/models/rental.model';
-import { listManagedRentals } from '../shared/rental-storage';
-import { PROPERTY_TYPE_OPTIONS, RENTAL_STATUS_OPTIONS, type ManagedRentalItem } from '../shared/types';
+import { getMyRentalsRequest } from '@/lib/api';
+import { RENTAL_STATUS_OPTIONS } from '../shared/types';
 
-const statusClassName: Record<RentalStatus, string> = {
-    active: 'bg-primary/15 text-primary',
-    inactive: 'bg-muted text-muted-foreground',
-    pending: 'bg-accent/15 text-accent',
-    expired: 'bg-destructive/10 text-destructive',
+const statusClassName: Record<string, string> = {
+    AVAILABLE: 'bg-emerald-100 text-emerald-700',
+    UNAVAILABLE: 'bg-slate-200 text-slate-600',
+    HIDDEN: 'bg-orange-100 text-orange-700',
+    VIOLATE: 'bg-rose-100 text-rose-700',
+    PENDING: 'bg-amber-100 text-amber-700',
+    SUSPEND: 'bg-red-100 text-red-700',
 };
 
 function formatDateTime(dateString: string) {
@@ -22,33 +24,46 @@ function formatDateTime(dateString: string) {
     });
 }
 
-function getPropertyTypeLabel(value: string) {
-    return PROPERTY_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
-}
-
-function getStatusLabel(status: RentalStatus) {
+function getStatusLabel(status: string) {
     return RENTAL_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
 
 const DEFAULT_THUMB =
     'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=800&q=80';
 
+interface RentalListItem {
+    id: string;
+    title: string;
+    description: string | null;
+    status: string;
+    createdAt: string;
+    location: { id: string; address: string; district: string | null; city: string | null } | null;
+    images: string[];
+}
+
 export function ViewListRentalPage() {
     const navigate = useNavigate();
-    const [rentals, setRentals] = useState<ManagedRentalItem[]>([]);
+    const [rentals, setRentals] = useState<RentalListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [keyword, setKeyword] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | RentalStatus>('all');
-    const [typeFilter, setTypeFilter] = useState<'all' | ManagedRentalItem['property_type']>('all');
 
     useEffect(() => {
         let active = true;
         const load = async () => {
             setIsLoading(true);
-            const data = await listManagedRentals();
-            if (!active) return;
-            setRentals(data);
-            setIsLoading(false);
+            setLoadError(null);
+            try {
+                const result = await getMyRentalsRequest({ limit: 100 });
+                if (!active) return;
+                setRentals(result.data);
+            } catch (err) {
+                if (!active) return;
+                setLoadError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
+            } finally {
+                if (active) setIsLoading(false);
+            }
         };
         void load();
         return () => {
@@ -62,14 +77,13 @@ export function ViewListRentalPage() {
             const matchesKeyword =
                 normalizedKeyword.length === 0 ||
                 item.title.toLowerCase().includes(normalizedKeyword) ||
-                (item.address && item.address.toLowerCase().includes(normalizedKeyword)) ||
-                (item.city && item.city.toLowerCase().includes(normalizedKeyword)) ||
-                (item.district && item.district.toLowerCase().includes(normalizedKeyword));
+                (item.location?.address && item.location.address.toLowerCase().includes(normalizedKeyword)) ||
+                (item.location?.city && item.location.city.toLowerCase().includes(normalizedKeyword)) ||
+                (item.location?.district && item.location.district.toLowerCase().includes(normalizedKeyword));
             const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-            const matchesType = typeFilter === 'all' || item.property_type === typeFilter;
-            return matchesKeyword && matchesStatus && matchesType;
+            return matchesKeyword && matchesStatus;
         });
-    }, [keyword, rentals, statusFilter, typeFilter]);
+    }, [keyword, rentals, statusFilter]);
 
     return (
         <section className="mx-auto w-full max-w-6xl">
@@ -112,20 +126,6 @@ export function ViewListRentalPage() {
                         </option>
                     ))}
                 </select>
-                <select
-                    value={typeFilter}
-                    onChange={(e) =>
-                        setTypeFilter(e.target.value as 'all' | ManagedRentalItem['property_type'])
-                    }
-                    className="rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                >
-                    <option value="all">Tất cả loại hình</option>
-                    {PROPERTY_TYPE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
             </div>
 
             {isLoading ? (
@@ -134,6 +134,11 @@ export function ViewListRentalPage() {
                         <Building2 className="h-6 w-6 text-primary" />
                     </div>
                     <p className="text-muted-foreground">Đang tải danh sách...</p>
+                </div>
+            ) : loadError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-12 text-center shadow-sm">
+                    <p className="text-rose-700 font-medium">Lỗi khi tải danh sách</p>
+                    <p className="mt-1 text-sm text-rose-600">{loadError}</p>
                 </div>
             ) : filteredRentals.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center shadow-sm">
@@ -157,12 +162,12 @@ export function ViewListRentalPage() {
                 <div className="grid gap-5">
                     {filteredRentals.map((item) => (
                         <article
-                            key={item.rental_id}
+                            key={item.id}
                             className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
                         >
                             <div className="grid gap-5 p-5 md:grid-cols-[220px_1fr]">
                                 <img
-                                    src={item.thumbnail_url ?? DEFAULT_THUMB}
+                                    src={item.images?.[0] ?? DEFAULT_THUMB}
                                     alt={item.title}
                                     className="h-44 w-full rounded-xl object-cover border border-border"
                                 />
@@ -172,34 +177,36 @@ export function ViewListRentalPage() {
                                             {item.title}
                                         </h3>
                                         <span
-                                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClassName[item.status]}`}
+                                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClassName[item.status] ?? 'bg-slate-100 text-slate-600'}`}
                                         >
                                             {getStatusLabel(item.status)}
                                         </span>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {[item.address, item.district, item.city].filter(Boolean).join(', ')}
-                                    </p>
-                                    {item.summary ? (
+                                    {item.location && (
+                                        <p className="text-sm text-muted-foreground">
+                                            {[item.location.address, item.location.district, item.location.city].filter(Boolean).join(', ')}
+                                        </p>
+                                    )}
+                                    {item.description ? (
                                         <p className="line-clamp-2 text-sm text-muted-foreground">
-                                            {item.summary}
+                                            {item.description}
                                         </p>
                                     ) : null}
-                                    <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                                    <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
                                         <div className="rounded-xl bg-muted/50 px-3 py-2">
-                                            <dt className="text-xs text-muted-foreground">Loại hình</dt>
+                                            <dt className="text-xs text-muted-foreground">Trạng thái</dt>
                                             <dd className="font-medium text-foreground">
-                                                {getPropertyTypeLabel(item.property_type)}
+                                                {getStatusLabel(item.status)}
                                             </dd>
                                         </div>
                                         <div className="rounded-xl bg-muted/50 px-3 py-2">
-                                            <dt className="text-xs text-muted-foreground">Số phòng trống</dt>
-                                            <dd className="font-medium text-foreground">{item.available_room}</dd>
+                                            <dt className="text-xs text-muted-foreground">Số ảnh</dt>
+                                            <dd className="font-medium text-foreground">{item.images?.length ?? 0}</dd>
                                         </div>
                                         <div className="rounded-xl bg-muted/50 px-3 py-2">
                                             <dt className="text-xs text-muted-foreground">Ngày tạo</dt>
                                             <dd className="font-medium text-foreground">
-                                                {formatDateTime(item.created_at)}
+                                                {formatDateTime(item.createdAt)}
                                             </dd>
                                         </div>
                                     </dl>
@@ -207,7 +214,7 @@ export function ViewListRentalPage() {
                                         <button
                                             type="button"
                                             onClick={() =>
-                                                navigate(`/rental-management/rentals/${item.rental_id}`)
+                                                navigate(`/rental-management/rentals/${item.id}`)
                                             }
                                             className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                                         >
@@ -218,7 +225,7 @@ export function ViewListRentalPage() {
                                             type="button"
                                             onClick={() =>
                                                 navigate(
-                                                    `/rental-management/rentals/${item.rental_id}/room-posts`
+                                                    `/rental-management/rentals/${item.id}/room-posts`
                                                 )
                                             }
                                             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"

@@ -215,6 +215,107 @@ export async function uploadImageRequest(file: File): Promise<{ url: string }> {
 }
 
 /**
+ * POST /upload/rental-image – upload rental image to Supabase Storage via backend.
+ */
+export async function uploadRentalImage(file: File): Promise<{ url: string }> {
+    const base = getBaseUrl().replace(/\/$/, '');
+    const token = await getAccessToken();
+    if (!token) throw new Error('Cần đăng nhập để tải ảnh lên');
+
+    const form = new FormData();
+    form.append('file', file);
+
+    const res = await fetch(`${base}/upload/rental-image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Tải ảnh lên thất bại');
+    if (!data.url) throw new Error('Không nhận được URL ảnh');
+    return { url: data.url };
+}
+
+/**
+ * POST /rentals – create a new rental listing.
+ */
+export async function createRentalRequest(body: {
+    title: string;
+    description?: string;
+    city: string;
+    district: string;
+    address: string;
+    images?: string[];
+}): Promise<{ success: boolean; data: Record<string, unknown>; message: string }> {
+    const token = await getAccessToken();
+    if (!token) throw new Error('Cần đăng nhập để tạo bài đăng');
+
+    const res = await authFetch('/rentals', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Tạo bài đăng thất bại');
+    return data;
+}
+
+/**
+ * GET /rentals/my-rentals – fetch current landlord's rentals.
+ */
+export async function getMyRentalsRequest(query?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+}): Promise<{
+    success: boolean;
+    data: Array<{
+        id: string;
+        title: string;
+        description: string | null;
+        status: string;
+        createdAt: string;
+        owner: { id: string; fullName: string; avatarUrl: string | null } | null;
+        location: { id: string; address: string; district: string | null; city: string | null } | null;
+        images: string[];
+    }>;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const params = new URLSearchParams();
+    if (query?.page) params.set('page', String(query.page));
+    if (query?.limit) params.set('limit', String(query.limit));
+    if (query?.status) params.set('status', query.status);
+    const qs = params.toString();
+
+    const res = await authFetch(`/rentals/my-rentals${qs ? `?${qs}` : ''}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lấy danh sách thất bại');
+    return data;
+}
+
+/**
+ * GET /rentals/:rentalId – fetch a single rental's details.
+ */
+export async function getRentalByIdRequest(rentalId: string): Promise<{
+    success: boolean;
+    data: {
+        id: string;
+        title: string;
+        description: string | null;
+        status: string;
+        createdAt: string;
+        owner: { id: string; fullName: string; avatarUrl: string | null; email: string; phone: string | null } | null;
+        location: { id: string; address: string; district: string | null; city: string | null } | null;
+        rooms: Array<Record<string, unknown>>;
+        images: string[];
+    };
+}> {
+    const res = await authFetch(`/rentals/${rentalId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lấy chi tiết thất bại');
+    return data;
+}
+
+/**
  * GET /auth/me – current user from backend (verifies token end-to-end).
  */
 export async function fetchAuthMe(): Promise<{

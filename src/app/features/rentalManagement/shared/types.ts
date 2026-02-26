@@ -40,8 +40,10 @@ export const PROPERTY_TYPE_OPTIONS: Array<{ value: PropertyType; label: string }
 ];
 
 export const RENTAL_STATUS_OPTIONS: Array<{ value: RentalStatus; label: string }> = [
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'expired', label: 'Expired' },
+    { value: 'AVAILABLE', label: 'Còn phòng' },
+    { value: 'UNAVAILABLE', label: 'Hết phòng' },
+    { value: 'HIDDEN', label: 'Đang ẩn' },
+    { value: 'VIOLATE', label: 'Vi phạm' },
+    { value: 'PENDING', label: 'Chờ duyệt' },
+    { value: 'SUSPEND', label: 'Tạm ngưng' },
 ];

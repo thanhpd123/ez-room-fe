@@ -18,6 +18,7 @@ import {
 import { LoginPage, ForgotPasswordPage, ResetPasswordPage, CompleteSignupPage } from '@/app/features/auth';
 import { RegisterPage } from '@/app/features/common';
 import { ProfilePage } from '@/app/features/profile';
+import LayoutModerator from '@/app/layouts/layout_moderator/LayoutModerator';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -125,22 +126,32 @@ export const router = createBrowserRouter([
     },
     {
         path: '/moderator',
-        element: <ModeratorDashboardPage />,
-    },
-    {
-        path: '/moderator/rentals',
-        element: <ModerateRentalListPage />,
-    },
-    {
-        path: '/moderator/room-posts',
-        element: <ModerateRoomPostListPage />,
-    },
-    {
-        path: '/moderator/reports',
-        element: <HandleReportsPage />,
-    },
-    {
-        path: '/moderator/reviews',
-        element: <ModerateReviewsPage />,
+        element: (
+            <ProtectedRoute>
+                <LayoutModerator />
+            </ProtectedRoute>
+        ),
+        children: [
+            {
+                index: true,
+                element: <ModeratorDashboardPage />,
+            },
+            {
+                path: 'rentals',
+                element: <ModerateRentalListPage />,
+            },
+            {
+                path: 'room-posts',
+                element: <ModerateRoomPostListPage />,
+            },
+            {
+                path: 'reports',
+                element: <HandleReportsPage />,
+            },
+            {
+                path: 'reviews',
+                element: <ModerateReviewsPage />,
+            },
+        ],
     },
 ]);

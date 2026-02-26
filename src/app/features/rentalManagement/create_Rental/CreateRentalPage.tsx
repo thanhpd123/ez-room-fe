@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { RentalStatus } from '@/lib/models/rental.model';
-import { ImageUpload } from '@/app/components/ImageUpload';
-import { createManagedRental } from '../shared/rental-storage';
-import { PROPERTY_TYPE_OPTIONS, RENTAL_STATUS_OPTIONS, type CreateManagedRentalInput, type PropertyType } from '../shared/types';
+import { MultiImageUpload } from '@/app/components/MultiImageUpload';
+import { createRentalRequest } from '@/lib/api';
+import { PROPERTY_TYPE_OPTIONS, type PropertyType } from '../shared/types';
 
 interface CreateRentalFormState {
     title: string;
@@ -14,8 +13,7 @@ interface CreateRentalFormState {
     address: string;
     property_type: PropertyType;
     available_room: string;
-    status: RentalStatus;
-    thumbnail_url: string;
+    images: string[];
 }
 
 type FormErrors = Partial<Record<keyof CreateRentalFormState, string>>;
@@ -29,8 +27,7 @@ const initialForm: CreateRentalFormState = {
     address: '',
     property_type: 'boarding_house',
     available_room: '1',
-    status: 'pending',
-    thumbnail_url: '',
+    images: [],
 };
 
 export function CreateRentalPage() {
@@ -38,18 +35,19 @@ export function CreateRentalPage() {
     const [form, setForm] = useState<CreateRentalFormState>(initialForm);
     const [errors, setErrors] = useState<FormErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     const availableRoomNumber = useMemo(() => Number(form.available_room), [form.available_room]);
 
     const validateForm = () => {
         const nextErrors: FormErrors = {};
 
-        if (!form.title.trim()) nextErrors.title = 'Title is required.';
-        if (!form.city.trim()) nextErrors.city = 'City is required.';
-        if (!form.district.trim()) nextErrors.district = 'District is required.';
-        if (!form.address.trim()) nextErrors.address = 'Address is required.';
+        if (!form.title.trim()) nextErrors.title = 'Tiêu đề là bắt buộc.';
+        if (!form.city.trim()) nextErrors.city = 'Thành phố là bắt buộc.';
+        if (!form.district.trim()) nextErrors.district = 'Quận/huyện là bắt buộc.';
+        if (!form.address.trim()) nextErrors.address = 'Địa chỉ là bắt buộc.';
         if (!Number.isFinite(availableRoomNumber) || availableRoomNumber < 0) {
-            nextErrors.available_room = 'Available room must be a positive number.';
+            nextErrors.available_room = 'Số phòng phải là số nguyên dương.';
         }
 
         setErrors(nextErrors);
@@ -58,59 +56,60 @@ export function CreateRentalPage() {
 
     const onChangeField =
         <K extends keyof CreateRentalFormState>(key: K) =>
-        (value: CreateRentalFormState[K]) => {
-            setForm((prev) => ({ ...prev, [key]: value }));
-            setErrors((prev) => ({ ...prev, [key]: undefined }));
-        };
+            (value: CreateRentalFormState[K]) => {
+                setForm((prev) => ({ ...prev, [key]: value }));
+                setErrors((prev) => ({ ...prev, [key]: undefined }));
+            };
 
     const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!validateForm()) return;
 
-        const payload: CreateManagedRentalInput = {
-            user_id: 'owner-demo',
-            title: form.title,
-            summary: form.summary,
-            description: form.description,
-            city: form.city,
-            district: form.district,
-            address: form.address,
-            property_type: form.property_type,
-            available_room: availableRoomNumber,
-            status: form.status,
-            thumbnail_url: form.thumbnail_url,
-        };
-
+        setSubmitError(null);
         setIsSubmitting(true);
-        await createManagedRental(payload);
-        setIsSubmitting(false);
-        navigate('/rental-management/rentals');
+
+        try {
+            await createRentalRequest({
+                title: form.title,
+                description: form.description || undefined,
+                city: form.city,
+                district: form.district,
+                address: form.address,
+                images: form.images.length > 0 ? form.images : undefined,
+            });
+
+            navigate('/rental-management/rentals');
+        } catch (err) {
+            setSubmitError(err instanceof Error ? err.message : 'Tạo bài đăng thất bại');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
         <section className="mx-auto w-full max-w-4xl">
             <header className="mb-6">
-                <h2 className="text-2xl font-semibold text-slate-900">Create Rental</h2>
+                <h2 className="text-2xl font-semibold text-slate-900">Tạo bài đăng mới</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                    Rental in this feature is a rental property (building/apartment/house listing).
+                    Điền các thông tin bên dưới để tạo bài đăng cho trọ phòng/nhà/căn hộ của bạn.
                 </p>
             </header>
 
             <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Title *</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Tiêu đề *</label>
                         <input
                             value={form.title}
                             onChange={(event) => onChangeField('title')(event.target.value)}
-                            placeholder="Example: Maple Residence - near university"
+                            placeholder="VD: Maple Residence - gần đại học"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                         {errors.title ? <p className="mt-1 text-xs text-rose-600">{errors.title}</p> : null}
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Property type</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Loại bất động sản</label>
                         <select
                             value={form.property_type}
                             onChange={(event) =>
@@ -127,50 +126,42 @@ export function CreateRentalPage() {
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Status</label>
-                        <select
-                            value={form.status}
-                            onChange={(event) =>
-                                onChangeField('status')(event.target.value as RentalStatus)
-                            }
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-                        >
-                            {RENTAL_STATUS_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                            <p className="text-sm font-medium text-amber-800">⏳ Trạng thái: Chờ duyệt</p>
+                            <p className="mt-0.5 text-xs text-amber-600">
+                                Bài đăng mới tạo sẽ ở trạng thái chờ duyệt. Moderator sẽ duyệt để chuyển sang Active.
+                            </p>
+                        </div>
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">City *</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Thành phố *</label>
                         <input
                             value={form.city}
                             onChange={(event) => onChangeField('city')(event.target.value)}
-                            placeholder="Ha Noi"
+                            placeholder="Hà Nội"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                         {errors.city ? <p className="mt-1 text-xs text-rose-600">{errors.city}</p> : null}
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">District *</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Quận/huyện *</label>
                         <input
                             value={form.district}
                             onChange={(event) => onChangeField('district')(event.target.value)}
-                            placeholder="Dong Da"
+                            placeholder="Đống Đa"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                         {errors.district ? <p className="mt-1 text-xs text-rose-600">{errors.district}</p> : null}
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Address *</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Địa chỉ *</label>
                         <input
                             value={form.address}
                             onChange={(event) => onChangeField('address')(event.target.value)}
-                            placeholder="268 Tay Son"
+                            placeholder="268 Tây Sơn"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                         {errors.address ? <p className="mt-1 text-xs text-rose-600">{errors.address}</p> : null}
@@ -178,7 +169,7 @@ export function CreateRentalPage() {
 
                     <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                            Available rooms *
+                            Số phòng trống *
                         </label>
                         <input
                             type="number"
@@ -192,38 +183,43 @@ export function CreateRentalPage() {
                         ) : null}
                     </div>
 
-                    <div>
-                        <ImageUpload
-                            label="Ảnh bìa (thumbnail)"
-                            value={form.thumbnail_url}
-                            onChange={(url) => onChangeField('thumbnail_url')(url)}
-                            placeholder="Chọn ảnh từ máy tính"
-                            previewClassName="w-24 h-24 rounded-xl object-cover border border-slate-200"
+                    <div className="md:col-span-2">
+                        <MultiImageUpload
+                            label="Ảnh bài đăng"
+                            value={form.images}
+                            onChange={(urls) => onChangeField('images')(urls)}
+                            maxImages={10}
                         />
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Summary</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Tóm tắt</label>
                         <textarea
                             value={form.summary}
                             onChange={(event) => onChangeField('summary')(event.target.value)}
                             rows={2}
-                            placeholder="Short description for this rental listing"
+                            placeholder="Mô tả ngắn gọn cho bài đăng"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Description</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Mô tả chi tiết</label>
                         <textarea
                             value={form.description}
                             onChange={(event) => onChangeField('description')(event.target.value)}
                             rows={5}
-                            placeholder="More details about services, rules, and amenities..."
+                            placeholder="Thông tin chi tiết về dịch vụ, nội quy, tiện ích..."
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                     </div>
                 </div>
+
+                {submitError && (
+                    <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                        <p className="text-sm text-rose-700">{submitError}</p>
+                    </div>
+                )}
 
                 <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
                     <button
@@ -231,14 +227,14 @@ export function CreateRentalPage() {
                         onClick={() => navigate('/rental-management/rentals')}
                         className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
-                        Cancel
+                        Hủy
                     </button>
                     <button
                         type="submit"
                         disabled={isSubmitting}
                         className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                        {isSubmitting ? 'Creating...' : 'Create rental'}
+                        {isSubmitting ? 'Đang tạo...' : 'Tạo bài đăng'}
                     </button>
                 </div>
             </form>
