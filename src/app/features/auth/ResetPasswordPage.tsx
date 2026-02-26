@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Lock, Eye, EyeOff, Home, Loader2 } from 'lucide-react';
-import { resetPasswordRequest } from '@/lib/api';
+import { Lock, Eye, EyeOff, Home, Loader2, Sparkles, Check, Circle } from 'lucide-react';
+import { resetPasswordRequest, suggestPasswordRequest } from '@/lib/api';
+
+function passwordRequirements(pwd: string) {
+    return {
+        length: pwd.length >= 8,
+        upper: /[A-Z]/.test(pwd),
+        number: /[0-9]/.test(pwd),
+        special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pwd),
+    };
+}
 
 export function ResetPasswordPage() {
     const [searchParams] = useSearchParams();
@@ -12,19 +21,35 @@ export function ResetPasswordPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [suggestLoading, setSuggestLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const pwdReqs = passwordRequirements(newPassword);
 
     useEffect(() => {
         if (!token) setError('Link đặt lại mật khẩu không hợp lệ hoặc thiếu.');
     }, [token]);
 
+    const handleSuggestPassword = async () => {
+        setSuggestLoading(true);
+        setError(null);
+        try {
+            const { suggestedPassword } = await suggestPasswordRequest();
+            setNewPassword(suggestedPassword);
+            setConfirmPassword(suggestedPassword);
+        } catch {
+            setError('Không thể tạo mật khẩu gợi ý. Thử lại sau.');
+        } finally {
+            setSuggestLoading(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         if (!token) return;
-        if (newPassword.length < 6) {
-            setError('Mật khẩu mới phải có ít nhất 6 ký tự');
+        if (!pwdReqs.length || !pwdReqs.upper || !pwdReqs.number || !pwdReqs.special) {
+            setError('Mật khẩu cần ít nhất 8 ký tự, 1 in hoa, 1 số, 1 ký tự đặc biệt');
             return;
         }
         if (newPassword !== confirmPassword) {
@@ -116,7 +141,18 @@ export function ResetPasswordPage() {
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Mật khẩu mới</label>
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <label className="block text-sm font-medium text-foreground">Mật khẩu mới</label>
+                                <button
+                                    type="button"
+                                    onClick={handleSuggestPassword}
+                                    disabled={suggestLoading}
+                                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                                >
+                                    {suggestLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                    Gợi ý mật khẩu mạnh
+                                </button>
+                            </div>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" strokeWidth={2} />
                                 <input
@@ -126,7 +162,7 @@ export function ResetPasswordPage() {
                                     placeholder="••••••••"
                                     className="w-full pl-11 pr-11 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                     required
-                                    minLength={6}
+                                    minLength={8}
                                     autoComplete="new-password"
                                 />
                                 <button
@@ -138,6 +174,12 @@ export function ResetPasswordPage() {
                                     {showPassword ? <EyeOff className="w-5 h-5" strokeWidth={2} /> : <Eye className="w-5 h-5" strokeWidth={2} />}
                                 </button>
                             </div>
+                            <ul className="mt-2 space-y-1 text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-0.5">
+                                <li className={`flex items-center gap-1.5 ${pwdReqs.length ? 'text-green-600' : ''}`}>{pwdReqs.length ? <Check className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />} Ít nhất 8 ký tự</li>
+                                <li className={`flex items-center gap-1.5 ${pwdReqs.upper ? 'text-green-600' : ''}`}>{pwdReqs.upper ? <Check className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />} 1 chữ in hoa</li>
+                                <li className={`flex items-center gap-1.5 ${pwdReqs.number ? 'text-green-600' : ''}`}>{pwdReqs.number ? <Check className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />} 1 chữ số</li>
+                                <li className={`flex items-center gap-1.5 ${pwdReqs.special ? 'text-green-600' : ''}`}>{pwdReqs.special ? <Check className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />} 1 ký tự đặc biệt</li>
+                            </ul>
                         </div>
 
                         <div>
@@ -151,7 +193,7 @@ export function ResetPasswordPage() {
                                     placeholder="••••••••"
                                     className="w-full pl-11 pr-11 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                     required
-                                    minLength={6}
+                                    minLength={8}
                                     autoComplete="new-password"
                                 />
                                 <button

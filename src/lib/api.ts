@@ -51,6 +51,17 @@ export async function loginWithEmail(
 }
 
 /**
+ * GET /auth/suggest-password – get a suggested strong password.
+ */
+export async function suggestPasswordRequest(): Promise<{ suggestedPassword: string }> {
+    const base = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
+    const res = await fetch(`${base.replace(/\/$/, '')}/auth/suggest-password`);
+    const data = await res.json();
+    if (!res.ok || !data.suggestedPassword) throw new Error('Không thể tạo mật khẩu gợi ý');
+    return { suggestedPassword: data.suggestedPassword };
+}
+
+/**
  * POST /auth/forgot-password – request password reset email.
  */
 export async function forgotPasswordRequest(email: string): Promise<{ success: boolean; message: string }> {

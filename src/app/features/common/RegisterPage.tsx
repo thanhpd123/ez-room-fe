@@ -1,10 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, User, Mail, Phone, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Home, User, Mail, Phone, Lock, Eye, EyeOff, Loader2, Sparkles, Check, Circle } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/app/context/AuthContext';
+import { suggestPasswordRequest } from '@/lib/api';
 
 const getApiUrl = () => (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+function passwordRequirements(pwd: string) {
+    return {
+        length: pwd.length >= 8,
+        upper: /[A-Z]/.test(pwd),
+        number: /[0-9]/.test(pwd),
+        special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pwd),
+    };
+}
 
 export function RegisterPage() {
     const navigate = useNavigate();
@@ -20,8 +30,10 @@ export function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [suggestLoading, setSuggestLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+    const pwdReqs = passwordRequirements(form.password);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const name = e.target.name;
@@ -103,6 +115,19 @@ export function RegisterPage() {
         });
     };
 
+    const handleSuggestPassword = async () => {
+        setSuggestLoading(true);
+        setError(null);
+        try {
+            const { suggestedPassword } = await suggestPasswordRequest();
+            setForm((f) => ({ ...f, password: suggestedPassword, confirmPassword: suggestedPassword }));
+        } catch {
+            setError('Không thể tạo mật khẩu gợi ý. Thử lại sau.');
+        } finally {
+            setSuggestLoading(false);
+        }
+    };
+
     const inputClass =
         'w-full pl-11 pr-4 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
     const inputClassWithRight = 'w-full pl-11 pr-11 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
@@ -170,14 +195,43 @@ export function RegisterPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Mật khẩu</label>
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <label className="block text-sm font-medium text-foreground">Mật khẩu</label>
+                                <button
+                                    type="button"
+                                    onClick={handleSuggestPassword}
+                                    disabled={suggestLoading}
+                                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                                >
+                                    {suggestLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                    Gợi ý mật khẩu mạnh
+                                </button>
+                            </div>
                             <div className="relative">
                                 <Lock className={iconClass} strokeWidth={2} />
-                                <input type={showPassword ? 'text' : 'password'} name="password" value={form.password} onChange={handleChange} placeholder="••••••••" className={inputClassWithRight} required />
+                                <input type={showPassword ? 'text' : 'password'} name="password" value={form.password} onChange={handleChange} placeholder="••••••••" className={inputClassWithRight} required minLength={8} />
                                 <button type="button" onClick={() => setShowPassword(!showPassword)} className={toggleClass} aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
                                     {showPassword ? <EyeOff className="w-5 h-5" strokeWidth={2} /> : <Eye className="w-5 h-5" strokeWidth={2} />}
                                 </button>
                             </div>
+                            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                <li className={pwdReqs.length ? 'text-primary' : ''}>
+                                    {pwdReqs.length ? <Check className="w-3.5 h-3.5 inline mr-1.5 text-primary" /> : <Circle className="w-3.5 h-3.5 inline mr-1.5 opacity-50" />}
+                                    Ít nhất 8 ký tự
+                                </li>
+                                <li className={pwdReqs.upper ? 'text-primary' : ''}>
+                                    {pwdReqs.upper ? <Check className="w-3.5 h-3.5 inline mr-1.5 text-primary" /> : <Circle className="w-3.5 h-3.5 inline mr-1.5 opacity-50" />}
+                                    Ít nhất 1 chữ in hoa
+                                </li>
+                                <li className={pwdReqs.number ? 'text-primary' : ''}>
+                                    {pwdReqs.number ? <Check className="w-3.5 h-3.5 inline mr-1.5 text-primary" /> : <Circle className="w-3.5 h-3.5 inline mr-1.5 opacity-50" />}
+                                    Ít nhất 1 chữ số
+                                </li>
+                                <li className={pwdReqs.special ? 'text-primary' : ''}>
+                                    {pwdReqs.special ? <Check className="w-3.5 h-3.5 inline mr-1.5 text-primary" /> : <Circle className="w-3.5 h-3.5 inline mr-1.5 opacity-50" />}
+                                    Ít nhất 1 ký tự đặc biệt (!@#$%^&*...)
+                                </li>
+                            </ul>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-1.5">Xác nhận mật khẩu</label>
