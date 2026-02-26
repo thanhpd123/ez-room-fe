@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { RoomStatus } from '@/lib/models/room.model';
+import { ImageUpload } from '@/app/components/ImageUpload';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
 import { createRoomPost } from '../shared/room-post-storage';
 import {
@@ -241,14 +242,12 @@ export function CreateRoomPostPage() {
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                            Thumbnail URL
-                        </label>
-                        <input
+                        <ImageUpload
+                            label="Ảnh bìa (thumbnail)"
                             value={form.thumbnail_url}
-                            onChange={(event) => onChangeField('thumbnail_url')(event.target.value)}
-                            placeholder="https://..."
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                            onChange={(url) => onChangeField('thumbnail_url')(url)}
+                            placeholder="Chọn ảnh từ máy tính"
+                            previewClassName="w-24 h-24 rounded-xl object-cover border border-slate-200"
                         />
                     </div>
 

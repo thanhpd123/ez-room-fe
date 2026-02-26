@@ -15,8 +15,9 @@ import {
     ModerateRoomPostListPage,
     ModeratorDashboardPage,
 } from '@/app/features/moderator';
-import { LoginPage } from '@/app/features/auth';
+import { LoginPage, ForgotPasswordPage, ResetPasswordPage, CompleteSignupPage } from '@/app/features/auth';
 import { RegisterPage } from '@/app/features/common';
+import { ProfilePage } from '@/app/features/profile';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -27,6 +28,18 @@ export const router = createBrowserRouter([
     {
         path: '/register',
         element: <RegisterPage />,
+    },
+    {
+        path: '/forgot-password',
+        element: <ForgotPasswordPage />,
+    },
+    {
+        path: '/reset-password',
+        element: <ResetPasswordPage />,
+    },
+    {
+        path: '/complete-signup',
+        element: <CompleteSignupPage />,
     },
     {
         path: '/home',
@@ -49,6 +62,14 @@ export const router = createBrowserRouter([
         element: (
             <ProtectedRoute>
                 <FavoritesPage />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/profile',
+        element: (
+            <ProtectedRoute>
+                <ProfilePage />
             </ProtectedRoute>
         ),
     },

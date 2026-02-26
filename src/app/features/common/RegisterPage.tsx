@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, User, Mail, Phone, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '@/app/context/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const getApiUrl = () => (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 export function RegisterPage() {
     const navigate = useNavigate();
+    const { user, signInWithGoogle, signInWithFacebook, isLoading } = useAuth();
     const [form, setForm] = useState({
         fullName: '',
         email: '',
         phone: '',
         password: '',
         confirmPassword: '',
+        role: 'TENANT' as 'TENANT' | 'LANDLORD',
     });
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
@@ -20,8 +23,10 @@ export function RegisterPage() {
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<string[]>([]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const name = e.target.name;
+        const value = e.target.type === 'select-one' ? (e.target as HTMLSelectElement).value : e.target.value;
+        setForm((f) => ({ ...f, [name]: name === 'role' ? value : value }));
         setError(null);
         setFieldErrors([]);
     };
@@ -33,173 +38,180 @@ export function RegisterPage() {
         setLoading(true);
 
         try {
-            const res = await axios.post(`${API_URL}/auth/register`, form);
-            if (res.data.success) {
+            const payload = {
+                fullName: form.fullName.trim(),
+                email: form.email.trim(),
+                phone: form.phone.trim() || undefined,
+                password: form.password,
+                confirmPassword: form.confirmPassword,
+                role: form.role,
+            };
+            const res = await axios.post(`${getApiUrl()}/auth/register`, payload, {
+                timeout: 15000,
+                headers: { 'Content-Type': 'application/json' },
+                validateStatus: () => true,
+            });
+            if (res.status >= 200 && res.status < 300 && res.data?.success) {
                 navigate('/login', { state: { registered: true } });
+                return;
             }
+            const data = res.data || {};
+            const errMsg = data.error || data.message || 'Đăng ký thất bại';
+            setError(errMsg);
+            if (Array.isArray(data.errors)) setFieldErrors(data.errors);
         } catch (err: unknown) {
-            if (axios.isAxiosError(err) && err.response?.data) {
-                const data = err.response.data;
-                setError(data.message || 'Đăng ký thất bại');
-                if (data.errors) setFieldErrors(data.errors);
+            if (axios.isAxiosError(err)) {
+                if (err.response?.data) {
+                    const data = err.response.data;
+                    setError(data.message || 'Đăng ký thất bại');
+                    if (Array.isArray(data.errors)) setFieldErrors(data.errors);
+                } else if (err.code === 'ERR_NETWORK' || err.message?.includes('Network')) {
+                    setError('Không thể kết nối đến server. Kiểm tra backend đang chạy và CORS.');
+                } else {
+                    setError(err.message || 'Đăng ký thất bại');
+                }
             } else {
-                setError('Không thể kết nối đến server');
+                setError('Đã xảy ra lỗi. Vui lòng thử lại.');
             }
         } finally {
             setLoading(false);
         }
     };
 
+    // Redirect to home when signed in via OAuth (Google/Facebook)
+    useEffect(() => {
+        if (!isLoading && user) {
+            navigate('/home', { replace: true });
+        }
+    }, [user, isLoading, navigate]);
+
+    const handleGoogleRegister = () => {
+        setError(null);
+        setFieldErrors([]);
+        signInWithGoogle().catch((err) => {
+            console.error('Google sign-up error:', err);
+            setError('Đăng ký với Google thất bại. Vui lòng thử lại.');
+        });
+    };
+
+    const handleFacebookRegister = () => {
+        setError(null);
+        setFieldErrors([]);
+        signInWithFacebook().catch((err) => {
+            console.error('Facebook sign-up error:', err);
+            setError('Đăng ký với Facebook thất bại. Vui lòng thử lại.');
+        });
+    };
+
+    const inputClass =
+        'w-full pl-11 pr-4 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
+    const inputClassWithRight = 'w-full pl-11 pr-11 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
+    const iconClass = 'absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground';
+    const toggleClass = 'absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors';
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-accent/5 via-background to-primary/5 px-4 py-8">
+        <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
             <div className="w-full max-w-md">
-                {/* Card */}
-                <div className="bg-card rounded-2xl shadow-xl border border-border/50 px-8 py-10">
-                    {/* Logo */}
-                    <div className="flex justify-center mb-6">
-                        <div className="w-14 h-14 bg-accent rounded-2xl flex items-center justify-center shadow-lg shadow-accent/20">
-                            <Home className="w-7 h-7 text-white" />
+                <div className="bg-card rounded-2xl shadow-sm border border-border px-8 py-10">
+                    <div className="flex justify-center mb-8">
+                        <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-sm">
+                            <Home className="w-7 h-7 text-primary-foreground" strokeWidth={2} />
                         </div>
                     </div>
 
-                    {/* Title */}
                     <div className="text-center mb-8">
-                        <h1 className="text-2xl font-bold text-foreground font-heading">Đăng ký</h1>
-                        <p className="text-foreground/60 mt-1 text-sm">Tạo tài khoản mới để bắt đầu</p>
+                        <h1 className="text-2xl font-heading font-bold text-foreground">Đăng ký</h1>
+                        <p className="text-muted-foreground mt-1 text-sm">Tạo tài khoản mới để bắt đầu</p>
                     </div>
 
-                    {/* Error */}
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+                        <div className="mb-5 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
                             <p className="font-medium">{error}</p>
                             {fieldErrors.length > 0 && (
-                                <ul className="mt-1 list-disc list-inside text-xs">
+                                <ul className="mt-2 list-disc list-inside text-xs">
                                     {fieldErrors.map((e, i) => <li key={i}>{e}</li>)}
                                 </ul>
                             )}
                         </div>
                     )}
 
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {/* Full Name */}
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-1.5">Họ và tên</label>
                             <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
-                                <input
-                                    type="text"
-                                    name="fullName"
-                                    value={form.fullName}
-                                    onChange={handleChange}
-                                    placeholder="Nguyễn Văn A"
-                                    className="w-full pl-11 pr-4 py-3 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                                    required
-                                />
+                                <User className={iconClass} strokeWidth={2} />
+                                <input type="text" name="fullName" value={form.fullName} onChange={handleChange} placeholder="Nguyễn Văn A" className={inputClass} required />
                             </div>
                         </div>
-
-                        {/* Email */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={form.email}
-                                    onChange={handleChange}
-                                    placeholder="your.email@example.com"
-                                    className="w-full pl-11 pr-4 py-3 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                                    required
-                                />
+                                <Mail className={iconClass} strokeWidth={2} />
+                                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="your.email@example.com" className={inputClass} required />
                             </div>
                         </div>
-
-                        {/* Phone */}
+                        <div>
+                            <label className="block text-sm font-medium text-foreground mb-1.5">Vai trò</label>
+                            <select
+                                name="role"
+                                value={form.role}
+                                onChange={handleChange}
+                                className="w-full px-4 py-3.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            >
+                                <option value="TENANT">Người thuê phòng (Tenant)</option>
+                                <option value="LANDLORD">Chủ nhà / Cho thuê (Landlord)</option>
+                            </select>
+                        </div>
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-1.5">Số điện thoại</label>
                             <div className="relative">
-                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
-                                <input
-                                    type="tel"
-                                    name="phone"
-                                    value={form.phone}
-                                    onChange={handleChange}
-                                    placeholder="0123456789"
-                                    className="w-full pl-11 pr-4 py-3 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                                />
+                                <Phone className={iconClass} strokeWidth={2} />
+                                <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="0123456789" className={inputClass} />
                             </div>
                         </div>
-
-                        {/* Password */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-1.5">Mật khẩu</label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    name="password"
-                                    value={form.password}
-                                    onChange={handleChange}
-                                    placeholder="••••••••"
-                                    className="w-full pl-11 pr-11 py-3 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition-colors"
-                                >
-                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                <Lock className={iconClass} strokeWidth={2} />
+                                <input type={showPassword ? 'text' : 'password'} name="password" value={form.password} onChange={handleChange} placeholder="••••••••" className={inputClassWithRight} required />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className={toggleClass} aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+                                    {showPassword ? <EyeOff className="w-5 h-5" strokeWidth={2} /> : <Eye className="w-5 h-5" strokeWidth={2} />}
                                 </button>
                             </div>
                         </div>
-
-                        {/* Confirm Password */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-1.5">Xác nhận mật khẩu</label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/40" />
-                                <input
-                                    type={showConfirm ? 'text' : 'password'}
-                                    name="confirmPassword"
-                                    value={form.confirmPassword}
-                                    onChange={handleChange}
-                                    placeholder="••••••••"
-                                    className="w-full pl-11 pr-11 py-3 bg-muted/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowConfirm(!showConfirm)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition-colors"
-                                >
-                                    {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                <Lock className={iconClass} strokeWidth={2} />
+                                <input type={showConfirm ? 'text' : 'password'} name="confirmPassword" value={form.confirmPassword} onChange={handleChange} placeholder="••••••••" className={inputClassWithRight} required />
+                                <button type="button" onClick={() => setShowConfirm(!showConfirm)} className={toggleClass} aria-label={showConfirm ? 'Ẩn' : 'Hiện'}>
+                                    {showConfirm ? <EyeOff className="w-5 h-5" strokeWidth={2} /> : <Eye className="w-5 h-5" strokeWidth={2} />}
                                 </button>
                             </div>
                         </div>
 
-                        {/* Submit */}
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 bg-accent text-white rounded-xl font-semibold text-sm hover:bg-accent/90 active:scale-[0.98] transition-all shadow-lg shadow-accent/20 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                            className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
                         >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {loading && <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />}
                             {loading ? 'Đang xử lý...' : 'Đăng ký'}
                         </button>
                     </form>
 
-                    {/* Divider */}
-                    <div className="flex items-center gap-3 my-6">
+                    <div className="flex items-center gap-3 my-8">
                         <div className="flex-1 h-px bg-border" />
-                        <span className="text-xs text-foreground/40">hoặc</span>
+                        <span className="text-xs text-muted-foreground">hoặc</span>
                         <div className="flex-1 h-px bg-border" />
                     </div>
 
-                    {/* Google */}
-                    <button className="w-full py-3 bg-card border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted/50 transition-all flex items-center justify-center gap-3">
+                    <button
+                        type="button"
+                        onClick={handleGoogleRegister}
+                        disabled={isLoading}
+                        className="w-full py-3.5 bg-card border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-3"
+                    >
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -209,10 +221,21 @@ export function RegisterPage() {
                         Đăng ký với Google
                     </button>
 
-                    {/* Link to login */}
-                    <p className="text-center text-sm text-foreground/60 mt-6">
+                    <button
+                        type="button"
+                        onClick={handleFacebookRegister}
+                        disabled={isLoading}
+                        className="w-full py-3.5 bg-card border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-3 mt-3"
+                    >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                        </svg>
+                        Đăng ký với Facebook
+                    </button>
+
+                    <p className="text-center text-sm text-muted-foreground mt-8">
                         Đã có tài khoản?{' '}
-                        <Link to="/login" className="text-accent font-semibold hover:underline">
+                        <Link to="/login" className="text-primary font-semibold hover:underline">
                             Đăng nhập ngay
                         </Link>
                     </p>

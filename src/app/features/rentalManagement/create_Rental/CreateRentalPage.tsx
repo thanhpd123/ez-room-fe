@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { RentalStatus } from '@/lib/models/rental.model';
+import { ImageUpload } from '@/app/components/ImageUpload';
 import { createManagedRental } from '../shared/rental-storage';
 import { PROPERTY_TYPE_OPTIONS, RENTAL_STATUS_OPTIONS, type CreateManagedRentalInput, type PropertyType } from '../shared/types';
 
@@ -192,14 +193,12 @@ export function CreateRentalPage() {
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                            Thumbnail URL
-                        </label>
-                        <input
+                        <ImageUpload
+                            label="Ảnh bìa (thumbnail)"
                             value={form.thumbnail_url}
-                            onChange={(event) => onChangeField('thumbnail_url')(event.target.value)}
-                            placeholder="https://..."
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                            onChange={(url) => onChangeField('thumbnail_url')(url)}
+                            placeholder="Chọn ảnh từ máy tính"
+                            previewClassName="w-24 h-24 rounded-xl object-cover border border-slate-200"
                         />
                     </div>
 

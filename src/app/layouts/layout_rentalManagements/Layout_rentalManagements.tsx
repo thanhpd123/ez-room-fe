@@ -30,7 +30,7 @@ export default function LayoutRentalManagements() {
     const leftOffset = isDesktop ? (open ? SIDEBAR_WIDTH : SIDEBAR_COLLAPSED) : 0;
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-background">
             <NavbarRentalManagements
                 onToggleDrawer={() => setOpen((prev) => !prev)}
                 isSidebarOpen={open}
@@ -47,7 +47,7 @@ export default function LayoutRentalManagements() {
             />
 
             <main
-                className="min-h-screen pt-20 px-4 pb-6 sm:px-6"
+                className="min-h-screen pt-20 px-4 pb-8 sm:px-6 lg:px-8"
                 style={{
                     marginLeft: leftOffset,
                     transition: 'margin-left 220ms ease',
