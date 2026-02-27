@@ -1,4 +1,4 @@
-import { listManagedRentals, updateManagedRentalStatus } from '@/app/features/rentalManagement/shared/rental-storage';
+import { getRentalsForModeration as getRentalsForModerationApi, updateRentalStatusRequest } from '@/lib/api';
 import { listManagedRoomPosts, updateRoomPostModerationStatus } from '@/app/features/roomManagement/shared/room-post-storage';
 import type {
     HandleReportInput,
@@ -181,29 +181,38 @@ function toReviewStatus(action: ModerateReviewInput['action']): ReviewModeration
 }
 
 export async function listRentalModerationItems() {
-    await wait();
-    const rentals = await listManagedRentals();
-    const state = readState();
+    try {
+        const response = await getRentalsForModerationApi();
+        const state = readState();
 
-    const result: RentalModerationItem[] = rentals.map((rental) => {
-        const decision = state.rental_decisions[rental.rental_id];
-        return {
-            rental_id: rental.rental_id,
-            user_id: rental.user_id,
-            title: rental.title,
-            city: rental.city,
-            district: rental.district,
-            address: rental.address,
-            property_type: rental.property_type,
-            created_at: rental.created_at,
-            listing_status: rental.status,
-            moderation_status: decision?.decision ?? deriveRentalModerationStatus(rental.status),
-            last_moderated_at: decision?.moderated_at,
-            last_note: decision?.note,
-        };
-    });
+        const result: RentalModerationItem[] = response.data.map((rental) => {
+            const decision = state.rental_decisions[rental.id];
+            return {
+                rental_id: rental.id,
+                user_id: rental.owner?.fullName ?? rental.owner?.id ?? '--',
+                title: rental.title,
+                description: rental.description ?? undefined,
+                city: rental.location?.city ?? '',
+                district: rental.location?.district ?? '',
+                address: rental.location?.address ?? '',
+                property_type: 'house',
+                created_at: rental.createdAt,
+                listing_status: rental.status,
+                moderation_status: decision?.decision ?? deriveRentalModerationStatus(rental.status),
+                last_moderated_at: decision?.moderated_at,
+                last_note: decision?.note,
+                images: rental.images,
+                owner_email: (rental.owner as Record<string, unknown>)?.email as string | undefined,
+                owner_phone: (rental.owner as Record<string, unknown>)?.phone as string | undefined,
+                rooms_count: (rental as Record<string, unknown>).roomsCount as number | undefined,
+            };
+        });
 
-    return result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        return result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } catch (err) {
+        console.error('Failed to fetch rentals for moderation:', err);
+        return [];
+    }
 }
 
 export async function moderateRental(input: ModerateRentalInput) {
@@ -229,13 +238,24 @@ export async function moderateRental(input: ModerateRentalInput) {
 
     writeState(state);
 
-    await updateManagedRentalStatus(input.rental_id, input.decision === 'approved' ? 'AVAILABLE' : 'HIDDEN');
+    // Call real backend API to update rental status
+    try {
+        await updateRentalStatusRequest(
+            input.rental_id,
+            input.decision === 'approved' ? 'AVAILABLE' : 'HIDDEN'
+        );
+    } catch (err) {
+        console.error('Failed to update rental status via API:', err);
+    }
 }
 
 export async function listRoomPostModerationItems() {
     await wait();
-    const [posts, rentals] = await Promise.all([listManagedRoomPosts(), listManagedRentals()]);
-    const rentalMap = new Map(rentals.map((item) => [item.rental_id, item.title]));
+    const [posts, rentalsResponse] = await Promise.all([
+        listManagedRoomPosts(),
+        getRentalsForModerationApi().catch(() => ({ data: [] })),
+    ]);
+    const rentalMap = new Map(rentalsResponse.data.map((item) => [item.id, item.title]));
     const state = readState();
 
     const result: RoomPostModerationItem[] = posts.map((post) => {
