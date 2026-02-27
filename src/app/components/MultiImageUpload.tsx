@@ -51,27 +51,40 @@ export function MultiImageUpload({
         setUploading(true);
         setUploadCount(selectedFiles.length);
 
-        const newUrls: string[] = [];
-        const errors: string[] = [];
+        try {
+            // Upload song song tất cả ảnh
+            const results = await Promise.allSettled(
+                selectedFiles.map((file) => uploadImageRequest(file))
+            );
 
-        for (const file of selectedFiles) {
-            try {
-                const { url } = await uploadImageRequest(file);
-                newUrls.push(url);
-            } catch (err) {
-                errors.push(err instanceof Error ? err.message : `Lỗi upload ${file.name}`);
+            const newUrls: string[] = [];
+            const errors: string[] = [];
+
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    newUrls.push(result.value.url);
+                } else {
+                    const errMsg = result.reason instanceof Error
+                        ? result.reason.message
+                        : `Lỗi upload ${selectedFiles[index].name}`;
+                    errors.push(errMsg);
+                    console.error(`Upload failed for ${selectedFiles[index].name}:`, result.reason);
+                }
+            });
+
+            if (newUrls.length > 0) {
+                onChange([...value, ...newUrls]);
             }
+            if (errors.length > 0) {
+                setError(errors.join('; '));
+            }
+        } catch (err) {
+            console.error('Unexpected upload error:', err);
+            setError(err instanceof Error ? err.message : 'Lỗi không xác định khi tải ảnh');
+        } finally {
+            setUploading(false);
+            setUploadCount(0);
         }
-
-        if (newUrls.length > 0) {
-            onChange([...value, ...newUrls]);
-        }
-        if (errors.length > 0) {
-            setError(errors.join('; '));
-        }
-
-        setUploading(false);
-        setUploadCount(0);
     };
 
     const removeImage = (index: number) => {

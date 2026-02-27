@@ -14,6 +14,7 @@ export interface RentalModerationItem {
     rental_id: string;
     user_id: string;
     title: string;
+    description?: string;
     city: string;
     district: string;
     address: string;
@@ -23,6 +24,10 @@ export interface RentalModerationItem {
     moderation_status: ModerationDecision;
     last_moderated_at?: string;
     last_note?: string;
+    images?: string[];
+    owner_email?: string;
+    owner_phone?: string;
+    rooms_count?: number;
 }
 
 export interface RoomPostModerationItem {
