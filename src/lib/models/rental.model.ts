@@ -1,4 +1,5 @@
-export type RentalStatus = 'active' | 'inactive' | 'pending' | 'expired';
+export const RENTAL_STATUSES = ['AVAILABLE', 'UNAVAILABLE', 'HIDDEN', 'VIOLATE', 'PENDING', 'SUSPEND'] as const;
+export type RentalStatus = (typeof RENTAL_STATUSES)[number];
 
 export interface Rental {
     rental_id: string;

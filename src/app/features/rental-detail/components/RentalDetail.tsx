@@ -1,12 +1,12 @@
-import { 
-  ArrowLeft, 
-  Heart, 
-  Share2, 
-  MapPin, 
+import {
+  ArrowLeft,
+  Heart,
+  Share2,
+  MapPin,
   Building2,
-  Wifi, 
-  Wind, 
-  Droplet, 
+  Wifi,
+  Wind,
+  Droplet,
   Car,
   Shield,
   Phone,
@@ -22,7 +22,7 @@ export interface RentalDetailData {
   description: string;
   summary: string;
   availableRoom: number;
-  status: 'active' | 'inactive' | 'full';
+  status: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN' | 'VIOLATE' | 'PENDING' | 'SUSPEND';
   address: string;
   images: string[];
   totalRooms: number;
@@ -52,10 +52,13 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
   const [isFavorite, setIsFavorite] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
 
-  const statusConfig = {
-    active: { label: 'Đang hoạt động', color: 'bg-primary text-primary-foreground' },
-    inactive: { label: 'Tạm ngưng', color: 'bg-muted text-muted-foreground' },
-    full: { label: 'Hết phòng', color: 'bg-accent text-accent-foreground' }
+  const statusConfig: Record<string, { label: string; color: string }> = {
+    AVAILABLE: { label: 'Còn phòng', color: 'bg-primary text-primary-foreground' },
+    UNAVAILABLE: { label: 'Hết phòng', color: 'bg-muted text-muted-foreground' },
+    HIDDEN: { label: 'Đang ẩn', color: 'bg-muted text-muted-foreground' },
+    VIOLATE: { label: 'Vi phạm', color: 'bg-destructive text-destructive-foreground' },
+    PENDING: { label: 'Chờ duyệt', color: 'bg-accent text-accent-foreground' },
+    SUSPEND: { label: 'Tạm ngưng', color: 'bg-muted text-muted-foreground' },
   };
 
   const amenityIcons: { [key: string]: any } = {
@@ -86,9 +89,8 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
                 className="p-2 rounded-lg hover:bg-muted transition-colors"
               >
                 <Heart
-                  className={`w-5 h-5 ${
-                    isFavorite ? 'fill-accent text-accent' : 'text-foreground'
-                  }`}
+                  className={`w-5 h-5 ${isFavorite ? 'fill-accent text-accent' : 'text-foreground'
+                    }`}
                 />
               </button>
               <button className="p-2 rounded-lg hover:bg-muted transition-colors">
@@ -114,9 +116,8 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
               <button
                 key={index}
                 onClick={() => setSelectedImage(index)}
-                className={`relative overflow-hidden rounded-lg aspect-video ${
-                  selectedImage === index ? 'ring-2 ring-primary' : ''
-                }`}
+                className={`relative overflow-hidden rounded-lg aspect-video ${selectedImage === index ? 'ring-2 ring-primary' : ''
+                  }`}
               >
                 <img
                   src={image}
@@ -228,11 +229,10 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
                       <button
                         onClick={() => onViewRoom(room.id)}
                         disabled={room.status !== 'available'}
-                        className={`px-4 py-2 rounded-lg transition-colors ${
-                          room.status === 'available'
-                            ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                            : 'bg-muted text-muted-foreground cursor-not-allowed'
-                        }`}
+                        className={`px-4 py-2 rounded-lg transition-colors ${room.status === 'available'
+                          ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                          : 'bg-muted text-muted-foreground cursor-not-allowed'
+                          }`}
                       >
                         {room.status === 'available' ? 'Xem phòng' : 'Đã thuê'}
                       </button>
@@ -269,7 +269,7 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
               {/* Landlord Info */}
               <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
                 <h3 className="font-nunito mb-4">Chủ nhà trọ</h3>
-                
+
                 <div className="flex items-center gap-3 mb-4">
                   <img
                     src={rental.landlord.avatar}

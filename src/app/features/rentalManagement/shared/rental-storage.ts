@@ -15,7 +15,7 @@ const DEFAULT_RENTALS: ManagedRentalItem[] = [
         address: '268 Tay Son',
         property_type: 'boarding_house',
         available_room: 5,
-        status: 'active',
+        status: 'AVAILABLE',
         created_at: '2026-02-05T09:00:00.000Z',
         thumbnail_url:
             'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
@@ -31,7 +31,7 @@ const DEFAULT_RENTALS: ManagedRentalItem[] = [
         address: '102 Dien Bien Phu',
         property_type: 'apartment',
         available_room: 2,
-        status: 'pending',
+        status: 'PENDING',
         created_at: '2026-02-07T03:30:00.000Z',
         thumbnail_url:
             'https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?auto=format&fit=crop&w=800&q=80',
@@ -125,9 +125,9 @@ export async function updateManagedRentalStatus(
     const next = current.map((rental) =>
         rental.rental_id === rentalId
             ? {
-                  ...rental,
-                  status,
-              }
+                ...rental,
+                status,
+            }
             : rental
     );
     writeStorage(next);

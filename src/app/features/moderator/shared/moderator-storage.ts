@@ -169,8 +169,8 @@ function writeState(state: ModeratorState) {
 }
 
 function deriveRentalModerationStatus(rentalStatus: string): ModerationDecision {
-    if (rentalStatus === 'pending') return 'pending_review';
-    if (rentalStatus === 'inactive') return 'rejected';
+    if (rentalStatus === 'PENDING' || rentalStatus === 'HIDDEN') return 'pending_review';
+    if (rentalStatus === 'VIOLATE') return 'rejected';
     return 'approved';
 }
 
@@ -229,7 +229,7 @@ export async function moderateRental(input: ModerateRentalInput) {
 
     writeState(state);
 
-    await updateManagedRentalStatus(input.rental_id, input.decision === 'approved' ? 'active' : 'inactive');
+    await updateManagedRentalStatus(input.rental_id, input.decision === 'approved' ? 'AVAILABLE' : 'HIDDEN');
 }
 
 export async function listRoomPostModerationItems() {
@@ -306,11 +306,11 @@ export async function handleViolationReport(input: HandleReportInput) {
     state.reports = state.reports.map((report) =>
         report.report_id === input.report_id
             ? {
-                  ...report,
-                  status,
-                  action_taken: input.action,
-                  resolved_at: resolvedAt,
-              }
+                ...report,
+                status,
+                action_taken: input.action,
+                resolved_at: resolvedAt,
+            }
             : report
     );
 
@@ -342,11 +342,11 @@ export async function moderateReview(input: ModerateReviewInput) {
     state.reviews = state.reviews.map((review) =>
         review.review_id === input.review_id
             ? {
-                  ...review,
-                  status: nextStatus,
-                  warning_count: input.action === 'warn_user' ? review.warning_count + 1 : review.warning_count,
-                  moderated_at: moderatedAt,
-              }
+                ...review,
+                status: nextStatus,
+                warning_count: input.action === 'warn_user' ? review.warning_count + 1 : review.warning_count,
+                moderated_at: moderatedAt,
+            }
             : review
     );
 

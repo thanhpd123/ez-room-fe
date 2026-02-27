@@ -26,7 +26,7 @@ MÔI TRƯỜNG:
 - Cộng đồng cư dân văn minh
 - Điện nước giá dân sự`,
     availableRoom: 5,
-    status: 'active',
+    status: 'AVAILABLE',
     address: 'Số 268 Tây Sơn, Phường Ngã Tư Sở, Quận Đống Đa, Hà Nội',
     totalRooms: 20,
     images: [
