@@ -316,6 +316,57 @@ export async function getRentalByIdRequest(rentalId: string): Promise<{
 }
 
 /**
+ * GET /rentals/moderation – moderator fetches all rentals for review.
+ */
+export async function getRentalsForModeration(query?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+}): Promise<{
+    success: boolean;
+    data: Array<{
+        id: string;
+        title: string;
+        description: string | null;
+        status: string;
+        createdAt: string;
+        owner: { id: string; fullName: string; avatarUrl: string | null } | null;
+        location: { id: string; address: string; district: string | null; city: string | null } | null;
+        images: string[];
+    }>;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const params = new URLSearchParams();
+    if (query?.page) params.set('page', String(query.page));
+    if (query?.limit) params.set('limit', String(query.limit));
+    if (query?.status) params.set('status', query.status);
+    if (query?.search) params.set('search', query.search);
+    const qs = params.toString();
+
+    const res = await authFetch(`/rentals/moderation${qs ? `?${qs}` : ''}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lấy danh sách duyệt thất bại');
+    return data;
+}
+
+/**
+ * PATCH /rentals/:rentalId/status – moderator approve/reject rental.
+ */
+export async function updateRentalStatusRequest(
+    rentalId: string,
+    status: string
+): Promise<{ success: boolean; message: string; data: Record<string, unknown> }> {
+    const res = await authFetch(`/rentals/${rentalId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Cập nhật trạng thái thất bại');
+    return data;
+}
+
+/**
  * GET /auth/me – current user from backend (verifies token end-to-end).
  */
 export async function fetchAuthMe(): Promise<{

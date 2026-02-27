@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MultiImageUpload } from '@/app/components/MultiImageUpload';
+import { ImageUpload } from '@/app/components/ImageUpload';
 import { createRentalRequest } from '@/lib/api';
 import { PROPERTY_TYPE_OPTIONS, type PropertyType } from '../shared/types';
 
@@ -13,7 +13,7 @@ interface CreateRentalFormState {
     address: string;
     property_type: PropertyType;
     available_room: string;
-    images: string[];
+    image: string;
 }
 
 type FormErrors = Partial<Record<keyof CreateRentalFormState, string>>;
@@ -27,7 +27,7 @@ const initialForm: CreateRentalFormState = {
     address: '',
     property_type: 'boarding_house',
     available_room: '1',
-    images: [],
+    image: '',
 };
 
 export function CreateRentalPage() {
@@ -75,7 +75,7 @@ export function CreateRentalPage() {
                 city: form.city,
                 district: form.district,
                 address: form.address,
-                images: form.images.length > 0 ? form.images : undefined,
+                images: form.image ? [form.image] : undefined,
             });
 
             navigate('/rental-management/rentals');
@@ -129,7 +129,7 @@ export function CreateRentalPage() {
                         <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
                             <p className="text-sm font-medium text-amber-800">⏳ Trạng thái: Chờ duyệt</p>
                             <p className="mt-0.5 text-xs text-amber-600">
-                                Bài đăng mới tạo sẽ ở trạng thái chờ duyệt. Moderator sẽ duyệt để chuyển sang Active.
+                                Bài đăng mới tạo sẽ ở trạng thái chờ duyệt. Moderator sẽ duyệt để chuyển sang Available.
                             </p>
                         </div>
                     </div>
@@ -184,11 +184,10 @@ export function CreateRentalPage() {
                     </div>
 
                     <div className="md:col-span-2">
-                        <MultiImageUpload
+                        <ImageUpload
                             label="Ảnh bài đăng"
-                            value={form.images}
-                            onChange={(urls) => onChangeField('images')(urls)}
-                            maxImages={10}
+                            value={form.image}
+                            onChange={(url) => onChangeField('image')(url)}
                         />
                     </div>
 
