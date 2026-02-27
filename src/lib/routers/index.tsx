@@ -15,6 +15,14 @@ import {
     ModerateRoomPostListPage,
     ModeratorDashboardPage,
 } from '@/app/features/moderator';
+import {
+    AdminLayout,
+    AdminDashboardPage,
+    AdminUsersPage,
+    AdminRentalsPage,
+    AdminAmenitiesPage,
+    AdminLocationsPage,
+} from '@/app/features/admin';
 import { LoginPage, ForgotPasswordPage, ResetPasswordPage, CompleteSignupPage } from '@/app/features/auth';
 import { RegisterPage } from '@/app/features/common';
 import { ProfilePage } from '@/app/features/profile';
@@ -142,5 +150,35 @@ export const router = createBrowserRouter([
     {
         path: '/moderator/reviews',
         element: <ModerateReviewsPage />,
+    },
+    {
+        path: '/admin',
+        element: (
+            <ProtectedRoute requiredRole="ADMIN">
+                <AdminLayout />
+            </ProtectedRoute>
+        ),
+        children: [
+            {
+                index: true,
+                element: <AdminDashboardPage />,
+            },
+            {
+                path: 'users',
+                element: <AdminUsersPage />,
+            },
+            {
+                path: 'rentals',
+                element: <AdminRentalsPage />,
+            },
+            {
+                path: 'amenities',
+                element: <AdminAmenitiesPage />,
+            },
+            {
+                path: 'locations',
+                element: <AdminLocationsPage />,
+            },
+        ],
     },
 ]);
