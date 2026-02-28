@@ -1,56 +1,105 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Shield, Wallet, ChevronRight } from 'lucide-react';
-import { Header, Footer, SearchForm, ListingCard, LocationCard } from './components';
+import {
+    Header,
+    Footer,
+    SearchForm,
+    HeroSlideshow,
+    FeaturedSlideshow,
+    PopularAreasCard,
+} from './components';
 import type { SearchFilters } from './components';
-import { FEATURED_LISTINGS, POPULAR_LOCATIONS } from './constants';
+import { usePublicRentals, useUserInHanoi, getDistinctLocations, pickThreeLocations } from './hooks/usePublicRentals';
+
+const HERO_CAROUSEL_LIMIT = 10;
 
 export function HomePage() {
     const navigate = useNavigate();
+    const { rentals: heroRentals } = usePublicRentals({ limit: HERO_CAROUSEL_LIMIT });
+    const { rentals, loading: rentalsLoading } = usePublicRentals({ limit: 500 });
+    const { inHanoi, loading: locationLoading } = useUserInHanoi();
+
+    const locations = useMemo(() => getDistinctLocations(rentals), [rentals]);
+    const threeLocations = useMemo(
+        () => pickThreeLocations(locations, inHanoi),
+        [locations, inHanoi]
+    );
+
+    const featuredSlides = useMemo(() => {
+        const byLocation = threeLocations.map((loc) => ({
+            district: loc.district,
+            city: loc.city,
+            rentals: rentals.filter(
+                (r) =>
+                    (r.location?.district?.trim() || '') === loc.district &&
+                    (r.location?.city?.trim() || '') === loc.city
+            ),
+        }));
+        if (byLocation.length === 0 && rentals.length > 0) {
+            return [{ district: 'Gợi ý', city: '', rentals }];
+        }
+        return byLocation;
+    }, [threeLocations, rentals]);
+
+    const popularAreas = useMemo(() => {
+        const count: Record<string, { district: string; city: string; count: number; image: string }> = {};
+        rentals.forEach((r) => {
+            const d = r.location?.district?.trim() || 'N/A';
+            const c = r.location?.city?.trim() || 'N/A';
+            const key = `${d}|${c}`;
+            if (!count[key]) count[key] = { district: d, city: c, count: 0, image: r.images?.[0] || '' };
+            count[key].count += 1;
+        });
+        return Object.values(count)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 8);
+    }, [rentals]);
 
     const handleSearch = (query: string, filters: SearchFilters) => {
-        console.log('Search:', { query, filters });
+        const params = new URLSearchParams();
+        if (query) params.set('q', query);
+        if (filters.location) params.set('location', filters.location);
+        if (filters.priceRange) {
+            const [min, max] = filters.priceRange.split('-');
+            const minVal = min ? parseInt(min, 10) * 1_000_000 : 0;
+            const maxVal = max === '+' ? undefined : max ? parseInt(max, 10) * 1_000_000 : undefined;
+            params.set('price', maxVal ? `${minVal}-${maxVal}` : `${minVal}`);
+        }
+        if (filters.roomType) params.set('roomType', filters.roomType);
+        navigate(`/search?${params.toString()}`);
     };
 
-    const handleAdvancedSearch = () => {
-        navigate('/search');
-    };
+    const handleAdvancedSearch = () => navigate('/search');
+    const handleLogin = () => navigate('/login');
+    const handleRegister = () => navigate('/register');
+    const handleViewAll = () => navigate('/browse');
 
-    const handleLogin = () => {
-        navigate('/login');
-    };
-
-    const handleRegister = () => {
-        navigate('/register');
-    };
-    const handleListingClick = (id: string) => {
-        console.log('Listing clicked:', id);
-    };
-
-    const handleLocationClick = (name: string) => {
-        console.log('Location clicked:', name);
+    const handleSeeAllFeatured = (district: string, city: string) => {
+        const p = new URLSearchParams();
+        if (district) p.set('district', district);
+        if (city) p.set('city', city);
+        navigate(`/browse?${p.toString()}`);
     };
 
     return (
         <div className="min-h-screen bg-background">
             <Header onLogin={handleLogin} onRegister={handleRegister} />
 
-            {/* Hero */}
-            <section className="relative overflow-hidden">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-20 sm:pb-28">
-                    <div className="text-center mb-14">
-                        <h1 className="text-foreground mb-5 max-w-3xl mx-auto">
-                            Tìm phòng trọ ưng ý & <br className="hidden sm:block" />
-                            Bạn ở ghép lý tưởng trong vài giây
-                        </h1>
-                        <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
-                            Tìm kiếm thông minh bằng AI, thanh toán an toàn, xác thực chủ nhà
-                        </p>
-                    </div>
-                    <div className="max-w-4xl mx-auto">
-                        <SearchForm onSearch={handleSearch} onAdvancedSearch={handleAdvancedSearch} />
-                    </div>
+            {/* Hero: background carousel uses top 10 rentals only. */}
+            <HeroSlideshow rentals={heroRentals}>
+                <div className="text-center mb-4">
+                    <h1 className="text-white text-2xl sm:text-3xl font-bold mb-2 drop-shadow-md">
+                        Tìm phòng trọ ưng ý & bạn ở ghép lý tưởng
+                    </h1>
+                    <p className="text-white/90 text-sm sm:text-base drop-shadow">
+                        Tìm kiếm thông minh bằng AI, thanh toán an toàn
+                    </p>
                 </div>
-            </section>
+                <div className="w-full max-w-2xl">
+                    <SearchForm onSearch={handleSearch} onAdvancedSearch={handleAdvancedSearch} />
+                </div>
+            </HeroSlideshow>
 
             {/* AI Feature */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -77,36 +126,49 @@ export function HomePage() {
                 </div>
             </section>
 
-            {/* Featured Listings */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-                <div className="flex items-center justify-between mb-10">
+            {/* Phòng nổi bật: slideshow with pagination, 3 nearest (or random) locations, real data. See all → browse with filter. */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h2 className="text-foreground mb-2">Phòng nổi bật</h2>
-                        <p className="text-muted-foreground">Các phòng được đánh giá cao nhất</p>
+                        <h2 className="text-foreground text-xl font-semibold mb-2">Phòng nổi bật</h2>
+                        <p className="text-muted-foreground">
+                            {!locationLoading && inHanoi ? 'Gợi ý theo khu vực gần bạn' : 'Khám phá theo khu vực'}
+                        </p>
                     </div>
-                    <button type="button" className="flex items-center gap-1 text-primary font-medium hover:gap-2 transition-all">
+                    <button
+                        type="button"
+                        onClick={handleViewAll}
+                        className="flex items-center gap-1 text-primary font-medium hover:gap-2 transition-all"
+                    >
                         Xem tất cả
                         <ChevronRight className="w-4 h-4" strokeWidth={2} />
                     </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {FEATURED_LISTINGS.map((listing) => (
-                        <ListingCard key={listing.id} listing={listing} onClick={handleListingClick} />
-                    ))}
-                </div>
+                {rentalsLoading ? (
+                    <div className="py-12 text-center text-muted-foreground">Đang tải...</div>
+                ) : (
+                    <FeaturedSlideshow slides={featuredSlides} onSeeAll={handleSeeAllFeatured} />
+                )}
             </section>
 
-            {/* Popular Locations */}
+            {/* Khu vực phổ biến - from API */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                 <div className="text-center mb-10">
-                    <h2 className="text-foreground mb-2">Khu vực phổ biến</h2>
+                    <h2 className="text-foreground text-xl font-semibold mb-2">Khu vực phổ biến</h2>
                     <p className="text-muted-foreground">Khám phá các khu vực có nhiều phòng trọ nhất</p>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-                    {POPULAR_LOCATIONS.map((location, index) => (
-                        <LocationCard key={index} location={location} onClick={handleLocationClick} />
-                    ))}
-                </div>
+                {popularAreas.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">Chưa có dữ liệu khu vực.</div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-5">
+                        {popularAreas.map((area) => (
+                            <PopularAreasCard
+                                key={`${area.district}-${area.city}`}
+                                area={{ ...area, count: area.count, image: area.image }}
+                            />
+                        ))}
+                    </div>
+                )}
             </section>
 
             {/* Why EzRoom */}

@@ -3,3 +3,6 @@ export * from './Footer';
 export * from './SearchForm';
 export * from './ListingCard';
 export * from './LocationCard';
+export * from './HeroSlideshow';
+export * from './FeaturedSlideshow';
+export * from './PopularAreasCard';

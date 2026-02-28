@@ -15,6 +15,7 @@ export interface Room {
 }
 
 export interface SearchCriteria {
+    q?: string;
     location?: string;
     minPrice?: number;
     maxPrice?: number;

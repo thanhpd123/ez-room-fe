@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
-import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw, Mic } from 'lucide-react';
 import type { SearchCriteria, RoomType } from '../types';
 import { AMENITIES_LIST, ROOM_TYPE_OPTIONS } from '../constants';
 
 interface SearchByTextProps {
     onSearch: (criteria: SearchCriteria) => void;
     isSearching: boolean;
+    /** Guest: only name, description, location, price, type. Tenant/VIP: full (area, amenities). */
+    basicOnly?: boolean;
+    /** Voice search: callback with transcribed text to fill q. */
+    onVoiceResult?: (text: string) => void;
 }
 
 interface FormState {
+    q: string;
     location: string;
     minPrice: string;
     maxPrice: string;
@@ -19,6 +24,7 @@ interface FormState {
 }
 
 const initialFormState: FormState = {
+    q: '',
     location: '',
     minPrice: '',
     maxPrice: '',
@@ -28,7 +34,48 @@ const initialFormState: FormState = {
     selectedAmenities: [],
 };
 
-export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
+function VoiceSearchButton({
+    onResult,
+    disabled,
+}: {
+    onResult: (text: string) => void;
+    disabled?: boolean;
+}) {
+    const [listening, setListening] = useState(false);
+    const startListening = useCallback(() => {
+        const SpeechRecognition = (window as unknown as { SpeechRecognition?: new () => SpeechRecognition; webkitSpeechRecognition?: new () => SpeechRecognition }).SpeechRecognition
+            || (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition }).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            onResult('');
+            return;
+        }
+        const rec = new SpeechRecognition();
+        rec.lang = 'vi-VN';
+        rec.continuous = false;
+        rec.interimResults = false;
+        rec.onresult = (e: SpeechRecognitionEvent) => {
+            const t = e.results?.[0]?.[0]?.transcript ?? '';
+            onResult(t);
+        };
+        rec.onend = () => setListening(false);
+        rec.onerror = () => setListening(false);
+        setListening(true);
+        rec.start();
+    }, [onResult]);
+    return (
+        <button
+            type="button"
+            onClick={startListening}
+            disabled={disabled || listening}
+            className="p-3 rounded-xl border border-border bg-background hover:bg-muted transition-all disabled:opacity-50 flex items-center justify-center"
+            title="Tìm kiếm bằng giọng nói"
+        >
+            <Mic className={`w-5 h-5 ${listening ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
+        </button>
+    );
+}
+
+export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoiceResult }: SearchByTextProps) {
     const [formState, setFormState] = useState<FormState>(initialFormState);
     const [error, setError] = useState('');
 
@@ -104,13 +151,14 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
         }
 
         const criteria: SearchCriteria = {
+            q: formState.q.trim() || undefined,
             location: formState.location.trim() || undefined,
             minPrice: formState.minPrice ? Number(formState.minPrice) : undefined,
             maxPrice: formState.maxPrice ? Number(formState.maxPrice) : undefined,
-            minArea: formState.minArea ? Number(formState.minArea) : undefined,
-            maxArea: formState.maxArea ? Number(formState.maxArea) : undefined,
+            minArea: basicOnly ? undefined : (formState.minArea ? Number(formState.minArea) : undefined),
+            maxArea: basicOnly ? undefined : (formState.maxArea ? Number(formState.maxArea) : undefined),
             roomType: formState.roomType || undefined,
-            amenities: formState.selectedAmenities.length > 0 ? formState.selectedAmenities : undefined,
+            amenities: basicOnly ? undefined : (formState.selectedAmenities.length > 0 ? formState.selectedAmenities : undefined),
         };
 
         onSearch(criteria);
@@ -131,6 +179,27 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Search query (name, description) */}
+                <div className="space-y-2">
+                    <label className="flex items-center gap-2 font-medium text-foreground">
+                        <Search className="w-4 h-4 text-primary" />
+                        Từ khóa (tên, mô tả)
+                    </label>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={formState.q}
+                            onChange={(e) => handleInputChange('q', e.target.value)}
+                            placeholder="VD: phòng có ban công, gần trường..."
+                            disabled={isSearching}
+                            className="flex-1 px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                        />
+                        {onVoiceResult && (
+                            <VoiceSearchButton onResult={(t) => { handleInputChange('q', t); onVoiceResult(t); }} disabled={isSearching} />
+                        )}
+                    </div>
+                </div>
+
                 {/* Location */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
@@ -173,7 +242,8 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
                     </div>
                 </div>
 
-                {/* Area Range */}
+                {/* Area Range – tenant/VIP only */}
+                {!basicOnly && (
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
                         <Maximize className="w-4 h-4 text-primary" />
@@ -198,6 +268,7 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
                         />
                     </div>
                 </div>
+                )}
 
                 {/* Room Type */}
                 <div className="space-y-2">
@@ -220,7 +291,8 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
                     </select>
                 </div>
 
-                {/* Amenities */}
+                {/* Amenities – tenant/VIP only */}
+                {!basicOnly && (
                 <div className="space-y-3">
                     <label className="font-medium text-foreground">Tiện nghi</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -244,6 +316,7 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
                         ))}
                     </div>
                 </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">

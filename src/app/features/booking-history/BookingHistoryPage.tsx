@@ -7,7 +7,7 @@ import {
     ReportModal,
     EmptyState,
 } from './components';
-import { MOCK_BOOKINGS, type BookingTabValue } from './constants';
+import { type BookingTabValue } from './constants';
 import { filterBookings } from './utils';
 import type { ReviewData, ReportData } from './types';
 
@@ -33,8 +33,8 @@ export function BookingHistoryPage() {
     const [isEditingReview, setIsEditingReview] = React.useState(false);
     const [existingReviewRating, setExistingReviewRating] = React.useState(0);
 
-    // Filtered bookings
-    const filteredBookings = filterBookings(MOCK_BOOKINGS, activeTab);
+    // Filtered bookings (from API when available)
+    const filteredBookings = filterBookings([], activeTab);
 
     // Handlers
     const handleWriteReview = (bookingId: string, propertyName: string) => {

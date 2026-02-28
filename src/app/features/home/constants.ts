@@ -66,10 +66,17 @@ export const POPULAR_LOCATIONS = [
 
 export const LOCATION_OPTIONS = [
     { value: '', label: 'Chọn khu vực' },
-    { value: 'q1', label: 'Quận 1' },
-    { value: 'q7', label: 'Quận 7' },
-    { value: 'q10', label: 'Quận 10' },
-    { value: 'bt', label: 'Bình Thạnh' },
+    { value: 'Hoàn Kiếm', label: 'Hoàn Kiếm (Hà Nội)' },
+    { value: 'Cầu Giấy', label: 'Cầu Giấy (Hà Nội)' },
+    { value: 'Hoàng Mai', label: 'Hoàng Mai (Hà Nội)' },
+    { value: 'Đống Đa', label: 'Đống Đa (Hà Nội)' },
+    { value: 'Tây Hồ', label: 'Tây Hồ (Hà Nội)' },
+    { value: 'Quận 1', label: 'Quận 1 (HCM)' },
+    { value: 'Quận 3', label: 'Quận 3 (HCM)' },
+    { value: 'Quận 7', label: 'Quận 7 (HCM)' },
+    { value: 'Quận 10', label: 'Quận 10 (HCM)' },
+    { value: 'Bình Thạnh', label: 'Bình Thạnh (HCM)' },
+    { value: 'Thủ Đức', label: 'Thủ Đức (HCM)' },
 ];
 
 export const PRICE_OPTIONS = [

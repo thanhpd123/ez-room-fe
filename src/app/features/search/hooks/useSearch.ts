@@ -1,98 +1,140 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { Room, SearchCriteria } from '../types';
-import { MOCK_ROOMS } from '../constants';
+import { smartSearchRequest, searchByImageRequest } from '@/lib/api';
+
+function smartSearchItemToRoom(r: {
+    id: string;
+    title: string;
+    location: { district: string | null; city: string | null } | null;
+    images: string[];
+    price: number;
+    area: number | null;
+    roomType: string | null;
+    amenities?: string[];
+}): Room {
+    const loc = r.location;
+    const locationStr = [loc?.district, loc?.city].filter(Boolean).join(', ') || 'N/A';
+    return {
+        id: r.id,
+        title: r.title,
+        location: locationStr,
+        price: r.price ?? 0,
+        area: r.area ?? 0,
+        roomType: (r.roomType as Room['roomType']) || 'apartment',
+        amenities: r.amenities ?? [],
+        image: r.images?.[0] || '',
+        rating: 0,
+        available: true,
+        rentalId: r.id,
+    };
+}
 
 interface UseSearchReturn {
     results: Room[];
     isSearching: boolean;
     hasSearched: boolean;
     searchByText: (criteria: SearchCriteria) => void;
-    searchByImage: (imageFile: File) => void;
+    searchByImage: (imageFile: File, options?: { district?: string }) => void;
     resetSearch: () => void;
-}
-
-function filterRooms(rooms: Room[], criteria: SearchCriteria): Room[] {
-    return rooms.filter((room) => {
-        // Filter by location
-        if (criteria.location && !room.location.toLowerCase().includes(criteria.location.toLowerCase())) {
-            return false;
-        }
-
-        // Filter by price range
-        if (criteria.minPrice && room.price < criteria.minPrice) {
-            return false;
-        }
-        if (criteria.maxPrice && room.price > criteria.maxPrice) {
-            return false;
-        }
-
-        // Filter by area range
-        if (criteria.minArea && room.area < criteria.minArea) {
-            return false;
-        }
-        if (criteria.maxArea && room.area > criteria.maxArea) {
-            return false;
-        }
-
-        // Filter by room type
-        if (criteria.roomType && room.roomType !== criteria.roomType) {
-            return false;
-        }
-
-        // Filter by amenities
-        if (criteria.amenities && criteria.amenities.length > 0) {
-            const hasAllAmenities = criteria.amenities.every((amenity) =>
-                room.amenities.includes(amenity)
-            );
-            if (!hasAllAmenities) {
-                return false;
-            }
-        }
-
-        return true;
-    });
+    imageSearchError: string | null;
 }
 
 export function useSearch(): UseSearchReturn {
+    const [searchParams] = useSearchParams();
     const [results, setResults] = useState<Room[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
+    const [imageSearchError, setImageSearchError] = useState<string | null>(null);
 
     const searchByText = useCallback((criteria: SearchCriteria) => {
         setIsSearching(true);
         setHasSearched(false);
-
-        // Simulate API call
-        setTimeout(() => {
-            const filteredResults = filterRooms(MOCK_ROOMS, criteria);
-            setResults(filteredResults);
-            setIsSearching(false);
-            setHasSearched(true);
-        }, 800);
+        setImageSearchError(null);
+        const district = criteria.location?.trim();
+        smartSearchRequest({
+            q: criteria.q || undefined,
+            district: district || undefined,
+            minPrice: criteria.minPrice,
+            maxPrice: criteria.maxPrice,
+            roomType: criteria.roomType || undefined,
+            minArea: criteria.minArea,
+            maxArea: criteria.maxArea,
+            amenities: criteria.amenities?.length ? criteria.amenities : undefined,
+            limit: 100,
+        })
+            .then((res) => {
+                setResults((res.data || []).map(smartSearchItemToRoom));
+            })
+            .catch(() => setResults([]))
+            .finally(() => {
+                setIsSearching(false);
+                setHasSearched(true);
+            });
     }, []);
 
-    const searchByImage = useCallback((imageFile: File) => {
+    const searchByImage = useCallback((imageFile: File, options?: { district?: string }) => {
         setIsSearching(true);
         setHasSearched(false);
-
-        // Simulate AI image analysis and search
-        // In production, this would send the image to the backend for CLIP vector analysis
-        console.log('Searching with image:', imageFile.name, imageFile.size, 'bytes');
-        setTimeout(() => {
-            // Return random subset of rooms sorted by "similarity"
-            const shuffled = [...MOCK_ROOMS].sort(() => 0.5 - Math.random());
-            const similarRooms = shuffled.slice(0, 4);
-
-            setResults(similarRooms);
-            setIsSearching(false);
-            setHasSearched(true);
-        }, 1500);
+        setImageSearchError(null);
+        searchByImageRequest(imageFile, { district: options?.district })
+            .then((res) => {
+                const items = res.data || [];
+                setResults(
+                    items.map((r) => ({
+                        id: r.id,
+                        title: r.title,
+                        location: r.location ? [r.location.district, r.location.city].filter(Boolean).join(', ') : 'N/A',
+                        price: r.price ?? 0,
+                        area: 0,
+                        roomType: 'apartment' as const,
+                        amenities: [],
+                        image: r.images?.[0] || '',
+                        rating: 0,
+                        available: true,
+                        rentalId: r.id,
+                    }))
+                );
+            })
+            .catch((err) => {
+                setImageSearchError(err?.message || 'Lỗi tìm kiếm ảnh');
+                setResults([]);
+            })
+            .finally(() => {
+                setIsSearching(false);
+                setHasSearched(true);
+            });
     }, []);
 
     const resetSearch = useCallback(() => {
         setResults([]);
         setHasSearched(false);
+        setImageSearchError(null);
     }, []);
+
+    // Auto-search from URL params on mount
+    useEffect(() => {
+        const district = searchParams.get('district');
+        const city = searchParams.get('city');
+        const q = searchParams.get('q');
+        const location = searchParams.get('location');
+        const price = searchParams.get('price');
+        const roomType = searchParams.get('roomType');
+        if (district || city || q || location || price || roomType) {
+            const criteria: SearchCriteria = {
+                q: q || undefined,
+                location: district || city || location || undefined,
+                roomType: (roomType as SearchCriteria['roomType']) || undefined,
+            };
+            if (price) {
+                const parts = price.split('-').map((s) => (s ? parseInt(s, 10) : undefined));
+                if (parts[0] != null) criteria.minPrice = parts[0];
+                if (parts[1] != null) criteria.maxPrice = parts[1];
+            }
+            searchByText(criteria);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when URL params change
+    }, [searchParams.toString()]);
 
     return {
         results,
@@ -101,5 +143,6 @@ export function useSearch(): UseSearchReturn {
         searchByText,
         searchByImage,
         resetSearch,
+        imageSearchError,
     };
 }

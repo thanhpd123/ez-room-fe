@@ -15,32 +15,8 @@ import {
   Bed
 } from 'lucide-react';
 import { useState } from 'react';
-
-export interface RentalDetailData {
-  id: string;
-  title: string;
-  description: string;
-  summary: string;
-  availableRoom: number;
-  status: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN' | 'VIOLATE' | 'PENDING' | 'SUSPEND';
-  address: string;
-  images: string[];
-  totalRooms: number;
-  amenities: string[];
-  landlord: {
-    name: string;
-    phone: string;
-    email: string;
-    avatar: string;
-  };
-  rooms: {
-    id: string;
-    title: string;
-    price: number;
-    area: number;
-    status: 'available' | 'occupied';
-  }[];
-}
+import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+import type { RentalDetailData } from '../types';
 
 interface RentalDetailProps {
   rental: RentalDetailData;
@@ -60,14 +36,18 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
     PENDING: { label: 'Chờ duyệt', color: 'bg-accent text-accent-foreground' },
     SUSPEND: { label: 'Tạm ngưng', color: 'bg-muted text-muted-foreground' },
   };
+  const statusInfo = statusConfig[rental.status] ?? statusConfig.PENDING;
 
-  const amenityIcons: { [key: string]: any } = {
+  const amenityIcons: Record<string, typeof Check> = {
     'Wifi miễn phí': Wifi,
+    'Wifi': Wifi,
     'Điều hòa': Wind,
     'Nóng lạnh': Droplet,
     'Bãi xe': Car,
     'An ninh 24/7': Shield,
+    'An ninh': Shield,
   };
+  const defaultPlaceholder = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800';
 
   return (
     <div className="min-h-screen bg-background">
@@ -102,26 +82,27 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Image Gallery */}
+        {/* Image Gallery – actual rental images */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
           <div className="lg:col-span-2">
-            <img
-              src={rental.images[selectedImage]}
+            <ImageWithFallback
+              src={rental.images[selectedImage] || rental.images[0] || defaultPlaceholder}
               alt={rental.title}
               className="w-full h-96 object-cover rounded-xl"
             />
           </div>
           <div className="lg:col-span-2 grid grid-cols-4 gap-4">
-            {rental.images.map((image, index) => (
+            {(rental.images?.length ? rental.images : []).map((image, index) => (
               <button
                 key={index}
+                type="button"
                 onClick={() => setSelectedImage(index)}
                 className={`relative overflow-hidden rounded-lg aspect-video ${selectedImage === index ? 'ring-2 ring-primary' : ''
                   }`}
               >
-                <img
+                <ImageWithFallback
                   src={image}
-                  alt={`Gallery ${index + 1}`}
+                  alt={`Ảnh ${index + 1}`}
                   className="w-full h-full object-cover hover:scale-105 transition-transform"
                 />
               </button>
@@ -136,8 +117,8 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
             <div>
               <div className="flex items-start justify-between gap-4 mb-3">
                 <h1 className="font-nunito">{rental.title}</h1>
-                <span className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap ${statusConfig[rental.status].color}`}>
-                  {statusConfig[rental.status].label}
+                <span className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap ${statusInfo.color}`}>
+                  {statusInfo.label}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground mb-4">
@@ -182,63 +163,89 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
               </p>
             </div>
 
-            {/* Amenities */}
-            <div className="bg-white rounded-xl border border-border p-6">
-              <h3 className="font-nunito mb-4">Tiện ích chung</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {rental.amenities.map((amenity, index) => {
-                  const Icon = amenityIcons[amenity] || Check;
-                  return (
-                    <div key={index} className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-5 h-5 text-primary" />
+            {/* Amenities – actual from DB (aggregated from rooms) */}
+            {(rental.amenities?.length ?? 0) > 0 && (
+              <div className="bg-white rounded-xl border border-border p-6">
+                <h3 className="font-nunito mb-4">Tiện ích chung</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {rental.amenities.map((amenity, index) => {
+                    const Icon = amenityIcons[amenity] || Check;
+                    return (
+                      <div key={`${amenity}-${index}`} className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Icon className="w-5 h-5 text-primary" />
+                        </div>
+                        <span className="text-foreground">{amenity}</span>
                       </div>
-                      <span className="text-foreground">{amenity}</span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Available Rooms – actual room data with images */}
+            <div className="bg-white rounded-xl border border-border p-6">
+              <h3 className="font-nunito mb-4">Danh sách phòng</h3>
+              <div className="space-y-4">
+                {rental.rooms.map((room) => {
+                  const roomImages = room.images?.length ? room.images : [];
+                  const thumbSrc = roomImages[0] || defaultPlaceholder;
+                  return (
+                    <div
+                      key={room.id}
+                      className="flex flex-col sm:flex-row gap-4 p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all"
+                    >
+                      <div className="flex-shrink-0 w-full sm:w-40 h-32 rounded-lg overflow-hidden bg-muted">
+                        <ImageWithFallback
+                          src={thumbSrc}
+                          alt={room.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-foreground mb-1">{room.title}</h4>
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-1">
+                          <span>{room.area}m²</span>
+                          <span className="h-1 w-1 bg-muted-foreground rounded-full" />
+                          <span className={room.status === 'available' ? 'text-primary' : 'text-muted-foreground'}>
+                            {room.status === 'available' ? 'Còn trống' : 'Đã cho thuê'}
+                          </span>
+                        </div>
+                        {room.amenities?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {room.amenities.slice(0, 5).map((a, i) => (
+                              <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                {a}
+                              </span>
+                            ))}
+                            {room.amenities.length > 5 && (
+                              <span className="text-xs text-muted-foreground">+{room.amenities.length - 5}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        <div className="text-right">
+                          <p className="text-lg font-semibold text-primary">
+                            {Number(room.price).toLocaleString('vi-VN')} ₫
+                          </p>
+                          <p className="text-xs text-muted-foreground">/tháng</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onViewRoom(room.id)}
+                          disabled={room.status !== 'available'}
+                          className={`px-4 py-2 rounded-lg transition-colors ${room.status === 'available'
+                            ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                            : 'bg-muted text-muted-foreground cursor-not-allowed'
+                            }`}
+                        >
+                          {room.status === 'available' ? 'Xem phòng' : 'Đã thuê'}
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* Available Rooms */}
-            <div className="bg-white rounded-xl border border-border p-6">
-              <h3 className="font-nunito mb-4">Danh sách phòng</h3>
-              <div className="space-y-3">
-                {rental.rooms.map((room) => (
-                  <div
-                    key={room.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all"
-                  >
-                    <div className="flex-1">
-                      <h4 className="font-medium text-foreground mb-1">{room.title}</h4>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{room.area}m²</span>
-                        <span className="h-1 w-1 bg-muted-foreground rounded-full"></span>
-                        <span className={room.status === 'available' ? 'text-primary' : 'text-muted-foreground'}>
-                          {room.status === 'available' ? 'Còn trống' : 'Đã cho thuê'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="text-lg font-semibold text-primary">
-                          {room.price.toLocaleString('vi-VN')} ₫
-                        </p>
-                        <p className="text-xs text-muted-foreground">/tháng</p>
-                      </div>
-                      <button
-                        onClick={() => onViewRoom(room.id)}
-                        disabled={room.status !== 'available'}
-                        className={`px-4 py-2 rounded-lg transition-colors ${room.status === 'available'
-                          ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                          : 'bg-muted text-muted-foreground cursor-not-allowed'
-                          }`}
-                      >
-                        {room.status === 'available' ? 'Xem phòng' : 'Đã thuê'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
@@ -266,37 +273,44 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
                 </button>
               </div>
 
-              {/* Landlord Info */}
+              {/* Landlord Info – actual owner from DB */}
               <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
                 <h3 className="font-nunito mb-4">Chủ nhà trọ</h3>
 
                 <div className="flex items-center gap-3 mb-4">
-                  <img
-                    src={rental.landlord.avatar}
+                  <ImageWithFallback
+                    src={rental.landlord.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=96&h=96&fit=crop'}
                     alt={rental.landlord.name}
                     className="w-12 h-12 rounded-full object-cover"
                   />
                   <div>
-                    <p className="font-medium text-foreground">{rental.landlord.name}</p>
+                    <p className="font-medium text-foreground">{rental.landlord.name || 'Chủ nhà'}</p>
                     <p className="text-sm text-muted-foreground">Chủ nhà</p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <a
-                    href={`tel:${rental.landlord.phone}`}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <Phone className="w-5 h-5 text-primary" />
-                    <span className="text-foreground">{rental.landlord.phone}</span>
-                  </a>
-                  <a
-                    href={`mailto:${rental.landlord.email}`}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <Mail className="w-5 h-5 text-primary" />
-                    <span className="text-foreground text-sm">{rental.landlord.email}</span>
-                  </a>
+                  {rental.landlord.phone && (
+                    <a
+                      href={`tel:${rental.landlord.phone}`}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <Phone className="w-5 h-5 text-primary" />
+                      <span className="text-foreground">{rental.landlord.phone}</span>
+                    </a>
+                  )}
+                  {rental.landlord.email && (
+                    <a
+                      href={`mailto:${rental.landlord.email}`}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <Mail className="w-5 h-5 text-primary" />
+                      <span className="text-foreground text-sm break-all">{rental.landlord.email}</span>
+                    </a>
+                  )}
+                  {!rental.landlord.phone && !rental.landlord.email && (
+                    <p className="text-sm text-muted-foreground">Liên hệ qua tin nhắn trên trang.</p>
+                  )}
                 </div>
               </div>
 

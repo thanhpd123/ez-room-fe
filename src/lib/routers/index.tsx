@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { HomePage } from '@/app/features/home';
 import { SearchPage } from '@/app/features/search';
+import { BrowsePage } from '@/app/features/browse';
 import { BookingHistoryPage } from '@/app/features/booking-history';
 import { RentalDetailPage } from '@/app/features/rental-detail';
 import { RoomDetailPage } from '@/app/features/room-detail';
@@ -23,7 +24,7 @@ import {
     AdminAmenitiesPage,
     AdminLocationsPage,
 } from '@/app/features/admin';
-import { LoginPage, ForgotPasswordPage, ResetPasswordPage, CompleteSignupPage } from '@/app/features/auth';
+import { LoginPage, ForgotPasswordPage, ResetPasswordPage, CompleteSignupPage, OAuthCallbackPage } from '@/app/features/auth';
 import { RegisterPage } from '@/app/features/common';
 import { ProfilePage } from '@/app/features/profile';
 import LayoutModerator from '@/app/layouts/layout_moderator/LayoutModerator';
@@ -51,12 +52,20 @@ export const router = createBrowserRouter([
         element: <CompleteSignupPage />,
     },
     {
+        path: '/auth/callback',
+        element: <OAuthCallbackPage />,
+    },
+    {
         path: '/home',
         element: <HomePage />,
     },
     {
         path: '/search',
         element: <SearchPage />,
+    },
+    {
+        path: '/browse',
+        element: <BrowsePage />,
     },
     {
         path: '/history',

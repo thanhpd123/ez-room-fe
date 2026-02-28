@@ -3,11 +3,13 @@ import { Upload, Image as ImageIcon, X, AlertCircle, CheckCircle } from 'lucide-
 import { MAX_IMAGE_SIZE, VALID_IMAGE_TYPES } from '../constants';
 
 interface SearchByImageProps {
-    onSearch: (imageFile: File) => void;
+    onSearch: (imageFile: File, options?: { district?: string }) => void;
     isSearching: boolean;
+    imageSearchError?: string | null;
+    isVip?: boolean;
 }
 
-export function SearchByImage({ onSearch, isSearching }: SearchByImageProps) {
+export function SearchByImage({ onSearch, isSearching, imageSearchError = null, isVip = false }: SearchByImageProps) {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string>('');
     const [error, setError] = useState('');
@@ -104,11 +106,14 @@ export function SearchByImage({ onSearch, isSearching }: SearchByImageProps) {
 
     return (
         <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 max-w-4xl mx-auto">
-            {error && (
+            {(error || imageSearchError) && (
                 <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                    <p className="text-destructive text-sm">{error}</p>
+                    <p className="text-destructive text-sm">{error || imageSearchError}</p>
                 </div>
+            )}
+            {isVip && (
+                <p className="mb-4 text-sm text-primary">Tài khoản VIP: tìm kiếm bằng ảnh không giới hạn.</p>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
