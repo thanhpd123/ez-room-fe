@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import type { PublicRental } from '@/lib/api';
 
@@ -13,6 +14,7 @@ interface HeroSlideshowProps {
 }
 
 export function HeroSlideshow({ rentals, children }: HeroSlideshowProps) {
+    const { t } = useTranslation();
     const [currentIndex, setCurrentIndex] = useState(0);
 
     const rawSlides = rentals.flatMap((r) =>
@@ -33,9 +35,9 @@ export function HeroSlideshow({ rentals, children }: HeroSlideshowProps) {
     const current = slides[currentIndex];
 
     return (
-        <section className="relative min-h-[420px] sm:min-h-[480px] flex items-center justify-center overflow-hidden">
-            {/* Background slides */}
-            <div className="absolute inset-0">
+        <section className="relative min-h-[400px] sm:min-h-[480px] md:min-h-[520px] lg:min-h-[560px] flex items-center justify-center overflow-hidden">
+            {/* Background slides – contain repaints so overlay stays stable */}
+            <div className="absolute inset-0 [contain:paint]">
                 {slides.map((slide, i) => (
                     <div
                         key={`${slide.rentalId}-${i}`}
@@ -48,39 +50,43 @@ export function HeroSlideshow({ rentals, children }: HeroSlideshowProps) {
                                 src={slide.imageUrl}
                                 alt=""
                                 className="w-full h-full object-cover"
+                                loading={i === 0 ? 'eager' : 'lazy'}
                             />
                         ) : (
                             <div className="w-full h-full bg-muted/80" />
                         )}
-                        <div className="absolute inset-0 bg-black/40" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/45 to-black/60" />
                     </div>
                 ))}
             </div>
 
-            {/* Overlay content: search + optional detail link */}
-            <div className="relative z-10 w-full max-w-4xl px-4 flex flex-col items-center gap-6">
+            {/* Overlay content: isolate from carousel repaints to prevent text glitch */}
+            <div className="relative z-10 w-full max-w-4xl px-3 sm:px-4 flex flex-col items-center gap-4 sm:gap-6 pb-4 isolate [transform:translateZ(0)] [backface-visibility:hidden]">
                 {children}
                 {current?.rentalId && (
                     <Link
                         to={`/rental/${current.rentalId}`}
-                        className="text-white/95 hover:text-white text-sm font-medium underline underline-offset-2"
+                        className="inline-flex items-center gap-1.5 text-white/95 hover:text-white text-sm font-medium underline underline-offset-2 decoration-white/50 hover:decoration-white transition-all"
                     >
-                        Xem chi tiết ảnh này
+                        {t('home.heroViewListing')}
+                        <span aria-hidden>→</span>
                     </Link>
                 )}
             </div>
 
             {/* Pagination dots */}
             {slides.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2.5">
                     {slides.map((_, i) => (
                         <button
                             key={i}
                             type="button"
                             aria-label={`Slide ${i + 1}`}
                             onClick={() => setCurrentIndex(i)}
-                            className={`w-2 h-2 rounded-full transition-all ${
-                                i === currentIndex ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/80'
+                            className={`rounded-full transition-all duration-300 touch-manipulation ${
+                                i === currentIndex
+                                    ? 'w-6 h-2.5 bg-white shadow-md'
+                                    : 'w-2.5 h-2.5 bg-white/60 hover:bg-white/90 hover:scale-110'
                             }`}
                         />
                     ))}

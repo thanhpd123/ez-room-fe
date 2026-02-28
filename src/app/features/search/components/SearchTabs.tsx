@@ -47,7 +47,7 @@ export function SearchTabs({ defaultTab = 'text', onTabChange, showImageTab = tr
     return (
         <div className="w-full">
             {showImageTab && (
-            <div className="flex bg-muted p-1 rounded-xl max-w-md mx-auto mb-8">
+            <div className="flex bg-muted p-1 rounded-xl max-w-md mx-auto mb-4 sm:mb-8">
                 <TabButton
                     value="text"
                     activeTab={activeTab}

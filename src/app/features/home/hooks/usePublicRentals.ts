@@ -3,6 +3,13 @@ import { getPublicRentalsRequest, type PublicRental } from '@/lib/api';
 
 const HANOI_BOUNDS = { latMin: 20.8, latMax: 21.2, lngMin: 105.6, lngMax: 106.0 };
 
+const CACHE_TTL_MS = 60_000; // 1 minute
+const homeCache: { key: string; data: PublicRental[]; ts: number } = { key: '', data: [], ts: 0 };
+
+function cacheKey(opts: { district?: string; city?: string; limit?: number }) {
+    return `limit=${opts.limit ?? 20}&district=${opts.district ?? ''}&city=${opts.city ?? ''}`;
+}
+
 /** Get distinct locations (district, city) from rentals */
 export function getDistinctLocations(rentals: PublicRental[]): { district: string; city: string }[] {
     const set = new Set<string>();
@@ -38,15 +45,26 @@ export function usePublicRentals(options?: { district?: string; city?: string; l
     const [error, setError] = useState<string | null>(null);
 
     const fetchRentals = useCallback(async (params?: { district?: string; city?: string; limit?: number }) => {
+        const key = cacheKey(params ?? {});
+        const now = Date.now();
+        if (homeCache.key === key && now - homeCache.ts < CACHE_TTL_MS) {
+            setRentals(homeCache.data);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         setError(null);
         try {
             const res = await getPublicRentalsRequest({
-                limit: params?.limit ?? 500,
+                limit: params?.limit ?? 50,
                 district: params?.district,
                 city: params?.city,
             });
-            setRentals(res.data || []);
+            const data = res.data || [];
+            homeCache.key = key;
+            homeCache.data = data;
+            homeCache.ts = Date.now();
+            setRentals(data);
         } catch (e) {
             const msg = e instanceof Error ? e.message : 'Lỗi tải dữ liệu';
             console.error('[usePublicRentals]', msg, e);
@@ -57,9 +75,13 @@ export function usePublicRentals(options?: { district?: string; city?: string; l
         }
     }, []);
 
+    const district = options?.district;
+    const city = options?.city;
+    const limit = options?.limit ?? 20;
+
     useEffect(() => {
-        fetchRentals(options);
-    }, [options?.district, options?.city, options?.limit, fetchRentals]);
+        fetchRentals({ district, city, limit });
+    }, [district, city, limit, fetchRentals]);
 
     return { rentals, loading, error, refetch: fetchRentals };
 }

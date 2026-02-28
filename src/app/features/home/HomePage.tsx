@@ -1,86 +1,45 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, Wallet, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { TeamOutlined, SafetyOutlined, WalletOutlined } from '@ant-design/icons';
+import { Button, Card, Typography } from 'antd';
 import {
     Header,
     Footer,
     SearchForm,
     HeroSlideshow,
-    FeaturedSlideshow,
     PopularAreasCard,
 } from './components';
 import type { SearchFilters } from './components';
-import { usePublicRentals, useUserInHanoi, getDistinctLocations, pickThreeLocations } from './hooks/usePublicRentals';
+import { usePublicRentals } from './hooks/usePublicRentals';
+import { usePopularAreas } from './hooks/usePopularAreas';
+import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+import { MapPin } from 'lucide-react';
+import { buildSearchUrl } from '@/lib/utils/searchUrlBuilder';
 
-const HERO_CAROUSEL_LIMIT = 10;
+const { Title, Paragraph } = Typography;
+
+const HOME_PAGE_RENTALS_LIMIT = 20;
+const HERO_SLIDES_COUNT = 10;
+const FEATURED_COUNT = 8;
 
 export function HomePage() {
     const navigate = useNavigate();
-    const { rentals: heroRentals } = usePublicRentals({ limit: HERO_CAROUSEL_LIMIT });
-    const { rentals, loading: rentalsLoading } = usePublicRentals({ limit: 500 });
-    const { inHanoi, loading: locationLoading } = useUserInHanoi();
+    const { t } = useTranslation();
+    const { rentals, loading: rentalsLoading } = usePublicRentals({ limit: HOME_PAGE_RENTALS_LIMIT });
 
-    const locations = useMemo(() => getDistinctLocations(rentals), [rentals]);
-    const threeLocations = useMemo(
-        () => pickThreeLocations(locations, inHanoi),
-        [locations, inHanoi]
-    );
-
-    const featuredSlides = useMemo(() => {
-        const byLocation = threeLocations.map((loc) => ({
-            district: loc.district,
-            city: loc.city,
-            rentals: rentals.filter(
-                (r) =>
-                    (r.location?.district?.trim() || '') === loc.district &&
-                    (r.location?.city?.trim() || '') === loc.city
-            ),
-        }));
-        if (byLocation.length === 0 && rentals.length > 0) {
-            return [{ district: 'Gợi ý', city: '', rentals }];
-        }
-        return byLocation;
-    }, [threeLocations, rentals]);
-
-    const popularAreas = useMemo(() => {
-        const count: Record<string, { district: string; city: string; count: number; image: string }> = {};
-        rentals.forEach((r) => {
-            const d = r.location?.district?.trim() || 'N/A';
-            const c = r.location?.city?.trim() || 'N/A';
-            const key = `${d}|${c}`;
-            if (!count[key]) count[key] = { district: d, city: c, count: 0, image: r.images?.[0] || '' };
-            count[key].count += 1;
-        });
-        return Object.values(count)
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 8);
-    }, [rentals]);
+    const heroRentals = useMemo(() => rentals.slice(0, HERO_SLIDES_COUNT), [rentals]);
+    const featuredRentals = useMemo(() => rentals.slice(0, FEATURED_COUNT), [rentals]);
+    const popularAreas = usePopularAreas(rentals, 4);
 
     const handleSearch = (query: string, filters: SearchFilters) => {
-        const params = new URLSearchParams();
-        if (query) params.set('q', query);
-        if (filters.location) params.set('location', filters.location);
-        if (filters.priceRange) {
-            const [min, max] = filters.priceRange.split('-');
-            const minVal = min ? parseInt(min, 10) * 1_000_000 : 0;
-            const maxVal = max === '+' ? undefined : max ? parseInt(max, 10) * 1_000_000 : undefined;
-            params.set('price', maxVal ? `${minVal}-${maxVal}` : `${minVal}`);
-        }
-        if (filters.roomType) params.set('roomType', filters.roomType);
-        navigate(`/search?${params.toString()}`);
+        navigate(buildSearchUrl(query, filters));
     };
 
-    const handleAdvancedSearch = () => navigate('/search');
     const handleLogin = () => navigate('/login');
     const handleRegister = () => navigate('/register');
     const handleViewAll = () => navigate('/browse');
-
-    const handleSeeAllFeatured = (district: string, city: string) => {
-        const p = new URLSearchParams();
-        if (district) p.set('district', district);
-        if (city) p.set('city', city);
-        navigate(`/browse?${p.toString()}`);
-    };
+    const handleRentalClick = (id: string) => navigate(`/rental/${id}`);
 
     return (
         <div className="min-h-screen bg-background">
@@ -88,83 +47,146 @@ export function HomePage() {
 
             {/* Hero: background carousel uses top 10 rentals only. */}
             <HeroSlideshow rentals={heroRentals}>
-                <div className="text-center mb-4">
-                    <h1 className="text-white text-2xl sm:text-3xl font-bold mb-2 drop-shadow-md">
-                        Tìm phòng trọ ưng ý & bạn ở ghép lý tưởng
+                <div className="text-center my-3 mb-6 sm:mb-8">
+                    <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-bold mb-3 drop-shadow-lg tracking-tight max-w-3xl mx-auto">
+                        {t('home.heroTitle')}
                     </h1>
-                    <p className="text-white/90 text-sm sm:text-base drop-shadow">
-                        Tìm kiếm thông minh bằng AI, thanh toán an toàn
+                    <p className="text-white/95 text-base sm:text-lg drop-shadow-md max-w-xl mx-auto">
+                        {t('home.heroSubtitle')}
                     </p>
                 </div>
-                <div className="w-full max-w-2xl">
-                    <SearchForm onSearch={handleSearch} onAdvancedSearch={handleAdvancedSearch} />
+                <div className="w-full max-w-2xl px-2 sm:px-4">
+                    <SearchForm onSearch={handleSearch} onLogin={handleLogin} />
                 </div>
             </HeroSlideshow>
 
             {/* AI Feature */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-                <div className="bg-card rounded-2xl p-8 sm:p-12 shadow-sm border border-border">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-10">
-                        <div className="flex-1">
-                            <span className="inline-flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent rounded-xl text-sm font-medium mb-5">
-                                <Users className="w-4 h-4" strokeWidth={2} />
-                                Tính năng AI mới
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+                <Card className="rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden relative border-border [&_.ant-card-body]:!p-5 sm:[&_.ant-card-body]:!p-8 lg:[&_.ant-card-body]:!px-12" styles={{ body: { padding: 0 } }}>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" aria-hidden />
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-10 relative">
+                        <div className="flex-1 w-full text-center sm:text-left">
+                            <span className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-accent/15 text-accent rounded-full text-xs sm:text-sm font-semibold mb-4 sm:mb-6">
+                                <TeamOutlined className="text-base" />
+                                {t('home.aiBadge')}
                             </span>
-                            <h2 className="text-foreground mb-4">Tìm bạn ở ghép bằng AI</h2>
-                            <p className="text-muted-foreground mb-8 max-w-lg leading-relaxed">
-                                Hệ thống AI phân tích tính cách, thói quen sinh hoạt để tìm roommate phù hợp nhất với bạn
-                            </p>
-                            <button type="button" className="px-6 py-3 bg-accent text-accent-foreground rounded-xl font-semibold hover:bg-accent/90 transition-all shadow-sm flex items-center gap-2">
-                                Thử ngay
-                                <ChevronRight className="w-4 h-4" strokeWidth={2} />
-                            </button>
+                            <Title level={2} className="!text-foreground !mb-3 sm:!mb-4 !font-heading !text-xl sm:!text-2xl">{t('home.aiTitle')}</Title>
+                            <Paragraph className="text-muted-foreground mb-6 sm:mb-8 max-w-lg leading-relaxed text-sm sm:text-base mx-auto sm:mx-0">
+                                {t('home.aiDesc')}
+                            </Paragraph>
+                            <Button type="primary" size="large" className="rounded-xl font-semibold shadow-md hover:shadow-lg min-h-[44px] touch-manipulation active:scale-[0.98] transition-transform" style={{ background: 'var(--color-accent)', borderColor: 'var(--color-accent)' }}>
+                                {t('home.aiCta')}
+                            </Button>
                         </div>
-                        <div className="w-full sm:w-72 h-52 bg-primary/5 rounded-2xl flex items-center justify-center">
-                            <Users className="w-28 h-28 text-primary/20" strokeWidth={1.5} />
+                        <div className="w-full sm:w-72 lg:w-80 h-40 sm:h-56 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/10 shrink-0">
+                            <TeamOutlined className="text-8xl text-primary/25" />
                         </div>
                     </div>
-                </div>
+                </Card>
             </section>
 
-            {/* Phòng nổi bật: slideshow with pagination, 3 nearest (or random) locations, real data. See all → browse with filter. */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex items-center justify-between mb-8">
+            {/* Phòng nổi bật — simple listing */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
                     <div>
-                        <h2 className="text-foreground text-xl font-semibold mb-2">Phòng nổi bật</h2>
-                        <p className="text-muted-foreground">
-                            {!locationLoading && inHanoi ? 'Gợi ý theo khu vực gần bạn' : 'Khám phá theo khu vực'}
-                        </p>
+                        <Title level={2} className="!text-foreground !mb-2 !font-heading">{t('home.featuredTitle')}</Title>
+                        <Paragraph type="secondary" className="!mb-0">{t('home.featuredSubtitleExplore')}</Paragraph>
                     </div>
                     <button
                         type="button"
                         onClick={handleViewAll}
-                        className="flex items-center gap-1 text-primary font-medium hover:gap-2 transition-all"
+                        className="p-0 font-semibold flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors group"
                     >
-                        Xem tất cả
-                        <ChevronRight className="w-4 h-4" strokeWidth={2} />
+                        {t('home.viewAll')}
+                        <span className="group-hover:translate-x-0.5 transition-transform" aria-hidden>→</span>
                     </button>
                 </div>
                 {rentalsLoading ? (
-                    <div className="py-12 text-center text-muted-foreground">Đang tải...</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="bg-card rounded-2xl border border-border overflow-hidden animate-pulse">
+                                <div className="h-48 bg-muted" />
+                                <div className="p-4 space-y-3">
+                                    <div className="h-5 bg-muted rounded w-3/4" />
+                                    <div className="h-4 bg-muted rounded w-1/2" />
+                                    <div className="h-10 bg-muted rounded-xl w-full" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : featuredRentals.length === 0 ? (
+                    <div className="py-16 text-center rounded-2xl border-2 border-dashed border-border bg-muted/20">
+                        <div className="w-16 h-16 rounded-2xl bg-muted mx-auto mb-4 flex items-center justify-center">
+                            <MapPin className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <Paragraph type="secondary" className="!mb-0 text-base">{t('home.noFeatured')}</Paragraph>
+                        <button
+                            type="button"
+                            onClick={handleViewAll}
+                            className="mt-4 text-primary font-semibold hover:underline"
+                        >
+                            {t('home.viewAll')}
+                        </button>
+                    </div>
                 ) : (
-                    <FeaturedSlideshow slides={featuredSlides} onSeeAll={handleSeeAllFeatured} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                        {featuredRentals.map((rental) => (
+                            <div
+                                key={rental.id}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleRentalClick(rental.id)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleRentalClick(rental.id)}
+                                className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/20 transition-all duration-200 cursor-pointer group/card"
+                            >
+                                <div className="relative h-48 overflow-hidden">
+                                    <ImageWithFallback
+                                        src={rental.images?.[0] || ''}
+                                        alt={rental.title}
+                                        className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
+                                </div>
+                                <div className="p-4">
+                                    <Title level={5} className="!font-heading !mb-2 truncate group-hover/card:text-primary transition-colors">{rental.title}</Title>
+                                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                        <MapPin className="w-4 h-4 shrink-0" />
+                                        <span className="truncate">
+                                            {[rental.location?.district, rental.location?.city].filter(Boolean).join(', ') || '—'}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="mt-3 w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 active:scale-[0.98] transition-all"
+                                    >
+                                        {t('home.viewDetail')}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </section>
 
-            {/* Khu vực phổ biến - from API */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            {/* Khu vực phổ biến */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
                 <div className="text-center mb-10">
-                    <h2 className="text-foreground text-xl font-semibold mb-2">Khu vực phổ biến</h2>
-                    <p className="text-muted-foreground">Khám phá các khu vực có nhiều phòng trọ nhất</p>
+                    <Title level={2} className="!text-foreground !mb-3 !font-heading">{t('home.popularAreasTitle')}</Title>
+                    <Paragraph type="secondary" className="max-w-xl mx-auto !mb-0">{t('home.popularAreasSubtitle')}</Paragraph>
                 </div>
                 {popularAreas.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">Chưa có dữ liệu khu vực.</div>
+                    <div className="text-center py-16 rounded-2xl border-2 border-dashed border-border bg-muted/20">
+                        <div className="w-14 h-14 rounded-2xl bg-muted mx-auto mb-4 flex items-center justify-center">
+                            <MapPin className="w-7 h-7 text-muted-foreground" />
+                        </div>
+                        <Paragraph type="secondary" className="!mb-0 text-base">{t('home.noAreaData')}</Paragraph>
+                    </div>
                 ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
                         {popularAreas.map((area) => (
                             <PopularAreasCard
                                 key={`${area.district}-${area.city}`}
-                                area={{ ...area, count: area.count, image: area.image }}
+                                area={area}
                             />
                         ))}
                     </div>
@@ -172,40 +194,40 @@ export function HomePage() {
             </section>
 
             {/* Why EzRoom */}
-            <section className="bg-card border-t border-border py-20">
+            <section className="bg-card border-t border-border py-16 sm:py-24">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center mb-14">
-                        <h2 className="text-foreground mb-2">Tại sao chọn EzRoom?</h2>
-                        <p className="text-muted-foreground">Nền tảng cho thuê phòng an toàn và tiện lợi nhất</p>
+                    <div className="text-center mb-12 sm:mb-16">
+                        <Title level={2} className="!text-foreground !mb-3 !font-heading">{t('home.whyEzRoomTitle')}</Title>
+                        <Paragraph type="secondary" className="max-w-xl mx-auto !mb-0">{t('home.whyEzRoomSubtitle')}</Paragraph>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                        <div className="bg-background rounded-2xl p-10 text-center shadow-sm border border-border">
-                            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                                <Wallet className="w-8 h-8 text-primary" strokeWidth={2} />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+                        <Card className="rounded-2xl text-center shadow-sm border-border hover:shadow-lg hover:-translate-y-1 hover:border-primary/30 transition-all duration-200 [&_.ant-card-body]:!p-6 sm:[&_.ant-card-body]:!p-8" styles={{ body: { padding: 0 } }}>
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                                <WalletOutlined className="text-3xl text-primary" />
                             </div>
-                            <h3 className="font-heading font-semibold text-foreground mb-3">Thanh toán an toàn</h3>
-                            <p className="text-muted-foreground text-sm leading-relaxed">
-                                Ví điện tử tích hợp, bảo vệ tiền cọc và thanh toán minh bạch
-                            </p>
-                        </div>
-                        <div className="bg-background rounded-2xl p-10 text-center shadow-sm border border-border">
-                            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                                <Shield className="w-8 h-8 text-primary" strokeWidth={2} />
+                            <Title level={4} className="!font-heading !mb-3">{t('home.whyPayment')}</Title>
+                            <Paragraph type="secondary" className="!mb-0 text-sm leading-relaxed">
+                                {t('home.whyPaymentDesc')}
+                            </Paragraph>
+                        </Card>
+                        <Card className="rounded-2xl text-center shadow-sm border-border hover:shadow-lg hover:-translate-y-1 hover:border-primary/30 transition-all duration-200 [&_.ant-card-body]:!p-6 sm:[&_.ant-card-body]:!p-8" styles={{ body: { padding: 0 } }}>
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                                <SafetyOutlined className="text-3xl text-primary" />
                             </div>
-                            <h3 className="font-heading font-semibold text-foreground mb-3">Xác thực chủ nhà</h3>
-                            <p className="text-muted-foreground text-sm leading-relaxed">
-                                Tất cả chủ nhà đều được xác thực danh tính qua hệ thống KYC
-                            </p>
-                        </div>
-                        <div className="bg-background rounded-2xl p-10 text-center shadow-sm border border-border">
-                            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                                <Users className="w-8 h-8 text-primary" strokeWidth={2} />
+                            <Title level={4} className="!font-heading !mb-3">{t('home.whyVerified')}</Title>
+                            <Paragraph type="secondary" className="!mb-0 text-sm leading-relaxed">
+                                {t('home.whyVerifiedDesc')}
+                            </Paragraph>
+                        </Card>
+                        <Card className="rounded-2xl text-center shadow-sm border-border hover:shadow-lg hover:-translate-y-1 hover:border-primary/30 transition-all duration-200 [&_.ant-card-body]:!p-6 sm:[&_.ant-card-body]:!p-8" styles={{ body: { padding: 0 } }}>
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                                <TeamOutlined className="text-3xl text-primary" />
                             </div>
-                            <h3 className="font-heading font-semibold text-foreground mb-3">AI hỗ trợ</h3>
-                            <p className="text-muted-foreground text-sm leading-relaxed">
-                                Tìm kiếm thông minh và ghép bạn ở dựa trên AI
-                            </p>
-                        </div>
+                            <Title level={4} className="!font-heading !mb-3">{t('home.whyAI')}</Title>
+                            <Paragraph type="secondary" className="!mb-0 text-sm leading-relaxed">
+                                {t('home.whyAIDesc')}
+                            </Paragraph>
+                        </Card>
                     </div>
                 </div>
             </section>

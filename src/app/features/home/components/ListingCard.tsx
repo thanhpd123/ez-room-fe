@@ -1,6 +1,10 @@
-import { MapPin, Star, BadgeCheck, Heart } from 'lucide-react';
+import { EnvironmentOutlined, StarFilled, HeartOutlined, HeartFilled } from '@ant-design/icons';
+import { Button, Card, Tag, Typography } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import { useFavorites } from '@/app/context/FavoritesContext';
+
+const { Title, Text } = Typography;
 
 interface Listing {
     id: string;
@@ -19,6 +23,7 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, onClick }: ListingCardProps) {
+    const { t } = useTranslation();
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
     const favorited = isFavorite(listing.id);
 
@@ -39,59 +44,54 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
         }
     };
 
+    const HeartIcon = favorited ? HeartFilled : HeartOutlined;
+
     return (
-        <div
+        <Card
+            hoverable
+            className="rounded-2xl overflow-hidden border-border hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/20 transition-all duration-200 cursor-pointer [&_.ant-card-body]:!p-4 sm:[&_.ant-card-body]:!p-5 group/card"
+            styles={{ body: { padding: 0 } }}
             onClick={() => onClick?.(listing.id)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && onClick?.(listing.id)}
-            className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-border transition-all cursor-pointer group"
         >
-            <div className="relative h-48 overflow-hidden">
+            <div className="relative h-40 sm:h-48 overflow-hidden rounded-t-2xl -mx-[1px] -mt-[1px] mb-3 sm:mb-4">
                 <ImageWithFallback
                     src={listing.image}
                     alt={listing.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
                 />
                 <div className="absolute top-3 right-3 flex gap-2">
-                    <button
+                    <Button
+                        type="default"
+                        shape="circle"
+                        size="middle"
                         onClick={handleFavoriteClick}
-                        className="p-2.5 bg-card rounded-full shadow-sm hover:shadow-md transition-all border border-border"
-                        title={favorited ? 'Bỏ yêu thích' : 'Yêu thích'}
-                    >
-                        <Heart
-                            className={`w-5 h-5 transition-colors ${
-                                favorited ? 'fill-accent text-accent' : 'text-muted-foreground group-hover:text-accent'
-                            }`}
-                            strokeWidth={2}
-                        />
-                    </button>
+                        className="bg-card border-border shadow-sm hover:shadow-md min-w-[40px] min-h-[40px] touch-manipulation"
+                        icon={<HeartIcon className={favorited ? 'text-accent' : ''} style={favorited ? { color: 'var(--color-accent)' } : undefined} />}
+                        title={favorited ? t('listing.unfavorite') : t('listing.favorite')}
+                    />
                     {listing.verified && (
-                        <div className="bg-card/95 backdrop-blur-sm px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 border border-border">
-                            <BadgeCheck className="w-4 h-4 text-primary" strokeWidth={2} />
-                            <span className="text-xs font-medium text-foreground">Xác thực</span>
-                        </div>
+                        <Tag color="primary" className="m-0 flex items-center gap-1.5 rounded-lg border-0">
+                            {t('listing.verified')}
+                        </Tag>
                     )}
                 </div>
             </div>
-            <div className="p-5">
-                <h3 className="font-heading font-semibold text-foreground mb-2 truncate">{listing.title}</h3>
-                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
-                    <MapPin className="w-4 h-4 shrink-0" strokeWidth={2} />
-                    <span className="truncate">{listing.location}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <span className="text-primary font-bold text-lg">{listing.price}</span>
-                        <span className="text-muted-foreground text-sm">/tháng</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-sm text-foreground">
-                        <Star className="w-4 h-4 fill-accent text-accent" strokeWidth={2} />
-                        <span className="font-medium">{listing.rating}</span>
-                    </div>
-                </div>
-                <div className="mt-2 text-muted-foreground text-sm">{listing.area}</div>
+            <Title level={5} className="!font-heading !mb-2 !mt-0 truncate">{listing.title}</Title>
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
+                <EnvironmentOutlined className="shrink-0" />
+                <Text type="secondary" className="truncate block">{listing.location}</Text>
             </div>
-        </div>
+            <div className="flex items-center justify-between">
+                <div>
+                    <Text strong className="text-lg text-primary">{listing.price}</Text>
+                    <Text type="secondary" className="text-sm">{t('listing.perMonth')}</Text>
+                </div>
+                <div className="flex items-center gap-1 text-sm">
+                    <StarFilled className="text-accent" style={{ color: 'var(--color-accent)' }} />
+                    <Text strong>{listing.rating}</Text>
+                </div>
+            </div>
+            <Text type="secondary" className="text-sm block mt-2">{listing.area}</Text>
+        </Card>
     );
 }

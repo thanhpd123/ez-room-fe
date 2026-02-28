@@ -41,9 +41,11 @@ export function SearchResults({ results, isSearching, hasSearched, onReset }: Se
     };
 
     const handleViewDetails = (roomId: string) => {
-        const room = results.find(r => r.id === roomId);
+        const room = results.find((r) => r.id === roomId);
         if (room?.rentalId) {
             navigate(`/rental/${room.rentalId}`);
+        } else if (room) {
+            navigate(`/room/${room.id}`);
         }
     };
 

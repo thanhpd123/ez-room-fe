@@ -1,2 +1,2 @@
 export { RentalDetailPage } from './RentalDetailPage';
-export type { RentalDetailData } from './components/RentalDetail';
+export type { RentalDetailData } from './types';

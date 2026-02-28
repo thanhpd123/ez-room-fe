@@ -1,24 +1,27 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Filter, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import { Header, Footer } from '@/app/features/home/components';
 import { getPublicRentalsRequest, type PublicRental, type PublicRentalsSort } from '@/lib/api';
+import { useProvinces } from '@/app/hooks/useProvinces';
 
 const PAGE_SIZE = 24;
-const SORT_OPTIONS: { value: PublicRentalsSort; label: string }[] = [
-    { value: 'createdAt_desc', label: 'Mới nhất' },
-    { value: 'createdAt_asc', label: 'Cũ nhất' },
-    { value: 'title_asc', label: 'Tên A → Z' },
-    { value: 'title_desc', label: 'Tên Z → A' },
-];
 
 export function BrowsePage() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
+    const sortOptions: { value: PublicRentalsSort; label: string }[] = useMemo(() => [
+        { value: 'createdAt_desc', label: t('browse.sortNewest') },
+        { value: 'createdAt_asc', label: t('browse.sortOldest') },
+        { value: 'title_asc', label: t('browse.sortTitleAsc') },
+        { value: 'title_desc', label: t('browse.sortTitleDesc') },
+    ], [t]);
     const [searchParams, setSearchParams] = useSearchParams();
     const [rentals, setRentals] = useState<PublicRental[]>([]);
-    const [allForOptions, setAllForOptions] = useState<PublicRental[]>([]);
     const [loading, setLoading] = useState(true);
+    const { provinces, getWardsFor } = useProvinces();
     const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 });
 
     const districtFromUrl = searchParams.get('district') || '';
@@ -36,12 +39,6 @@ export function BrowsePage() {
         setCityFilter(cityFromUrl);
         setSort(sortFromUrl);
     }, [districtFromUrl, cityFromUrl, sortFromUrl]);
-
-    useEffect(() => {
-        getPublicRentalsRequest({ limit: 1000 })
-            .then((res) => setAllForOptions(res.data || []))
-            .catch(() => setAllForOptions([]));
-    }, []);
 
     useEffect(() => {
         setLoading(true);
@@ -63,30 +60,8 @@ export function BrowsePage() {
             .finally(() => setLoading(false));
     }, [pageFromUrl, districtFromUrl, cityFromUrl, sortFromUrl]);
 
-    const cityOptions = useMemo(() => {
-        const set = new Set<string>();
-        allForOptions.forEach((r) => {
-            const c = r.location?.city?.trim();
-            if (c) set.add(c);
-        });
-        return Array.from(set).sort();
-    }, [allForOptions]);
-
-    /** Districts for the selected city only (so Hanoi city → only Hanoi districts, not HCM). */
-    const districtOptions = useMemo(() => {
-        const set = new Set<string>();
-        allForOptions.forEach((r) => {
-            const c = r.location?.city?.trim();
-            const d = r.location?.district?.trim();
-            if (!d) return;
-            if (cityFilter) {
-                if (c === cityFilter) set.add(d);
-            } else {
-                set.add(d);
-            }
-        });
-        return Array.from(set).sort();
-    }, [allForOptions, cityFilter]);
+    const cityOptions = useMemo(() => provinces.map((p) => p.name), [provinces]);
+    const wardOptions = useMemo(() => getWardsFor(cityFilter).map((w) => w.name), [getWardsFor, cityFilter]);
 
     const handleLogin = () => navigate('/login');
     const handleRegister = () => navigate('/register');
@@ -108,15 +83,10 @@ export function BrowsePage() {
     };
 
     const handleCityChange = (newCity: string) => {
-        const districtsInNewCity = new Set(
-            allForOptions
-                .filter((r) => (r.location?.city?.trim() || '') === newCity)
-                .map((r) => r.location?.district?.trim())
-                .filter((d): d is string => !!d)
-        );
-        const validDistrict =
-            newCity && districtFilter && districtsInNewCity.has(districtFilter) ? districtFilter : '';
-        applyFilters(validDistrict, newCity);
+        const wardsInNewCity = new Set(getWardsFor(newCity).map((w) => w.name));
+        const validWard =
+            newCity && districtFilter && wardsInNewCity.has(districtFilter) ? districtFilter : '';
+        applyFilters(validWard, newCity);
     };
 
     const handleDistrictChange = (newDistrict: string) => {
@@ -138,31 +108,31 @@ export function BrowsePage() {
         <div className="min-h-screen bg-background">
             <Header onLogin={handleLogin} onRegister={handleRegister} />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-foreground mb-2">Tất cả nhà trọ</h1>
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+                <div className="mb-6 sm:mb-8">
+                    <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-1 sm:mb-2">{t('browse.allRentals')}</h1>
                     <p className="text-muted-foreground">
-                        Lọc và sắp xếp theo khu vực. Trang {pagination.page} / {pagination.totalPages || 1} — {pagination.total} kết quả.
+                        {t('browse.pageSummary', { page: pagination.page, total: pagination.totalPages || 1, count: pagination.total })}
                     </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4 mb-8">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-6 sm:mb-8">
                     <button
                         type="button"
                         onClick={() => setShowFilters(!showFilters)}
-                        className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-xl font-medium hover:bg-muted transition-all"
+                        className="flex items-center gap-2 px-3 py-2.5 sm:px-4 border border-border rounded-xl font-medium hover:bg-muted transition-all min-h-[44px] touch-manipulation"
                     >
-                        <Filter className="w-4 h-4" />
-                        Bộ lọc
+                        <Filter className="w-4 h-4 shrink-0" />
+                        <span className="text-sm sm:text-base">{t('browse.filterButton')}</span>
                     </button>
                     <div className="flex items-center gap-2">
-                        <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                        <ArrowUpDown className="w-4 h-4 text-muted-foreground shrink-0" />
                         <select
                             value={sort}
                             onChange={(e) => handleSortChange(e.target.value as PublicRentalsSort)}
-                            className="px-4 py-2.5 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20"
+                            className="px-3 py-2.5 sm:px-4 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 min-h-[44px] text-sm sm:text-base touch-manipulation"
                         >
-                            {SORT_OPTIONS.map((opt) => (
+                            {sortOptions.map((opt) => (
                                 <option key={opt.value} value={opt.value}>
                                     {opt.label}
                                 </option>
@@ -172,19 +142,19 @@ export function BrowsePage() {
                 </div>
 
                 {showFilters && (
-                    <div className="bg-card rounded-2xl p-6 border border-border mb-8">
-                        <h3 className="font-semibold text-foreground mb-4">Lọc theo</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-card rounded-2xl p-4 sm:p-6 border border-border mb-6 sm:mb-8">
+                        <h3 className="font-semibold text-foreground mb-3 sm:mb-4 text-sm sm:text-base">{t('browse.filterBy')}</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-muted-foreground mb-2">
-                                    Thành phố
+                                    {t('browse.city')}
                                 </label>
                                 <select
                                     value={cityFilter}
                                     onChange={(e) => handleCityChange(e.target.value)}
-                                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20"
+                                    className="w-full px-3 py-2.5 sm:px-4 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 min-h-[44px] touch-manipulation"
                                 >
-                                    <option value="">Tất cả</option>
+                                    <option value="">{t('browse.all')}</option>
                                     {cityOptions.map((c) => (
                                         <option key={c} value={c}>
                                             {c}
@@ -194,21 +164,21 @@ export function BrowsePage() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-muted-foreground mb-2">
-                                    Quận / Huyện
+                                    {t('browse.ward')}
                                 </label>
                                 <select
                                     value={
-                                        districtFilter && districtOptions.includes(districtFilter)
+                                        districtFilter && wardOptions.includes(districtFilter)
                                             ? districtFilter
                                             : ''
                                     }
                                     onChange={(e) => handleDistrictChange(e.target.value)}
-                                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20"
+                                    className="w-full px-3 py-2.5 sm:px-4 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 min-h-[44px] touch-manipulation"
                                 >
-                                    <option value="">Tất cả</option>
-                                    {districtOptions.map((d) => (
-                                        <option key={d} value={d}>
-                                            {d}
+                                    <option value="">{t('browse.all')}</option>
+                                    {wardOptions.map((w) => (
+                                        <option key={w} value={w}>
+                                            {w}
                                         </option>
                                     ))}
                                 </select>
@@ -220,21 +190,21 @@ export function BrowsePage() {
                                 onClick={() => applyFilters('', '')}
                                 className="text-primary font-medium hover:underline"
                             >
-                                Xóa bộ lọc
+                                {t('browse.clearFilters')}
                             </button>
                         </div>
                     </div>
                 )}
 
                 {loading ? (
-                    <div className="text-center py-16 text-muted-foreground">Đang tải...</div>
+                    <div className="text-center py-16 text-muted-foreground">{t('browse.loading')}</div>
                 ) : rentals.length === 0 ? (
                     <div className="text-center py-16 text-muted-foreground">
-                        Không tìm thấy nhà trọ phù hợp. Hãy thử điều chỉnh bộ lọc.
+                        {t('browse.noResults')}
                     </div>
                 ) : (
                     <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                             {rentals.map((rental) => (
                                 <div
                                     key={rental.id}
@@ -244,7 +214,7 @@ export function BrowsePage() {
                                     onKeyDown={(e) => e.key === 'Enter' && handleRentalClick(rental.id)}
                                     className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer"
                                 >
-                                    <div className="relative h-48">
+                                    <div className="relative h-40 sm:h-48">
                                         <ImageWithFallback
                                             src={rental.images?.[0] || ''}
                                             alt={rental.title}
@@ -265,7 +235,7 @@ export function BrowsePage() {
                                             type="button"
                                             className="mt-3 w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-all"
                                         >
-                                            Xem chi tiết
+                                            {t('browse.viewDetail')}
                                         </button>
                                     </div>
                                 </div>
@@ -273,23 +243,23 @@ export function BrowsePage() {
                         </div>
 
                         {pagination.totalPages > 1 && (
-                            <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
+                            <div className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => goToPage(pagination.page - 1)}
                                     disabled={pagination.page <= 1}
-                                    className="p-2 rounded-xl border border-border hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
+                                    className="p-3 rounded-xl border border-border hover:bg-muted disabled:opacity-50 disabled:pointer-events-none min-w-[44px] min-h-[44px] touch-manipulation"
                                 >
                                     <ChevronLeft className="w-5 h-5" />
                                 </button>
-                                <span className="px-4 py-2 text-sm text-muted-foreground">
-                                    Trang {pagination.page} / {pagination.totalPages}
+                                <span className="px-3 sm:px-4 py-2 text-sm text-muted-foreground">
+                                    {t('browse.pageInfo', { page: pagination.page, total: pagination.totalPages })}
                                 </span>
                                 <button
                                     type="button"
                                     onClick={() => goToPage(pagination.page + 1)}
                                     disabled={pagination.page >= pagination.totalPages}
-                                    className="p-2 rounded-xl border border-border hover:bg-muted disabled:opacity-50 disabled:pointer-events-none"
+                                    className="p-3 rounded-xl border border-border hover:bg-muted disabled:opacity-50 disabled:pointer-events-none min-w-[44px] min-h-[44px] touch-manipulation"
                                 >
                                     <ChevronRight className="w-5 h-5" />
                                 </button>

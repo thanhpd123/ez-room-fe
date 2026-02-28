@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchAuthMe, getStoredToken } from '@/lib/api';
+import { fetchAuthMe, getAccessToken } from '@/lib/api';
 
 export type SearchLevel = 'guest' | 'tenant' | 'vip';
 
@@ -17,7 +17,7 @@ export function useAuthLevel(): AuthLevelState {
     const [loading, setLoading] = useState(true);
 
     const refetch = useCallback(async () => {
-        const token = getStoredToken();
+        const token = await getAccessToken();
         if (!token) {
             setLevel('guest');
             setLoading(false);

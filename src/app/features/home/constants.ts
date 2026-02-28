@@ -64,19 +64,37 @@ export const POPULAR_LOCATIONS = [
     },
 ];
 
+/** City options for location (city → district → address). */
+export const CITY_OPTIONS = [
+    { value: '', label: 'Chọn thành phố' },
+    { value: 'Hà Nội', label: 'Hà Nội' },
+    { value: 'TP. Hồ Chí Minh', label: 'TP. Hồ Chí Minh' },
+];
+
+/** Districts per city. Keys must match CITY_OPTIONS value. */
+export const DISTRICTS_BY_CITY: Record<string, { value: string; label: string }[]> = {
+    'Hà Nội': [
+        { value: 'Hoàn Kiếm', label: 'Hoàn Kiếm' },
+        { value: 'Cầu Giấy', label: 'Cầu Giấy' },
+        { value: 'Hoàng Mai', label: 'Hoàng Mai' },
+        { value: 'Đống Đa', label: 'Đống Đa' },
+        { value: 'Tây Hồ', label: 'Tây Hồ' },
+    ],
+    'TP. Hồ Chí Minh': [
+        { value: 'Quận 1', label: 'Quận 1' },
+        { value: 'Quận 3', label: 'Quận 3' },
+        { value: 'Quận 7', label: 'Quận 7' },
+        { value: 'Quận 10', label: 'Quận 10' },
+        { value: 'Bình Thạnh', label: 'Bình Thạnh' },
+        { value: 'Thủ Đức', label: 'Thủ Đức' },
+    ],
+};
+
+/** @deprecated Use city + district + address instead. Kept for any legacy references. */
 export const LOCATION_OPTIONS = [
     { value: '', label: 'Chọn khu vực' },
-    { value: 'Hoàn Kiếm', label: 'Hoàn Kiếm (Hà Nội)' },
-    { value: 'Cầu Giấy', label: 'Cầu Giấy (Hà Nội)' },
-    { value: 'Hoàng Mai', label: 'Hoàng Mai (Hà Nội)' },
-    { value: 'Đống Đa', label: 'Đống Đa (Hà Nội)' },
-    { value: 'Tây Hồ', label: 'Tây Hồ (Hà Nội)' },
-    { value: 'Quận 1', label: 'Quận 1 (HCM)' },
-    { value: 'Quận 3', label: 'Quận 3 (HCM)' },
-    { value: 'Quận 7', label: 'Quận 7 (HCM)' },
-    { value: 'Quận 10', label: 'Quận 10 (HCM)' },
-    { value: 'Bình Thạnh', label: 'Bình Thạnh (HCM)' },
-    { value: 'Thủ Đức', label: 'Thủ Đức (HCM)' },
+    ...(DISTRICTS_BY_CITY['Hà Nội'] || []).map((d) => ({ value: d.value, label: `${d.label} (Hà Nội)` })),
+    ...(DISTRICTS_BY_CITY['TP. Hồ Chí Minh'] || []).map((d) => ({ value: d.value, label: `${d.label} (HCM)` })),
 ];
 
 export const PRICE_OPTIONS = [

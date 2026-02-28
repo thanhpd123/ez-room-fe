@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
+import { getApiUrl } from '@/lib/api-config';
 
-const getBaseUrl = () =>
-    (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
+export { getApiBaseUrl } from '@/lib/api-config';
 
 const EZROOM_TOKEN_KEY = 'ezroom_token';
 
@@ -37,8 +37,7 @@ export async function loginWithEmail(
     email: string,
     password: string
 ): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string } }> {
-    const base = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
-    const url = `${base.replace(/\/$/, '')}/auth/login`;
+    const url = getApiUrl('/auth/login');
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,8 +53,7 @@ export async function loginWithEmail(
  * GET /auth/suggest-password – get a suggested strong password.
  */
 export async function suggestPasswordRequest(): Promise<{ suggestedPassword: string }> {
-    const base = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
-    const res = await fetch(`${base.replace(/\/$/, '')}/auth/suggest-password`);
+    const res = await fetch(getApiUrl('/auth/suggest-password'));
     const data = await res.json();
     if (!res.ok || !data.suggestedPassword) throw new Error('Không thể tạo mật khẩu gợi ý');
     return { suggestedPassword: data.suggestedPassword };
@@ -65,8 +63,7 @@ export async function suggestPasswordRequest(): Promise<{ suggestedPassword: str
  * POST /auth/forgot-password – request password reset email.
  */
 export async function forgotPasswordRequest(email: string): Promise<{ success: boolean; message: string }> {
-    const base = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
-    const res = await fetch(`${base.replace(/\/$/, '')}/auth/forgot-password`, {
+    const res = await fetch(getApiUrl('/auth/forgot-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
@@ -84,8 +81,7 @@ export async function resetPasswordRequest(
     newPassword: string,
     confirmPassword: string
 ): Promise<{ success: boolean; message: string }> {
-    const base = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
-    const res = await fetch(`${base.replace(/\/$/, '')}/auth/reset-password`, {
+    const res = await fetch(getApiUrl('/auth/reset-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword, confirmPassword }),
@@ -104,8 +100,7 @@ export async function registerOAuthRequest(payload: {
     phone?: string;
     role: 'TENANT' | 'LANDLORD';
 }): Promise<{ success: boolean; user: Record<string, unknown> }> {
-    const base = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
-    const res = await fetch(`${base.replace(/\/$/, '')}/auth/register-oauth`, {
+    const res = await fetch(getApiUrl('/auth/register-oauth'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -259,7 +254,7 @@ export async function authFetch(
     options: RequestInit = {}
 ): Promise<Response> {
     const token = await getAccessToken();
-    const url = `${getBaseUrl().replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+    const url = getApiUrl(path);
 
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
@@ -279,14 +274,13 @@ export async function authFetch(
  * POST /upload/image – upload image file to Cloudinary via backend. Returns Cloudinary URL.
  */
 export async function uploadImageRequest(file: File): Promise<{ url: string }> {
-    const base = getBaseUrl().replace(/\/$/, '');
     const token = await getAccessToken();
     if (!token) throw new Error('Cần đăng nhập để tải ảnh lên');
 
     const form = new FormData();
     form.append('file', file);
 
-    const res = await fetch(`${base}/upload/image`, {
+    const res = await fetch(getApiUrl('/upload/image'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -301,14 +295,13 @@ export async function uploadImageRequest(file: File): Promise<{ url: string }> {
  * POST /upload/rental-image – upload rental image to Supabase Storage via backend.
  */
 export async function uploadRentalImage(file: File): Promise<{ url: string }> {
-    const base = getBaseUrl().replace(/\/$/, '');
     const token = await getAccessToken();
     if (!token) throw new Error('Cần đăng nhập để tải ảnh lên');
 
     const form = new FormData();
     form.append('file', file);
 
-    const res = await fetch(`${base}/upload/rental-image`, {
+    const res = await fetch(getApiUrl('/upload/rental-image'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -464,6 +457,32 @@ export interface PublicRental {
 
 export type PublicRentalsSort = 'createdAt_desc' | 'createdAt_asc' | 'title_asc' | 'title_desc';
 
+/**
+ * GET /public/room-types – distinct room types from available rentals. No auth.
+ */
+export async function getPublicRoomTypesRequest(): Promise<{
+    success: boolean;
+    data: Array<{ value: string; label: string }>;
+}> {
+    const res = await fetch(getApiUrl('/public/room-types'), { cache: 'default' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tải loại phòng');
+    return json;
+}
+
+/**
+ * GET /rooms/amenities – list amenities (public). Used for advanced search.
+ */
+export async function getRoomsAmenitiesRequest(): Promise<{
+    success: boolean;
+    data: Array<{ id: string; name: string; icon?: string }>;
+}> {
+    const res = await fetch(getApiUrl('/rooms/amenities'), { cache: 'default' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tải tiện nghi');
+    return json;
+}
+
 export async function getPublicRentalsRequest(params?: {
     page?: number;
     limit?: number;
@@ -475,7 +494,6 @@ export async function getPublicRentalsRequest(params?: {
     data: PublicRental[];
     pagination: { page: number; limit: number; total: number; totalPages: number };
 }> {
-    const base = getBaseUrl().replace(/\/$/, '');
     const search = new URLSearchParams();
     if (params?.page) search.set('page', String(params.page));
     if (params?.limit) search.set('limit', String(params.limit));
@@ -483,7 +501,7 @@ export async function getPublicRentalsRequest(params?: {
     if (params?.city) search.set('city', params.city);
     if (params?.sort) search.set('sort', params.sort);
     const qs = search.toString();
-    const url = `${base}/public/rentals${qs ? `?${qs}` : ''}`;
+    const url = getApiUrl(`/public/rentals${qs ? `?${qs}` : ''}`);
     const res = await fetch(url, { cache: 'no-store' });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -522,14 +540,13 @@ export async function getPublicRentalByIdRequest(rentalId: string): Promise<{
         images: string[];
     };
 }> {
-    const base = getBaseUrl().replace(/\/$/, '');
-    const url = `${base}/public/rentals/${encodeURIComponent(rentalId)}`;
+    const url = getApiUrl(`/public/rentals/${encodeURIComponent(rentalId)}`);
     let res: Response;
     try {
-        res = await fetch(url, { cache: 'no-store' });
+        res = await fetch(url, { cache: 'default' });
     } catch (e) {
         console.error('[getPublicRentalById]', url, e);
-        throw new Error('Không kết nối được máy chủ. Kiểm tra backend đã chạy tại ' + base);
+        throw new Error('Không kết nối được máy chủ. Kiểm tra backend đã chạy.');
     }
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -550,8 +567,7 @@ export async function getRoomByIdRequest(roomId: string): Promise<{
     success: boolean;
     data: Record<string, unknown>;
 }> {
-    const base = getBaseUrl().replace(/\/$/, '');
-    const res = await fetch(`${base}/rooms/${roomId}`);
+    const res = await fetch(getApiUrl(`/rooms/${roomId}`));
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || json?.error || 'Không tìm thấy phòng');
     return json;
@@ -587,6 +603,7 @@ export interface SmartSearchParams {
     q?: string;
     city?: string;
     district?: string;
+    address?: string;
     minPrice?: number;
     maxPrice?: number;
     roomType?: string;
@@ -597,29 +614,40 @@ export interface SmartSearchParams {
     limit?: number;
 }
 
+/** Room-level search result (recommendation system). */
+export interface SmartSearchRoomItem {
+    id: string;
+    rentalId: string;
+    roomName: string | null;
+    title: string;
+    price: number;
+    area: number | null;
+    roomType: string | null;
+    amenities: string[];
+    images: string[];
+    location: { district: string | null; city: string | null; address?: string | null } | null;
+    matchScore: number;
+    rating: number | null;
+    otherRoomsInRental: Array<{ id: string; roomName: string | null; price: number; area: number | null; roomType: string; image: string }>;
+}
+
 /**
- * GET /public/search – smart search by name, description, location, price, type, area, amenities.
+ * GET /public/search – room-based recommendation search.
+ * Pass token via options for user-preference scoring. Rooms sorted by match score.
  */
-export async function smartSearchRequest(params?: SmartSearchParams): Promise<{
+export async function smartSearchRequest(
+    params?: SmartSearchParams,
+    options?: { token?: string | null }
+): Promise<{
     success: boolean;
-    data: Array<{
-        id: string;
-        title: string;
-        description: string | null;
-        location: { district: string | null; city: string | null } | null;
-        images: string[];
-        price: number;
-        area: number | null;
-        roomType: string | null;
-        amenities: string[];
-    }>;
+    data: SmartSearchRoomItem[];
     pagination: { page: number; limit: number; total: number; totalPages: number };
 }> {
-    const base = getBaseUrl().replace(/\/$/, '');
     const search = new URLSearchParams();
     if (params?.q) search.set('q', params.q);
     if (params?.city) search.set('city', params.city);
     if (params?.district) search.set('district', params.district);
+    if (params?.address) search.set('address', params.address);
     if (params?.minPrice != null) search.set('minPrice', String(params.minPrice));
     if (params?.maxPrice != null) search.set('maxPrice', String(params.maxPrice));
     if (params?.roomType) search.set('roomType', params.roomType);
@@ -628,8 +656,11 @@ export async function smartSearchRequest(params?: SmartSearchParams): Promise<{
     if (params?.amenities?.length) search.set('amenities', params.amenities.join(','));
     if (params?.page) search.set('page', String(params.page));
     if (params?.limit) search.set('limit', String(params.limit));
-    const url = `${base}/public/search?${search.toString()}`;
-    const res = await fetch(url, { cache: 'no-store' });
+    const url = getApiUrl(`/public/search?${search.toString()}`);
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    const token = options?.token ?? (await getAccessToken());
+    if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(url, { cache: 'no-store', headers });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tìm kiếm');
     return json;
@@ -660,9 +691,10 @@ export async function getRecommendRequest(): Promise<{
 
 /**
  * POST /search/by-image – image search (tenant: limited, VIP: unlimited). Auth required.
+ * TODO: Send imageFile via FormData for actual image-based search.
  */
 export async function searchByImageRequest(
-    imageFile: File,
+    _imageFile: File,
     options?: { district?: string; area?: string }
 ): Promise<{
     success: boolean;

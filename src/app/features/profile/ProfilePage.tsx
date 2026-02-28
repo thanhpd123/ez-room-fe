@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { ImageUpload } from '@/app/components/ImageUpload';
+import { useProvinces } from '@/app/hooks/useProvinces';
 import {
     updateProfileRequest,
     getLifestyleRequest,
@@ -27,6 +28,7 @@ import {
     type LifestyleProfileResponse,
     type UserPreferenceResponse,
 } from '@/lib/api';
+import type { ProvinceItem, WardItem } from '@/lib/provinces-api';
 
 type Tab = 'profile' | 'lifestyle' | 'preference';
 
@@ -54,6 +56,77 @@ const ROOM_TYPE_OPTIONS = [
     { value: 'STUDIO', label: 'Studio' },
     { value: 'APARTMENT', label: 'Căn hộ' },
 ];
+
+type PreferenceFormState = ReturnType<typeof toPreferenceForm>;
+
+function PreferredDistrictsField({
+    preference,
+    setPreference,
+    labelClass,
+    inputClass,
+}: {
+    preference: PreferenceFormState;
+    setPreference: React.Dispatch<React.SetStateAction<PreferenceFormState>>;
+    labelClass: string;
+    inputClass: string;
+}) {
+    const [selectedProvince, setSelectedProvince] = useState('');
+    const { provinces, getWardsFor } = useProvinces();
+    const wardList = selectedProvince ? getWardsFor(selectedProvince) : [];
+    const preferredSet = new Set(
+        (preference.preferred_districts ?? '')
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+    );
+
+    const toggleWard = (wardName: string) => {
+        const next = new Set(preferredSet);
+        if (next.has(wardName)) next.delete(wardName);
+        else next.add(wardName);
+        setPreference((p: PreferenceFormState) => ({ ...p, preferred_districts: Array.from(next).join(', ') }));
+    };
+
+    return (
+        <div className="space-y-3">
+            <label className={labelClass}>Phường/xã ưa thích</label>
+            <input
+                value={preference.preferred_districts ?? ''}
+                onChange={(e) => setPreference((p: PreferenceFormState) => ({ ...p, preferred_districts: e.target.value }))}
+                placeholder="VD: Phường Ba Đình, Phường Cầu Giấy (hoặc chọn bên dưới)"
+                className={inputClass}
+            />
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Chọn từ danh sách (34 tỉnh/thành → phường/xã)</p>
+                <select
+                    value={selectedProvince}
+                    onChange={(e) => setSelectedProvince(e.target.value)}
+                    className={`${inputClass} mb-3`}
+                >
+                    <option value="">Chọn tỉnh / thành phố</option>
+                    {provinces.map((p: ProvinceItem) => (
+                        <option key={p.code} value={p.name}>{p.name}</option>
+                    ))}
+                </select>
+                        {wardList.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {wardList.map((w: WardItem) => (
+                            <label key={w.code} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={preferredSet.has(w.name)}
+                                    onChange={() => toggleWard(w.name)}
+                                    className="rounded border-border text-primary"
+                                />
+                                <span className="text-sm">{w.name}</span>
+                            </label>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 function toLifestyleForm(p: LifestyleProfileResponse | null) {
     if (!p) {
@@ -317,9 +390,9 @@ export function ProfilePage() {
     return (
         <div className="min-h-screen bg-background">
             <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
-            <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+            <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-12">
                 {/* Profile header card */}
-                <div className="bg-card rounded-2xl border border-border shadow-sm p-6 sm:p-8 mb-8">
+                <div className="bg-card rounded-2xl border border-border shadow-sm p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                         <div className="relative shrink-0">
                             {avatarUrl ? (
@@ -357,14 +430,14 @@ export function ProfilePage() {
                     </div>
                 </div>
 
-                <h2 className="font-heading text-lg font-bold text-foreground mb-4">Cài đặt</h2>
-                <div className="flex flex-wrap gap-2 mb-6 border-b border-border pb-4">
+                <h2 className="font-heading text-base sm:text-lg font-bold text-foreground mb-3 sm:mb-4">Cài đặt</h2>
+                <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 border-b border-border pb-4 -mx-1 overflow-x-auto scrollbar-hide">
                     {tabs.map((t) => (
                         <button
                             key={t.id}
                             type="button"
                             onClick={() => setTab(t.id)}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${
+                            className={`flex items-center gap-2 px-4 py-2.5 sm:px-5 rounded-xl font-medium text-xs sm:text-sm transition-all shrink-0 min-h-[44px] touch-manipulation ${
                                 tab === t.id
                                     ? 'bg-primary text-primary-foreground shadow-sm'
                                     : 'bg-muted text-foreground hover:bg-muted/80'
@@ -748,7 +821,7 @@ export function ProfilePage() {
                                         <input
                                             type="number"
                                             value={preference.budget_min}
-                                            onChange={(e) => setPreference((p) => ({ ...p, budget_min: e.target.value }))}
+                                            onChange={(e) => setPreference((p) => ({ ...p, budget_min: e.target.value === '' ? '' : (Number(e.target.value) || 0) }))}
                                             placeholder="0"
                                             min={0}
                                             className={inputClass}
@@ -762,7 +835,7 @@ export function ProfilePage() {
                                         <input
                                             type="number"
                                             value={preference.budget_max}
-                                            onChange={(e) => setPreference((p) => ({ ...p, budget_max: e.target.value }))}
+                                            onChange={(e) => setPreference((p) => ({ ...p, budget_max: e.target.value === '' ? '' : (Number(e.target.value) || 0) }))}
                                             placeholder="0"
                                             min={0}
                                             className={inputClass}
@@ -812,15 +885,7 @@ export function ProfilePage() {
                                         ))}
                                     </select>
                                 </div>
-                                <div>
-                                    <label className={labelClass}>Quận/huyện ưa thích (cách nhau bằng dấu phẩy)</label>
-                                    <input
-                                        value={preference.preferred_districts}
-                                        onChange={(e) => setPreference((p) => ({ ...p, preferred_districts: e.target.value }))}
-                                        placeholder="VD: Cầu Giấy, Đống Đa, Thanh Xuân"
-                                        className={inputClass}
-                                    />
-                                </div>
+                                <PreferredDistrictsField preference={preference} setPreference={setPreference} labelClass={labelClass} inputClass={inputClass} />
                                 <div>
                                     <label className={labelClass}>Tiện nghi mong muốn (cách nhau bằng dấu phẩy)</label>
                                     <input

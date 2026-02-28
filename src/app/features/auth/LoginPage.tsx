@@ -1,59 +1,40 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Loader2, Home } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { HomeOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Divider, Form, Input, Typography } from 'antd';
 import { useAuth } from '@/app/context/AuthContext';
+import { getRedirectByRole } from '@/lib/auth/roleRedirect';
 
-// Helper function để redirect theo role
-function getRedirectByRole(role?: string): string {
-    switch (role) {
-        case 'ADMIN':
-            return '/admin';
-        case 'MODERATOR':
-            return '/moderator';
-        case 'LANDLORD':
-            return '/rental-management';
-        default:
-            return '/home';
-    }
-}
+const { Title, Paragraph } = Typography;
 
 export function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { t } = useTranslation();
     const { user, signInWithGoogle, signInWithFacebook, signInWithEmail, isLoading } = useAuth();
     const justRegistered = (location.state as { registered?: boolean })?.registered === true;
 
-    const [form, setForm] = useState({ email: '', password: '' });
-    const [showPassword, setShowPassword] = useState(false);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [success] = useState<string | null>(
-        justRegistered ? 'Đăng ký thành công! Bạn có thể đăng nhập ngay.' : null,
-    );
+    const [form] = Form.useForm();
+    const success = justRegistered ? t('auth.registerSuccess') : null;
 
     useEffect(() => {
         if (!isLoading && user) {
             const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
-            // Redirect theo role nếu không có destination trước đó
             const destination = from || getRedirectByRole(user.role);
             navigate(destination, { replace: true });
         }
     }, [user, isLoading, navigate, location.state]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-        setError(null);
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (values: { email: string; password: string }) => {
         setError(null);
         setSubmitLoading(true);
         try {
-            await signInWithEmail(form.email.trim(), form.password);
-            // Redirect sẽ được handle bởi useEffect khi user state thay đổi
+            await signInWithEmail(values.email.trim(), values.password);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Đăng nhập thất bại');
+            setError(err instanceof Error ? err.message : t('auth.loginError'));
         } finally {
             setSubmitLoading(false);
         }
@@ -65,7 +46,7 @@ export function LoginPage() {
             await signInWithGoogle();
         } catch (err) {
             console.error('Google sign-in error:', err);
-            setError('Đăng nhập Google thất bại. Vui lòng thử lại.');
+            setError(t('auth.googleError'));
         }
     };
 
@@ -75,132 +56,112 @@ export function LoginPage() {
             await signInWithFacebook();
         } catch (err) {
             console.error('Facebook sign-in error:', err);
-            setError('Đăng nhập Facebook thất bại. Vui lòng thử lại.');
+            setError(t('auth.facebookError'));
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+        <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 sm:py-12">
             <div className="w-full max-w-md">
-                <div className="bg-card rounded-2xl shadow-sm border border-border px-8 py-10">
+                <Card className="rounded-2xl shadow-lg border-border [&_.ant-card-body]:!p-5 sm:[&_.ant-card-body]:!p-8 hover:shadow-xl transition-shadow" styles={{ body: { padding: 0 } }}>
                     <div className="flex justify-center mb-8">
-                        <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-sm">
-                            <Home className="w-7 h-7 text-primary-foreground" strokeWidth={2} />
+                        <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-md ring-4 ring-primary/10">
+                            <HomeOutlined className="text-white text-2xl" />
                         </div>
                     </div>
 
                     <div className="text-center mb-8">
-                        <h1 className="text-2xl font-heading font-bold text-foreground">Đăng nhập</h1>
-                        <p className="text-muted-foreground mt-1 text-sm">Chào mừng bạn đến với EzRoom</p>
+                        <Title level={3} className="!font-heading !mb-1">{t('auth.login')}</Title>
+                        <Paragraph type="secondary" className="!mb-0 text-sm">{t('auth.loginWelcome')}</Paragraph>
                     </div>
 
                     {success && (
-                        <div className="mb-5 p-4 bg-primary/5 border border-primary/20 rounded-xl text-primary text-sm font-medium">
-                            {success}
-                        </div>
+                        <Alert message={success} type="success" showIcon className="mb-5 rounded-xl" />
                     )}
 
                     {error && (
-                        <div className="mb-5 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm font-medium" role="alert">
-                            {error}
-                        </div>
+                        <Alert message={error} type="error" showIcon className="mb-5 rounded-xl" role="alert" />
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" strokeWidth={2} />
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={form.email}
-                                    onChange={handleChange}
-                                    placeholder="your.email@example.com"
-                                    className="w-full pl-11 pr-4 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                    required
-                                    autoComplete="email"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Mật khẩu</label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" strokeWidth={2} />
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    name="password"
-                                    value={form.password}
-                                    onChange={handleChange}
-                                    placeholder="••••••••"
-                                    className="w-full pl-11 pr-11 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                    required
-                                    autoComplete="current-password"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                                >
-                                    {showPassword ? <EyeOff className="w-5 h-5" strokeWidth={2} /> : <Eye className="w-5 h-5" strokeWidth={2} />}
-                                </button>
-                            </div>
-                            <div className="text-right mt-1.5">
-                                <Link to="/forgot-password" className="text-xs text-primary font-medium hover:underline">
-                                    Quên mật khẩu?
-                                </Link>
-                            </div>
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={submitLoading || isLoading}
-                            className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        requiredMark={false}
+                        onFinish={handleSubmit}
+                        className="space-y-0"
+                    >
+                        <Form.Item
+                            name="email"
+                            label={t('auth.email')}
+                            rules={[{ required: true, message: t('auth.emailRequired') }, { type: 'email', message: t('auth.emailInvalid') }]}
                         >
-                            {submitLoading && <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />}
-                            {submitLoading ? 'Đang xử lý...' : 'Đăng nhập'}
-                        </button>
-                    </form>
+                            <Input size="large" placeholder="your.email@example.com" autoComplete="email" className="rounded-xl" />
+                        </Form.Item>
 
-                    <div className="flex items-center gap-3 my-8">
-                        <div className="flex-1 h-px bg-border" />
-                        <span className="text-xs text-muted-foreground">hoặc</span>
-                        <div className="flex-1 h-px bg-border" />
-                    </div>
+                        <Form.Item
+                            name="password"
+                            label={t('auth.password')}
+                            rules={[{ required: true, message: t('auth.passwordRequired') }]}
+                            extra={
+                                <div className="text-right mt-1.5">
+                                    <Link to="/forgot-password" className="text-xs text-primary font-medium hover:underline">
+                                        {t('auth.forgotPassword')}
+                                    </Link>
+                                </div>
+                            }
+                        >
+                            <Input.Password size="large" placeholder="••••••••" autoComplete="current-password" className="rounded-xl" />
+                        </Form.Item>
 
-                    <button
-                        type="button"
+                        <Form.Item className="!mb-0 mt-2">
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                size="large"
+                                loading={submitLoading || isLoading}
+                                block
+                                className="rounded-xl font-semibold h-11 sm:h-12 min-h-[44px] touch-manipulation"
+                            >
+                                {t('auth.submitLogin')}
+                            </Button>
+                        </Form.Item>
+                    </Form>
+
+                    <Divider plain className="my-8">{t('auth.or')}</Divider>
+
+                    <Button
+                        size="large"
+                        block
                         onClick={handleGoogleLogin}
                         disabled={isLoading}
-                        className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-card hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none font-medium text-foreground"
+                        className="rounded-xl h-11 sm:h-12 min-h-[44px] flex items-center justify-center gap-3 font-medium mb-3 touch-manipulation"
                     >
                         <GoogleIcon className="w-5 h-5" />
-                        Đăng nhập với Google
-                    </button>
+                        {t('auth.loginWithGoogle')}
+                    </Button>
 
-                    <button
-                        type="button"
+                    <Button
+                        size="large"
+                        block
                         onClick={handleFacebookLogin}
                         disabled={isLoading}
-                        className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-card hover:bg-muted transition-colors disabled:opacity-50 disabled:pointer-events-none font-medium text-foreground mt-3"
+                        className="rounded-xl h-11 sm:h-12 min-h-[44px] flex items-center justify-center gap-3 font-medium touch-manipulation"
                     >
                         <FacebookIcon className="w-5 h-5" />
-                        Đăng nhập với Facebook
-                    </button>
+                        {t('auth.loginWithFacebook')}
+                    </Button>
 
-                    <p className="text-center text-sm text-muted-foreground mt-8">
-                        Chưa có tài khoản?{' '}
+                    <Paragraph className="text-center text-sm text-muted-foreground mt-8 !mb-0">
+                        {t('auth.noAccount')}{' '}
                         <Link to="/register" className="text-primary font-semibold hover:underline">
-                            Đăng ký ngay
+                            {t('auth.registerNow')}
                         </Link>
-                    </p>
-                </div>
+                    </Paragraph>
+                </Card>
 
-                <p className="text-center text-xs text-muted-foreground mt-10">
+                <Paragraph className="text-center text-xs text-muted-foreground mt-10 !mb-0">
                     © 2026 EzRoom - Smart Renting Room System
-                </p>
+                </Paragraph>
             </div>
         </div>
     );
@@ -209,22 +170,10 @@ export function LoginPage() {
 function GoogleIcon({ className }: { className?: string }) {
     return (
         <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
-            />
-            <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-            />
-            <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05"
-            />
-            <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335"
-            />
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
         </svg>
     );
 }

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ImageUpload } from '@/app/components/ImageUpload';
 import { createRentalRequest } from '@/lib/api';
+import { useProvinces } from '@/app/hooks/useProvinces';
 import { PROPERTY_TYPE_OPTIONS, type PropertyType } from '../shared/types';
 
 interface CreateRentalFormState {
@@ -44,7 +45,7 @@ export function CreateRentalPage() {
 
         if (!form.title.trim()) nextErrors.title = 'Tiêu đề là bắt buộc.';
         if (!form.city.trim()) nextErrors.city = 'Thành phố là bắt buộc.';
-        if (!form.district.trim()) nextErrors.district = 'Quận/huyện là bắt buộc.';
+        if (!form.district.trim()) nextErrors.district = 'Phường/xã là bắt buộc.';
         if (!form.address.trim()) nextErrors.address = 'Địa chỉ là bắt buộc.';
         if (!Number.isFinite(availableRoomNumber) || availableRoomNumber < 0) {
             nextErrors.available_room = 'Số phòng phải là số nguyên dương.';
@@ -54,10 +55,17 @@ export function CreateRentalPage() {
         return Object.keys(nextErrors).length === 0;
     };
 
+    const { provinces, getWardsFor, loading: locationsLoading } = useProvinces();
+    const wardOptions = form.city ? getWardsFor(form.city) : [];
+
     const onChangeField =
         <K extends keyof CreateRentalFormState>(key: K) =>
             (value: CreateRentalFormState[K]) => {
-                setForm((prev) => ({ ...prev, [key]: value }));
+                setForm((prev) => {
+                    const next = { ...prev, [key]: value };
+                    if (key === 'city') next.district = '';
+                    return next;
+                });
                 setErrors((prev) => ({ ...prev, [key]: undefined }));
             };
 
@@ -135,33 +143,43 @@ export function CreateRentalPage() {
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Thành phố *</label>
-                        <input
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Tỉnh / Thành phố *</label>
+                        <select
                             value={form.city}
                             onChange={(event) => onChangeField('city')(event.target.value)}
-                            placeholder="Hà Nội"
+                            disabled={locationsLoading}
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-                        />
+                        >
+                            <option value="">Chọn tỉnh / thành phố</option>
+                            {provinces.map((p) => (
+                                <option key={p.code} value={p.name}>{p.name}</option>
+                            ))}
+                        </select>
                         {errors.city ? <p className="mt-1 text-xs text-rose-600">{errors.city}</p> : null}
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Quận/huyện *</label>
-                        <input
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Phường / Xã *</label>
+                        <select
                             value={form.district}
                             onChange={(event) => onChangeField('district')(event.target.value)}
-                            placeholder="Đống Đa"
+                            disabled={!form.city || locationsLoading}
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-                        />
+                        >
+                            <option value="">Chọn phường / xã</option>
+                            {wardOptions.map((w) => (
+                                <option key={w.code} value={w.name}>{w.name}</option>
+                            ))}
+                        </select>
                         {errors.district ? <p className="mt-1 text-xs text-rose-600">{errors.district}</p> : null}
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Địa chỉ *</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Địa chỉ chi tiết (đường, số nhà) *</label>
                         <input
                             value={form.address}
                             onChange={(event) => onChangeField('address')(event.target.value)}
-                            placeholder="268 Tây Sơn"
+                            placeholder="VD: 268 Tây Sơn"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                         {errors.address ? <p className="mt-1 text-xs text-rose-600">{errors.address}</p> : null}

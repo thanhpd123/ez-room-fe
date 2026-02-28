@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Home, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { getApiUrl } from '@/lib/api-config';
 
 export function LoginPage() {
     const navigate = useNavigate();
@@ -29,7 +29,7 @@ export function LoginPage() {
         setLoading(true);
 
         try {
-            const res = await axios.post(`${API_URL}/auth/login`, form);
+            const res = await axios.post(getApiUrl('/auth/login'), form);
             if (res.data.success) {
                 // Save token & user info
                 localStorage.setItem('token', res.data.token);

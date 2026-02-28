@@ -42,15 +42,24 @@
     @apply border-border;
   }
 
+  html {
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
     margin: 0;
+    overflow-x: hidden;
+    line-height: 1.6;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
     @apply text-foreground;
+    line-height: 1.3;
   }
 
   h1 {
@@ -68,6 +77,17 @@
   h4 {
     @apply text-base font-semibold;
   }
+
+  /* Focus ring for accessibility */
+  *:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /* Smoother link transitions */
+  a {
+    transition: color 0.15s ease;
+  }
 }
 
 @layer utilities {
@@ -77,5 +97,25 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+  /* Better touch targets on mobile – removes 300ms delay */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  /* Safe area insets for notched devices */
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+  /* Card hover lift effect */
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -8px rgb(0 0 0 / 0.12);
+  }
+  /* Button press feedback */
+  .active-scale:active {
+    transform: scale(0.98);
   }
 }

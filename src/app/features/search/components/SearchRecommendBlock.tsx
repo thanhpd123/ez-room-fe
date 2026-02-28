@@ -7,6 +7,7 @@ import type { Room } from '../types';
 
 function recommendItemToRoom(r: {
     id: string;
+    rentalId?: string;
     title: string;
     location: { district: string | null; city: string | null } | null;
     images: string[];
@@ -25,7 +26,7 @@ function recommendItemToRoom(r: {
         image: r.images?.[0] || '',
         rating: 0,
         available: true,
-        rentalId: r.id,
+        rentalId: r.rentalId || r.id,
     };
 }
 
