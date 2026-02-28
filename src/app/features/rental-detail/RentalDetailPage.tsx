@@ -62,7 +62,6 @@ function mapApiToRentalDetailData(api: {
 export function RentalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [rental, setRental] = useState<RentalDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

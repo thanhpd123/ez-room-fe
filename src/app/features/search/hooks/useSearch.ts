@@ -47,7 +47,7 @@ export function useSearch(): UseSearchReturn {
     const [hasSearched, setHasSearched] = useState(false);
     const [imageSearchError, setImageSearchError] = useState<string | null>(null);
 
-    const searchByText = useCallback((criteria: SearchCriteria) => {
+    const searchByText = useCallback(async (criteria: SearchCriteria) => {
         setIsSearching(true);
         setHasSearched(false);
         setImageSearchError(null);
