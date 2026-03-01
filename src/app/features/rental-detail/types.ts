@@ -4,6 +4,8 @@ export interface RentalRoom {
   price: number;
   area: number;
   status: 'available' | 'occupied';
+  images?: string[];
+  amenities?: string[];
 }
 
 export interface RentalLandlord {

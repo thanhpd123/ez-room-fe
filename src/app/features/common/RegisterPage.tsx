@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useAuth } from '@/app/context/AuthContext';
 import { suggestPasswordRequest } from '@/lib/api';
 
-const getApiUrl = () => (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+import { getApiUrl } from '@/lib/api-config';
 
 function passwordRequirements(pwd: string) {
     return {
@@ -58,7 +58,7 @@ export function RegisterPage() {
                 confirmPassword: form.confirmPassword,
                 role: form.role,
             };
-            const res = await axios.post(`${getApiUrl()}/auth/register`, payload, {
+            const res = await axios.post(getApiUrl('/auth/register'), payload, {
                 timeout: 15000,
                 headers: { 'Content-Type': 'application/json' },
                 validateStatus: () => true,
