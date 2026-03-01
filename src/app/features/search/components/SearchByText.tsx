@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
-import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw, Mic } from 'lucide-react';
 import type { SearchCriteria, RoomType } from '../types';
-import { AMENITIES_LIST, ROOM_TYPE_OPTIONS } from '../constants';
+import { useProvinces } from '@/app/hooks/useProvinces';
+import { useAmenities } from '@/app/hooks/useAmenities';
+import { useRoomTypes } from '@/app/hooks/useRoomTypes';
 
 interface SearchByTextProps {
     onSearch: (criteria: SearchCriteria) => void;
     isSearching: boolean;
+    /** Guest: only name, description, location, price, type. Tenant/VIP: full (area, amenities). */
+    basicOnly?: boolean;
+    /** Voice search: callback with transcribed text to fill q. */
+    onVoiceResult?: (text: string) => void;
 }
 
 interface FormState {
-    location: string;
+    q: string;
+    city: string;
+    district: string;
+    address: string;
     minPrice: string;
     maxPrice: string;
     minArea: string;
@@ -19,7 +29,10 @@ interface FormState {
 }
 
 const initialFormState: FormState = {
-    location: '',
+    q: '',
+    city: '',
+    district: '',
+    address: '',
     minPrice: '',
     maxPrice: '',
     minArea: '',
@@ -28,12 +41,98 @@ const initialFormState: FormState = {
     selectedAmenities: [],
 };
 
-export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
+type SpeechRecognitionInstance = {
+    lang: string;
+    continuous: boolean;
+    interimResults: boolean;
+    onresult: ((e: Event & { results?: ArrayLike<ArrayLike<{ transcript?: string }>> }) => void) | null;
+    onend: (() => void) | null;
+    onerror: (() => void) | null;
+    start: () => void;
+};
+
+function VoiceSearchButton({
+    onResult,
+    disabled,
+}: {
+    onResult: (text: string) => void;
+    disabled?: boolean;
+}) {
+    const [listening, setListening] = useState(false);
+    const startListening = useCallback(() => {
+        const Rec = (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).SpeechRecognition
+            || (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).webkitSpeechRecognition;
+        if (!Rec) {
+            onResult('');
+            return;
+        }
+        const rec = new Rec();
+        rec.lang = 'vi-VN';
+        rec.continuous = false;
+        rec.interimResults = false;
+        rec.onresult = (e) => {
+            const ev = e as Event & { results?: ArrayLike<ArrayLike<{ transcript?: string }>> };
+            const t = ev.results?.[0]?.[0]?.transcript ?? '';
+            onResult(t);
+        };
+        rec.onend = () => setListening(false);
+        rec.onerror = () => setListening(false);
+        setListening(true);
+        rec.start();
+    }, [onResult]);
+    return (
+        <button
+            type="button"
+            onClick={startListening}
+            disabled={disabled || listening}
+            className="p-3 rounded-xl border border-border bg-background hover:bg-muted transition-all disabled:opacity-50 flex items-center justify-center"
+            title="Tìm kiếm bằng giọng nói"
+        >
+            <Mic className={`w-5 h-5 ${listening ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
+        </button>
+    );
+}
+
+export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoiceResult }: SearchByTextProps) {
+    const [searchParams] = useSearchParams();
     const [formState, setFormState] = useState<FormState>(initialFormState);
     const [error, setError] = useState('');
+    const { provinces, getWardsFor, loading: locationsLoading } = useProvinces();
+    const { amenities: amenitiesList } = useAmenities();
+    const { options: roomTypeOptions } = useRoomTypes();
+    const effectiveRoomTypes = roomTypeOptions.length > 0 ? roomTypeOptions : [
+        { value: 'single', label: 'Phòng đơn' },
+        { value: 'double', label: 'Phòng đôi' },
+        { value: 'studio', label: 'Studio' },
+        { value: 'apartment', label: 'Căn hộ' },
+    ];
+    const wardOptions = formState.city ? getWardsFor(formState.city) : [];
+
+    // Sync form with URL when landing on /search?city=...&district=...&address=...&amenities=...&minArea=...&maxArea=...
+    useEffect(() => {
+        const city = searchParams.get('city') || '';
+        const district = searchParams.get('district') || '';
+        const address = searchParams.get('address') || '';
+        const amenitiesParam = searchParams.get('amenities');
+        const minAreaParam = searchParams.get('minArea');
+        const maxAreaParam = searchParams.get('maxArea');
+        if (city || district || address || amenitiesParam || minAreaParam || maxAreaParam) {
+            setFormState((prev) => {
+                const next = { ...prev, city, district, address };
+                if (amenitiesParam) next.selectedAmenities = amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean);
+                if (minAreaParam) next.minArea = minAreaParam;
+                if (maxAreaParam) next.maxArea = maxAreaParam;
+                return next;
+            });
+        }
+    }, [searchParams.toString()]);
 
     const handleInputChange = (key: keyof FormState, value: string) => {
-        setFormState((prev) => ({ ...prev, [key]: value }));
+        setFormState((prev) => {
+            const next = { ...prev, [key]: value };
+            if (key === 'city') next.district = '';
+            return next;
+        });
     };
 
     const handleAmenityToggle = (amenityId: string) => {
@@ -104,13 +203,16 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
         }
 
         const criteria: SearchCriteria = {
-            location: formState.location.trim() || undefined,
+            q: formState.q.trim() || undefined,
+            city: formState.city.trim() || undefined,
+            district: formState.district.trim() || undefined,
+            address: formState.address.trim() || undefined,
             minPrice: formState.minPrice ? Number(formState.minPrice) : undefined,
             maxPrice: formState.maxPrice ? Number(formState.maxPrice) : undefined,
-            minArea: formState.minArea ? Number(formState.minArea) : undefined,
-            maxArea: formState.maxArea ? Number(formState.maxArea) : undefined,
+            minArea: basicOnly ? undefined : (formState.minArea ? Number(formState.minArea) : undefined),
+            maxArea: basicOnly ? undefined : (formState.maxArea ? Number(formState.maxArea) : undefined),
             roomType: formState.roomType || undefined,
-            amenities: formState.selectedAmenities.length > 0 ? formState.selectedAmenities : undefined,
+            amenities: basicOnly ? undefined : (formState.selectedAmenities.length > 0 ? formState.selectedAmenities : undefined),
         };
 
         onSearch(criteria);
@@ -131,20 +233,65 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Location */}
+                {/* Search query (name, description) */}
+                <div className="space-y-2">
+                    <label className="flex items-center gap-2 font-medium text-foreground">
+                        <Search className="w-4 h-4 text-primary" />
+                        Từ khóa (tên, mô tả)
+                    </label>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={formState.q}
+                            onChange={(e) => handleInputChange('q', e.target.value)}
+                            placeholder="VD: phòng có ban công, gần trường..."
+                            disabled={isSearching}
+                            className="flex-1 px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                        />
+                        {onVoiceResult && (
+                            <VoiceSearchButton onResult={(t) => { handleInputChange('q', t); onVoiceResult(t); }} disabled={isSearching} />
+                        )}
+                    </div>
+                </div>
+
+                {/* Location – new address: province (34) → phường/xã → detail */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
                         <MapPin className="w-4 h-4 text-primary" />
-                        Địa điểm
+                        Địa điểm (Tỉnh/TP → Phường/Xã → Địa chỉ chi tiết)
                     </label>
-                    <input
-                        type="text"
-                        value={formState.location}
-                        onChange={(e) => handleInputChange('location', e.target.value)}
-                        placeholder="Nhập quận, thành phố..."
-                        disabled={isSearching}
-                        className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <select
+                            value={formState.city}
+                            onChange={(e) => handleInputChange('city', e.target.value)}
+                            disabled={isSearching || locationsLoading}
+                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                        >
+                            <option value="">Chọn tỉnh / thành phố</option>
+                            {provinces.map((p) => (
+                                <option key={p.code} value={p.name}>{p.name}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={formState.district}
+                            onChange={(e) => handleInputChange('district', e.target.value)}
+                            disabled={!formState.city || isSearching || locationsLoading}
+                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                        >
+                            <option value="">Chọn phường / xã</option>
+                            {wardOptions.map((w) => (
+                                <option key={w.code} value={w.name}>{w.name}</option>
+                            ))}
+                        </select>
+                        <input
+                            type="text"
+                            value={formState.address}
+                            onChange={(e) => handleInputChange('address', e.target.value)}
+                            placeholder="Địa chỉ chi tiết (đường, số nhà...)"
+                            disabled={isSearching}
+                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                        />
+                    </div>
                 </div>
 
                 {/* Price Range */}
@@ -173,7 +320,8 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
                     </div>
                 </div>
 
-                {/* Area Range */}
+                {/* Area Range – tenant/VIP only */}
+                {!basicOnly && (
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
                         <Maximize className="w-4 h-4 text-primary" />
@@ -198,6 +346,7 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
                         />
                     </div>
                 </div>
+                )}
 
                 {/* Room Type */}
                 <div className="space-y-2">
@@ -212,7 +361,7 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
                         className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                     >
                         <option value="">Chọn loại phòng</option>
-                        {ROOM_TYPE_OPTIONS.map((opt) => (
+                        {effectiveRoomTypes.map((opt) => (
                             <option key={opt.value} value={opt.value}>
                                 {opt.label}
                             </option>
@@ -220,11 +369,12 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
                     </select>
                 </div>
 
-                {/* Amenities */}
+                {/* Amenities – tenant/VIP only */}
+                {!basicOnly && (
                 <div className="space-y-3">
                     <label className="font-medium text-foreground">Tiện nghi</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {AMENITIES_LIST.map((amenity) => (
+                        {amenitiesList.map((amenity) => (
                             <label
                                 key={amenity.id}
                                 className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formState.selectedAmenities.includes(amenity.id)
@@ -239,11 +389,12 @@ export function SearchByText({ onSearch, isSearching }: SearchByTextProps) {
                                     disabled={isSearching}
                                     className="w-4 h-4 text-primary accent-primary"
                                 />
-                                <span className="text-sm">{amenity.label}</span>
+                                <span className="text-sm">{amenity.name}</span>
                             </label>
                         ))}
                     </div>
                 </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">

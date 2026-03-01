@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { getApiUrl } from '@/lib/api-config';
 
 // Get token from localStorage (same key as AuthContext)
 function getAuthHeader() {
@@ -100,7 +99,7 @@ export interface PaginationInfo {
 
 export async function getAdminStats(): Promise<AdminStats> {
     try {
-        const res = await axios.get(`${API_BASE}/admin/stats`, {
+        const res = await axios.get(getApiUrl('/admin/stats'), {
             headers: getAuthHeader(),
         });
         return res.data.data;
@@ -118,7 +117,7 @@ export async function getAdminStats(): Promise<AdminStats> {
 
 export async function getRentalStats(): Promise<RentalStats> {
     try {
-        const res = await axios.get(`${API_BASE}/rentals/stats`, {
+        const res = await axios.get(getApiUrl('/rentals/stats'), {
             headers: getAuthHeader(),
         });
         return res.data.data;
@@ -147,7 +146,7 @@ export async function getUsers(params: GetUsersParams = {}): Promise<{
     pagination: PaginationInfo;
 }> {
     try {
-        const res = await axios.get(`${API_BASE}/admin/users`, {
+        const res = await axios.get(getApiUrl('/admin/users'), {
             headers: getAuthHeader(),
             params,
         });
@@ -167,7 +166,7 @@ export async function getUsers(params: GetUsersParams = {}): Promise<{
 export async function updateUserRole(userId: string, role: string): Promise<{ success: boolean; message: string }> {
     try {
         const res = await axios.patch(
-            `${API_BASE}/admin/users/${userId}/role`,
+            getApiUrl(`/admin/users/${userId}/role`),
             { role },
             { headers: getAuthHeader() }
         );
@@ -184,7 +183,7 @@ export async function updateUserRole(userId: string, role: string): Promise<{ su
 export async function updateUserStatus(userId: string, status: string): Promise<{ success: boolean; message: string }> {
     try {
         const res = await axios.patch(
-            `${API_BASE}/admin/users/${userId}/status`,
+            getApiUrl(`/admin/users/${userId}/status`),
             { status },
             { headers: getAuthHeader() }
         );
@@ -214,7 +213,7 @@ export async function getRentals(params: GetRentalsParams = {}): Promise<{
     pagination: PaginationInfo;
 }> {
     try {
-        const res = await axios.get(`${API_BASE}/rentals`, {
+        const res = await axios.get(getApiUrl('/rentals'), {
             headers: getAuthHeader(),
             params,
         });
@@ -233,7 +232,7 @@ export async function getRentals(params: GetRentalsParams = {}): Promise<{
 
 export async function getRentalById(rentalId: string): Promise<Rental | null> {
     try {
-        const res = await axios.get(`${API_BASE}/rentals/${rentalId}`, {
+        const res = await axios.get(getApiUrl(`/rentals/${rentalId}`), {
             headers: getAuthHeader(),
         });
         return res.data.data;
@@ -250,7 +249,7 @@ export async function updateRentalStatus(
 ): Promise<{ success: boolean; message: string }> {
     try {
         const res = await axios.patch(
-            `${API_BASE}/rentals/${rentalId}/status`,
+            getApiUrl(`/rentals/${rentalId}/status`),
             { status, reason },
             { headers: getAuthHeader() }
         );
@@ -266,7 +265,7 @@ export async function updateRentalStatus(
 
 export async function deleteRental(rentalId: string): Promise<{ success: boolean; message: string }> {
     try {
-        const res = await axios.delete(`${API_BASE}/rentals/${rentalId}`, {
+        const res = await axios.delete(getApiUrl(`/rentals/${rentalId}`), {
             headers: getAuthHeader(),
         });
         return { success: true, message: res.data.message };
@@ -283,7 +282,7 @@ export async function deleteRental(rentalId: string): Promise<{ success: boolean
 
 export async function getAmenities(): Promise<Amenity[]> {
     try {
-        const res = await axios.get(`${API_BASE}/amenities`);
+        const res = await axios.get(getApiUrl('/amenities'));
         return res.data.data;
     } catch (error) {
         console.error('getAmenities error:', error);
@@ -294,7 +293,7 @@ export async function getAmenities(): Promise<Amenity[]> {
 export async function createAmenity(data: { name: string }): Promise<{ success: boolean; message: string; data?: Amenity }> {
     try {
         const res = await axios.post(
-            `${API_BASE}/amenities`,
+            getApiUrl('/amenities'),
             data,
             { headers: getAuthHeader() }
         );
@@ -311,7 +310,7 @@ export async function createAmenity(data: { name: string }): Promise<{ success: 
 export async function updateAmenity(id: string, data: { name: string }): Promise<{ success: boolean; message: string }> {
     try {
         const res = await axios.patch(
-            `${API_BASE}/amenities/${id}`,
+            getApiUrl(`/amenities/${id}`),
             data,
             { headers: getAuthHeader() }
         );
@@ -327,7 +326,7 @@ export async function updateAmenity(id: string, data: { name: string }): Promise
 
 export async function deleteAmenity(id: string): Promise<{ success: boolean; message: string }> {
     try {
-        const res = await axios.delete(`${API_BASE}/amenities/${id}`, {
+        const res = await axios.delete(getApiUrl(`/amenities/${id}`), {
             headers: getAuthHeader(),
         });
         return { success: true, message: res.data.message };
@@ -344,7 +343,7 @@ export async function deleteAmenity(id: string): Promise<{ success: boolean; mes
 
 export async function getLocations(city?: string): Promise<Location[]> {
     try {
-        const res = await axios.get(`${API_BASE}/locations`, { params: city ? { city } : {} });
+        const res = await axios.get(getApiUrl('/locations'), { params: city ? { city } : {} });
         return res.data.data;
     } catch (error) {
         console.error('getLocations error:', error);
@@ -354,7 +353,7 @@ export async function getLocations(city?: string): Promise<Location[]> {
 
 export async function getCities(): Promise<string[]> {
     try {
-        const res = await axios.get(`${API_BASE}/locations/cities`);
+        const res = await axios.get(getApiUrl('/locations/cities'));
         return res.data.data;
     } catch (error) {
         console.error('getCities error:', error);
@@ -372,7 +371,7 @@ export interface CreateLocationInput {
 
 export async function createLocation(data: CreateLocationInput): Promise<{ success: boolean; message: string; data?: Location }> {
     try {
-        const res = await axios.post(`${API_BASE}/locations`, data, {
+        const res = await axios.post(getApiUrl('/locations'), data, {
             headers: getAuthHeader(),
         });
         return { success: true, message: res.data.message, data: res.data.data };
@@ -387,7 +386,7 @@ export async function createLocation(data: CreateLocationInput): Promise<{ succe
 
 export async function updateLocation(id: string, data: Partial<CreateLocationInput>): Promise<{ success: boolean; message: string }> {
     try {
-        const res = await axios.patch(`${API_BASE}/locations/${id}`, data, {
+        const res = await axios.patch(getApiUrl(`/locations/${id}`), data, {
             headers: getAuthHeader(),
         });
         return { success: true, message: res.data.message };
@@ -402,7 +401,7 @@ export async function updateLocation(id: string, data: Partial<CreateLocationInp
 
 export async function deleteLocation(id: string): Promise<{ success: boolean; message: string }> {
     try {
-        const res = await axios.delete(`${API_BASE}/locations/${id}`, {
+        const res = await axios.delete(getApiUrl(`/locations/${id}`), {
             headers: getAuthHeader(),
         });
         return { success: true, message: res.data.message };

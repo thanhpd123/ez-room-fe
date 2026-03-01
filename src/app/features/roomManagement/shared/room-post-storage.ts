@@ -1,8 +1,7 @@
 import type { CreateManagedRoomPostInput, ManagedRoomPostItem } from './types';
 import { getAccessToken } from '@/lib/api';
 
-const getBaseUrl = () =>
-    (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
+import { getApiUrl } from '@/lib/api-config';
 
 async function apiRequest<T>(
     endpoint: string,
@@ -15,7 +14,7 @@ async function apiRequest<T>(
         ...options.headers,
     };
     
-    const res = await fetch(`${getBaseUrl()}${endpoint}`, {
+    const res = await fetch(getApiUrl(endpoint), {
         ...options,
         headers,
     });

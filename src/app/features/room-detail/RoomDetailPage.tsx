@@ -1,74 +1,72 @@
-import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { RoomDetail } from './components/RoomDetail';
+import { getRoomByIdRequest } from '@/lib/api';
 import type { RoomDetailData } from './types';
 
-const getBaseUrl = () =>
-  (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
+function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
+  const rental = (api.rental as { title?: string; location?: { address?: string; district?: string; city?: string }; owner?: { fullName?: string; phone?: string; avatarUrl?: string } }) || {};
+  const loc = rental.location;
+  const address = loc ? [loc.address, loc.district, loc.city].filter(Boolean).join(', ') : '';
+  const owner = rental.owner || {};
+  const images = (api.images as string[]) || [];
+  const amenities = Array.isArray(api.amenities)
+    ? (api.amenities as { name?: string }[]).map((a) => (a && typeof a === 'object' && 'name' in a ? String(a.name) : '')).filter(Boolean)
+    : [];
+
+  return {
+    id: String(api.id ?? ''),
+    title: String(api.roomName ?? api.title ?? 'Phòng'),
+    description: String(api.description ?? ''),
+    price: Number(api.price ?? 0),
+    area: Number(api.sizeM2 ?? api.area ?? 0),
+    max_occupants: Number(api.maxPeople ?? api.max_occupants ?? 1),
+    status: (api.status as RoomDetailData['status']) || 'available',
+    address,
+    images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+    amenities,
+    rentalName: String(rental.title ?? 'Nhà trọ'),
+    landlord: {
+      name: String(owner.fullName ?? 'Chủ nhà'),
+      phone: String(owner.phone ?? ''),
+      email: '',
+      avatar: String(owner.avatarUrl ?? ''),
+    },
+  };
+}
 
 export function RoomDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [room, setRoom] = useState<RoomDetailData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) {
-      setIsLoading(false);
-      setError('Không tìm thấy ID phòng');
+      setLoading(false);
       return;
     }
+    getRoomByIdRequest(id)
+      .then((res) => setRoom(mapApiToRoomDetailData(res.data as Record<string, unknown>)))
+      .catch((e) => setError(e instanceof Error ? e.message : t('roomDetail.loadError')))
+      .finally(() => setLoading(false));
+  }, [id, t]);
 
-    const fetchRoom = async () => {
-      try {
-        setIsLoading(true);
-        const res = await fetch(`${getBaseUrl()}/rooms/${id}`);
-        const data = await res.json();
-
-        if (data.success && data.data) {
-          const apiRoom = data.data;
-          const rental = apiRoom.rental || apiRoom.rentals;
-          const location = rental?.location;
-          
-          const mappedRoom: RoomDetailData = {
-            id: apiRoom.id,
-            title: apiRoom.title || apiRoom.roomName || 'Phòng trọ',
-            description: apiRoom.description || rental?.description || '',
-            price: apiRoom.price || 0,
-            area: apiRoom.area || apiRoom.sizeM2 || 0,
-            max_occupants: apiRoom.max_occupants || apiRoom.maxPeople || 1,
-            status: apiRoom.status || 'available',
-            address: location ? [location.address, location.district, location.city].filter(Boolean).join(', ') : '',
-            images: apiRoom.images || (apiRoom.thumbnail_url ? [apiRoom.thumbnail_url] : []),
-            amenities: (apiRoom.amenities || []).map((a: { name?: string; id?: string }) => a.name || a.id || ''),
-            rentalName: rental?.title || 'Nhà trọ',
-            landlord: {
-              name: rental?.owner?.fullName || 'Chủ nhà',
-              phone: rental?.owner?.phone || '',
-              email: rental?.owner?.email || '',
-              avatar: rental?.owner?.avatarUrl || '',
-            },
-          };
-          setRoom(mappedRoom);
-        } else {
-          setError('Không tìm thấy thông tin phòng trọ');
-        }
-      } catch (err) {
-        console.error('Error fetching room:', err);
-        setError('Lỗi khi tải thông tin phòng');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void fetchRoom();
-  }, [id]);
-
-  if (isLoading) {
+  if (!id) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p className="text-muted-foreground">{t('roomDetail.notFound')}</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">{t('roomDetail.loading')}</div>
       </div>
     );
   }
@@ -76,15 +74,10 @@ export function RoomDetailPage() {
   if (error || !room) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>{error || 'Không tìm thấy thông tin phòng trọ'}</p>
+        <p className="text-muted-foreground">{error || t('roomDetail.notFound')}</p>
       </div>
     );
   }
 
-  return (
-    <RoomDetail
-      room={room}
-      onBack={() => navigate(-1)}
-    />
-  );
+  return <RoomDetail room={room} onBack={() => navigate(-1)} />;
 }

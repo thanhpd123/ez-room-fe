@@ -1,4 +1,5 @@
-import { MapPin, Maximize, Star, Heart, CheckCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { MapPin, Maximize, Star, Heart, CheckCircle, Target } from 'lucide-react';
 import type { Room } from '../types';
 import { formatPrice, getRoomTypeLabel } from '../utils';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
@@ -38,15 +39,23 @@ export function SearchResultCard({
                     </button>
                 )}
 
-                {/* Available Badge */}
-                <span
-                    className={`absolute top-3 left-3 px-2.5 py-1.5 rounded-xl text-xs font-medium ${room.available
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
-                        }`}
-                >
-                    {room.available ? 'Còn trống' : 'Đã cho thuê'}
-                </span>
+                {/* Available + Match Score */}
+                <div className="absolute top-3 left-3 flex flex-wrap gap-2">
+                    <span
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-medium ${room.available
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground'
+                            }`}
+                    >
+                        {room.available ? 'Còn trống' : 'Đã cho thuê'}
+                    </span>
+                    {room.matchScore != null && room.matchScore > 0 && (
+                        <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30">
+                            <Target className="w-3.5 h-3.5" />
+                            {Math.round(room.matchScore)}%
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* Content */}
@@ -70,7 +79,7 @@ export function SearchResultCard({
                     </div>
                     <div className="flex items-center gap-1">
                         <Star className="w-4 h-4 fill-accent text-accent" />
-                        <span>{room.rating}</span>
+                        <span>{room.rating ? room.rating.toFixed(1) : '—'}</span>
                     </div>
                 </div>
 
@@ -96,6 +105,27 @@ export function SearchResultCard({
                         </div>
                     )}
                 </div>
+
+                {/* Other rooms in same rental */}
+                {room.otherRoomsInRental && room.otherRoomsInRental.length > 0 && (
+                    <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Phòng khác trong căn</p>
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                            {room.otherRoomsInRental.map((r) => (
+                                <Link
+                                    key={r.id}
+                                    to={`/rental/${room.rentalId}?room=${r.id}`}
+                                    className="flex-shrink-0 w-20 rounded-xl overflow-hidden border border-border hover:border-primary/50 transition-colors"
+                                >
+                                    <ImageWithFallback src={r.image} alt={r.roomName || 'Phòng'} className="w-20 h-14 object-cover" />
+                                    <div className="p-1.5 text-center">
+                                        <p className="text-xs font-medium truncate">{formatPrice(r.price)}</p>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Price */}
                 <div className="pt-3 border-t border-border">

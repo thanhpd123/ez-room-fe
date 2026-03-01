@@ -18,13 +18,17 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { ImageUpload } from '@/app/components/ImageUpload';
+import { useProvinces } from '@/app/hooks/useProvinces';
 import {
     updateProfileRequest,
     getLifestyleRequest,
     upsertLifestyleRequest,
     getPreferenceRequest,
     upsertPreferenceRequest,
+    type LifestyleProfileResponse,
+    type UserPreferenceResponse,
 } from '@/lib/api';
+import type { ProvinceItem, WardItem } from '@/lib/provinces-api';
 
 type Tab = 'profile' | 'lifestyle' | 'preference';
 
@@ -45,6 +49,179 @@ const GENDER_OPTIONS = [
     { value: 'Không yêu cầu', label: 'Không yêu cầu' },
 ];
 
+const ROOM_TYPE_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'PRIVATE', label: 'Phòng riêng' },
+    { value: 'SHARED', label: 'Ở ghép' },
+    { value: 'STUDIO', label: 'Studio' },
+    { value: 'APARTMENT', label: 'Căn hộ' },
+];
+
+type PreferenceFormState = ReturnType<typeof toPreferenceForm>;
+
+function PreferredDistrictsField({
+    preference,
+    setPreference,
+    labelClass,
+    inputClass,
+}: {
+    preference: PreferenceFormState;
+    setPreference: React.Dispatch<React.SetStateAction<PreferenceFormState>>;
+    labelClass: string;
+    inputClass: string;
+}) {
+    const [selectedProvince, setSelectedProvince] = useState('');
+    const { provinces, getWardsFor } = useProvinces();
+    const wardList = selectedProvince ? getWardsFor(selectedProvince) : [];
+    const preferredSet = new Set(
+        (preference.preferred_districts ?? '')
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+    );
+
+    const toggleWard = (wardName: string) => {
+        const next = new Set(preferredSet);
+        if (next.has(wardName)) next.delete(wardName);
+        else next.add(wardName);
+        setPreference((p: PreferenceFormState) => ({ ...p, preferred_districts: Array.from(next).join(', ') }));
+    };
+
+    return (
+        <div className="space-y-3">
+            <label className={labelClass}>Phường/xã ưa thích</label>
+            <input
+                value={preference.preferred_districts ?? ''}
+                onChange={(e) => setPreference((p: PreferenceFormState) => ({ ...p, preferred_districts: e.target.value }))}
+                placeholder="VD: Phường Ba Đình, Phường Cầu Giấy (hoặc chọn bên dưới)"
+                className={inputClass}
+            />
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Chọn từ danh sách (34 tỉnh/thành → phường/xã)</p>
+                <select
+                    value={selectedProvince}
+                    onChange={(e) => setSelectedProvince(e.target.value)}
+                    className={`${inputClass} mb-3`}
+                >
+                    <option value="">Chọn tỉnh / thành phố</option>
+                    {provinces.map((p: ProvinceItem) => (
+                        <option key={p.code} value={p.name}>{p.name}</option>
+                    ))}
+                </select>
+                        {wardList.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {wardList.map((w: WardItem) => (
+                            <label key={w.code} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={preferredSet.has(w.name)}
+                                    onChange={() => toggleWard(w.name)}
+                                    className="rounded border-border text-primary"
+                                />
+                                <span className="text-sm">{w.name}</span>
+                            </label>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function toLifestyleForm(p: LifestyleProfileResponse | null) {
+    if (!p) {
+        return {
+            smoking: false,
+            drinking: false,
+            pets_allowed: false,
+            sleep_schedule: '',
+            personalityType: '',
+            cleanliness: '',
+            noise_tolerance: '',
+            guest_frequency: '',
+            cooking_frequency: '',
+            work_from_home: false,
+            wake_time: '',
+            bedtime: '',
+            social_level: '',
+            occupation_type: '',
+            interests: ([] as string[]).join(', '),
+            languages: ([] as string[]).join(', '),
+            preferred_lease_months: '' as number | '',
+            move_in_date: '',
+            temperature_preference: '',
+            quiet_hours_preference: '',
+        };
+    }
+    return {
+        smoking: !!p.smoking,
+        drinking: !!p.drinking,
+        pets_allowed: !!p.pets_allowed,
+        sleep_schedule: p.sleep_schedule ?? '',
+        personalityType: p.personalityType ?? '',
+        cleanliness: p.cleanliness ?? '',
+        noise_tolerance: p.noise_tolerance ?? '',
+        guest_frequency: p.guest_frequency ?? '',
+        cooking_frequency: p.cooking_frequency ?? '',
+        work_from_home: !!p.work_from_home,
+        wake_time: p.wake_time ?? '',
+        bedtime: p.bedtime ?? '',
+        social_level: p.social_level ?? '',
+        occupation_type: p.occupation_type ?? '',
+        interests: (p.interests ?? []).join(', '),
+        languages: (p.languages ?? []).join(', '),
+        preferred_lease_months: (p.preferred_lease_months ?? '') as number | '',
+        move_in_date: p.move_in_date ?? '',
+        temperature_preference: p.temperature_preference ?? '',
+        quiet_hours_preference: p.quiet_hours_preference ?? '',
+    };
+}
+
+function toPreferenceForm(p: UserPreferenceResponse | null) {
+    if (!p) {
+        return {
+            budget_min: '' as number | '',
+            budget_max: '' as number | '',
+            preferredLocation: '',
+            preferred_districts: '',
+            preferred_gender: '',
+            room_type: '',
+            preferred_amenities: '',
+            must_have_amenities: '',
+            preferred_lease_months: '' as number | '',
+            move_in_date_min: '',
+            move_in_date_max: '',
+            max_distance_km: '' as number | '',
+            transport_nearby: null as boolean | null,
+            pet_friendly: null as boolean | null,
+            preferred_roommate_age_min: '' as number | '',
+            preferred_roommate_age_max: '' as number | '',
+            lifestyle_match_weight: '' as number | '',
+            safety_priority: '' as number | '',
+        };
+    }
+    return {
+        budget_min: p.budget_min ?? ('' as number | ''),
+        budget_max: p.budget_max ?? ('' as number | ''),
+        preferredLocation: p.preferredLocation ?? '',
+        preferred_districts: (p.preferred_districts ?? []).join(', '),
+        preferred_gender: p.preferred_gender ?? '',
+        room_type: p.room_type ?? '',
+        preferred_amenities: (p.preferred_amenities ?? []).join(', '),
+        must_have_amenities: (p.must_have_amenities ?? []).join(', '),
+        preferred_lease_months: (p.preferred_lease_months ?? '') as number | '',
+        move_in_date_min: p.move_in_date_min ?? '',
+        move_in_date_max: p.move_in_date_max ?? '',
+        max_distance_km: (p.max_distance_km ?? '') as number | '',
+        transport_nearby: p.transport_nearby ?? null,
+        pet_friendly: p.pet_friendly ?? null,
+        preferred_roommate_age_min: (p.preferred_roommate_age_min ?? '') as number | '',
+        preferred_roommate_age_max: (p.preferred_roommate_age_max ?? '') as number | '',
+        lifestyle_match_weight: (p.lifestyle_match_weight ?? '') as number | '',
+        safety_priority: (p.safety_priority ?? '') as number | '',
+    };
+}
+
 const inputClass =
     'w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
 const labelClass = 'block text-sm font-medium text-foreground mb-1.5';
@@ -59,24 +236,13 @@ export function ProfilePage() {
     const [profileError, setProfileError] = useState<string | null>(null);
     const [profileSuccess, setProfileSuccess] = useState(false);
 
-    const [lifestyle, setLifestyle] = useState({
-        smoking: false,
-        drinking: false,
-        pets_allowed: false,
-        sleep_schedule: '',
-        personalityType: '',
-    });
+    const [lifestyle, setLifestyle] = useState(toLifestyleForm(null));
     const [lifestyleLoading, setLifestyleLoading] = useState(true);
     const [lifestyleSaving, setLifestyleSaving] = useState(false);
     const [lifestyleError, setLifestyleError] = useState<string | null>(null);
     const [lifestyleSuccess, setLifestyleSuccess] = useState(false);
 
-    const [preference, setPreference] = useState({
-        budget_min: '' as string | number,
-        budget_max: '' as string | number,
-        preferredLocation: '',
-        preferred_gender: '',
-    });
+    const [preference, setPreference] = useState(toPreferenceForm(null));
     const [preferenceLoading, setPreferenceLoading] = useState(true);
     const [preferenceSaving, setPreferenceSaving] = useState(false);
     const [preferenceError, setPreferenceError] = useState<string | null>(null);
@@ -94,33 +260,14 @@ export function ProfilePage() {
 
     useEffect(() => {
         getLifestyleRequest()
-            .then((r) => {
-                if (r.profile) {
-                    setLifestyle({
-                        smoking: !!r.profile.smoking,
-                        drinking: !!r.profile.drinking,
-                        pets_allowed: !!r.profile.pets_allowed,
-                        sleep_schedule: r.profile.sleep_schedule ?? '',
-                        personalityType: r.profile.personalityType ?? '',
-                    });
-                }
-            })
+            .then((r) => setLifestyle(toLifestyleForm(r.profile ?? null)))
             .catch(() => setLifestyleError('Không tải được'))
             .finally(() => setLifestyleLoading(false));
     }, []);
 
     useEffect(() => {
         getPreferenceRequest()
-            .then((r) => {
-                if (r.preference) {
-                    setPreference({
-                        budget_min: r.preference.budget_min ?? '',
-                        budget_max: r.preference.budget_max ?? '',
-                        preferredLocation: r.preference.preferredLocation ?? '',
-                        preferred_gender: r.preference.preferred_gender ?? '',
-                    });
-                }
-            })
+            .then((r) => setPreference(toPreferenceForm(r.preference ?? null)))
             .catch(() => setPreferenceError('Không tải được'))
             .finally(() => setPreferenceLoading(false));
     }, []);
@@ -152,7 +299,34 @@ export function ProfilePage() {
         setLifestyleSuccess(false);
         setLifestyleSaving(true);
         try {
-            await upsertLifestyleRequest(lifestyle);
+            const interests = lifestyle.interests
+                ? lifestyle.interests.split(',').map((s) => s.trim()).filter(Boolean)
+                : [];
+            const languages = lifestyle.languages
+                ? lifestyle.languages.split(',').map((s) => s.trim()).filter(Boolean)
+                : [];
+            await upsertLifestyleRequest({
+                smoking: lifestyle.smoking,
+                drinking: lifestyle.drinking,
+                pets_allowed: lifestyle.pets_allowed,
+                sleep_schedule: lifestyle.sleep_schedule || null,
+                personalityType: lifestyle.personalityType || null,
+                cleanliness: lifestyle.cleanliness || null,
+                noise_tolerance: lifestyle.noise_tolerance || null,
+                guest_frequency: lifestyle.guest_frequency || null,
+                cooking_frequency: lifestyle.cooking_frequency || null,
+                work_from_home: lifestyle.work_from_home,
+                wake_time: lifestyle.wake_time || null,
+                bedtime: lifestyle.bedtime || null,
+                social_level: lifestyle.social_level || null,
+                occupation_type: lifestyle.occupation_type || null,
+                interests,
+                languages,
+                preferred_lease_months: lifestyle.preferred_lease_months === '' ? null : Number(lifestyle.preferred_lease_months),
+                move_in_date: lifestyle.move_in_date || null,
+                temperature_preference: lifestyle.temperature_preference || null,
+                quiet_hours_preference: lifestyle.quiet_hours_preference || null,
+            });
             setLifestyleSuccess(true);
             setTimeout(() => setLifestyleSuccess(false), 3000);
         } catch (err) {
@@ -168,11 +342,34 @@ export function ProfilePage() {
         setPreferenceSuccess(false);
         setPreferenceSaving(true);
         try {
+            const preferred_districts = preference.preferred_districts
+                ? preference.preferred_districts.split(',').map((s) => s.trim()).filter(Boolean)
+                : [];
+            const preferred_amenities = preference.preferred_amenities
+                ? preference.preferred_amenities.split(',').map((s) => s.trim()).filter(Boolean)
+                : [];
+            const must_have_amenities = preference.must_have_amenities
+                ? preference.must_have_amenities.split(',').map((s) => s.trim()).filter(Boolean)
+                : [];
             await upsertPreferenceRequest({
                 budget_min: preference.budget_min === '' ? null : Number(preference.budget_min),
                 budget_max: preference.budget_max === '' ? null : Number(preference.budget_max),
                 preferredLocation: preference.preferredLocation || null,
+                preferred_districts,
                 preferred_gender: preference.preferred_gender || null,
+                room_type: preference.room_type || null,
+                preferred_amenities,
+                must_have_amenities,
+                preferred_lease_months: preference.preferred_lease_months === '' ? null : Number(preference.preferred_lease_months),
+                move_in_date_min: preference.move_in_date_min || null,
+                move_in_date_max: preference.move_in_date_max || null,
+                max_distance_km: preference.max_distance_km === '' ? null : Number(preference.max_distance_km),
+                transport_nearby: preference.transport_nearby,
+                pet_friendly: preference.pet_friendly,
+                preferred_roommate_age_min: preference.preferred_roommate_age_min === '' ? null : Number(preference.preferred_roommate_age_min),
+                preferred_roommate_age_max: preference.preferred_roommate_age_max === '' ? null : Number(preference.preferred_roommate_age_max),
+                lifestyle_match_weight: preference.lifestyle_match_weight === '' ? null : Number(preference.lifestyle_match_weight),
+                safety_priority: preference.safety_priority === '' ? null : Number(preference.safety_priority),
             });
             setPreferenceSuccess(true);
             setTimeout(() => setPreferenceSuccess(false), 3000);
@@ -193,9 +390,9 @@ export function ProfilePage() {
     return (
         <div className="min-h-screen bg-background">
             <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
-            <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+            <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-12">
                 {/* Profile header card */}
-                <div className="bg-card rounded-2xl border border-border shadow-sm p-6 sm:p-8 mb-8">
+                <div className="bg-card rounded-2xl border border-border shadow-sm p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                         <div className="relative shrink-0">
                             {avatarUrl ? (
@@ -233,14 +430,14 @@ export function ProfilePage() {
                     </div>
                 </div>
 
-                <h2 className="font-heading text-lg font-bold text-foreground mb-4">Cài đặt</h2>
-                <div className="flex flex-wrap gap-2 mb-6 border-b border-border pb-4">
+                <h2 className="font-heading text-base sm:text-lg font-bold text-foreground mb-3 sm:mb-4">Cài đặt</h2>
+                <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 border-b border-border pb-4 -mx-1 overflow-x-auto scrollbar-hide">
                     {tabs.map((t) => (
                         <button
                             key={t.id}
                             type="button"
                             onClick={() => setTab(t.id)}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${
+                            className={`flex items-center gap-2 px-4 py-2.5 sm:px-5 rounded-xl font-medium text-xs sm:text-sm transition-all shrink-0 min-h-[44px] touch-manipulation ${
                                 tab === t.id
                                     ? 'bg-primary text-primary-foreground shadow-sm'
                                     : 'bg-muted text-foreground hover:bg-muted/80'
@@ -423,6 +620,159 @@ export function ProfilePage() {
                                         ))}
                                     </select>
                                 </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>Giờ thức dậy</label>
+                                        <input
+                                            value={lifestyle.wake_time}
+                                            onChange={(e) => setLifestyle((l) => ({ ...l, wake_time: e.target.value }))}
+                                            placeholder="VD: 6h30"
+                                            className={inputClass}
+                                            maxLength={50}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Giờ đi ngủ</label>
+                                        <input
+                                            value={lifestyle.bedtime}
+                                            onChange={(e) => setLifestyle((l) => ({ ...l, bedtime: e.target.value }))}
+                                            placeholder="VD: 23h"
+                                            className={inputClass}
+                                            maxLength={50}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Độ sạch sẽ</label>
+                                    <input
+                                        value={lifestyle.cleanliness}
+                                        onChange={(e) => setLifestyle((l) => ({ ...l, cleanliness: e.target.value }))}
+                                        placeholder="VD: Rất sạch, Bình thường"
+                                        className={inputClass}
+                                        maxLength={50}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Chịu ồn</label>
+                                    <input
+                                        value={lifestyle.noise_tolerance}
+                                        onChange={(e) => setLifestyle((l) => ({ ...l, noise_tolerance: e.target.value }))}
+                                        placeholder="VD: Thấp, Trung bình"
+                                        className={inputClass}
+                                        maxLength={50}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Tần suất nấu ăn</label>
+                                    <input
+                                        value={lifestyle.cooking_frequency}
+                                        onChange={(e) => setLifestyle((l) => ({ ...l, cooking_frequency: e.target.value }))}
+                                        placeholder="VD: Hàng ngày, Ít"
+                                        className={inputClass}
+                                        maxLength={50}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Khách tới chơi</label>
+                                    <input
+                                        value={lifestyle.guest_frequency}
+                                        onChange={(e) => setLifestyle((l) => ({ ...l, guest_frequency: e.target.value }))}
+                                        placeholder="VD: Hiếm, Thỉnh thoảng"
+                                        className={inputClass}
+                                        maxLength={50}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Mức độ giao tiếp</label>
+                                    <input
+                                        value={lifestyle.social_level}
+                                        onChange={(e) => setLifestyle((l) => ({ ...l, social_level: e.target.value }))}
+                                        placeholder="VD: Thấp, Trung bình, Cao"
+                                        className={inputClass}
+                                        maxLength={50}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Nghề nghiệp / loại công việc</label>
+                                    <input
+                                        value={lifestyle.occupation_type}
+                                        onChange={(e) => setLifestyle((l) => ({ ...l, occupation_type: e.target.value }))}
+                                        placeholder="VD: Văn phòng, Sinh viên"
+                                        className={inputClass}
+                                        maxLength={50}
+                                    />
+                                </div>
+                                <label className="flex items-center gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={lifestyle.work_from_home}
+                                        onChange={(e) => setLifestyle((l) => ({ ...l, work_from_home: e.target.checked }))}
+                                        className="w-5 h-5 rounded border-border text-primary focus:ring-primary/20"
+                                    />
+                                    <span className="text-foreground group-hover:text-primary transition-colors">Làm việc từ xa (WFH)</span>
+                                </label>
+                                <div>
+                                    <label className={labelClass}>Sở thích (cách nhau bằng dấu phẩy)</label>
+                                    <input
+                                        value={lifestyle.interests}
+                                        onChange={(e) => setLifestyle((l) => ({ ...l, interests: e.target.value }))}
+                                        placeholder="VD: Đọc sách, Thể thao, Du lịch"
+                                        className={inputClass}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Ngôn ngữ (cách nhau bằng dấu phẩy)</label>
+                                    <input
+                                        value={lifestyle.languages}
+                                        onChange={(e) => setLifestyle((l) => ({ ...l, languages: e.target.value }))}
+                                        placeholder="VD: Tiếng Việt, English"
+                                        className={inputClass}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>Thời hạn thuê ưa thích (tháng)</label>
+                                        <input
+                                            type="number"
+                                            value={lifestyle.preferred_lease_months}
+                                            onChange={(e) => setLifestyle((l) => ({ ...l, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))}
+                                            placeholder="VD: 12"
+                                            min={1}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Ngày dự định chuyển vào</label>
+                                        <input
+                                            type="date"
+                                            value={lifestyle.move_in_date}
+                                            onChange={(e) => setLifestyle((l) => ({ ...l, move_in_date: e.target.value }))}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>Nhiệt độ ưa thích</label>
+                                        <input
+                                            value={lifestyle.temperature_preference}
+                                            onChange={(e) => setLifestyle((l) => ({ ...l, temperature_preference: e.target.value }))}
+                                            placeholder="VD: Mát, Lạnh"
+                                            className={inputClass}
+                                            maxLength={20}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Giờ giữ yên tĩnh</label>
+                                        <input
+                                            value={lifestyle.quiet_hours_preference}
+                                            onChange={(e) => setLifestyle((l) => ({ ...l, quiet_hours_preference: e.target.value }))}
+                                            placeholder="VD: 22h - 6h"
+                                            className={inputClass}
+                                            maxLength={30}
+                                        />
+                                    </div>
+                                </div>
                                 <button
                                     type="submit"
                                     disabled={lifestyleSaving}
@@ -471,7 +821,7 @@ export function ProfilePage() {
                                         <input
                                             type="number"
                                             value={preference.budget_min}
-                                            onChange={(e) => setPreference((p) => ({ ...p, budget_min: e.target.value }))}
+                                            onChange={(e) => setPreference((p) => ({ ...p, budget_min: e.target.value === '' ? '' : (Number(e.target.value) || 0) }))}
                                             placeholder="0"
                                             min={0}
                                             className={inputClass}
@@ -485,7 +835,7 @@ export function ProfilePage() {
                                         <input
                                             type="number"
                                             value={preference.budget_max}
-                                            onChange={(e) => setPreference((p) => ({ ...p, budget_max: e.target.value }))}
+                                            onChange={(e) => setPreference((p) => ({ ...p, budget_max: e.target.value === '' ? '' : (Number(e.target.value) || 0) }))}
                                             placeholder="0"
                                             min={0}
                                             className={inputClass}
@@ -520,6 +870,154 @@ export function ProfilePage() {
                                             </option>
                                         ))}
                                     </select>
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Loại phòng ưa thích</label>
+                                    <select
+                                        value={preference.room_type}
+                                        onChange={(e) => setPreference((p) => ({ ...p, room_type: e.target.value }))}
+                                        className={inputClass}
+                                    >
+                                        {ROOM_TYPE_OPTIONS.map((o) => (
+                                            <option key={o.value || 'empty'} value={o.value}>
+                                                {o.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <PreferredDistrictsField preference={preference} setPreference={setPreference} labelClass={labelClass} inputClass={inputClass} />
+                                <div>
+                                    <label className={labelClass}>Tiện nghi mong muốn (cách nhau bằng dấu phẩy)</label>
+                                    <input
+                                        value={preference.preferred_amenities}
+                                        onChange={(e) => setPreference((p) => ({ ...p, preferred_amenities: e.target.value }))}
+                                        placeholder="VD: Điều hòa, Wifi, Máy giặt"
+                                        className={inputClass}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Tiện nghi bắt buộc (cách nhau bằng dấu phẩy)</label>
+                                    <input
+                                        value={preference.must_have_amenities}
+                                        onChange={(e) => setPreference((p) => ({ ...p, must_have_amenities: e.target.value }))}
+                                        placeholder="VD: Điều hòa, Chỗ để xe"
+                                        className={inputClass}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>Thời hạn thuê ưa thích (tháng)</label>
+                                        <input
+                                            type="number"
+                                            value={preference.preferred_lease_months}
+                                            onChange={(e) => setPreference((p) => ({ ...p, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))}
+                                            placeholder="VD: 12"
+                                            min={1}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Khoảng cách tối đa (km)</label>
+                                        <input
+                                            type="number"
+                                            value={preference.max_distance_km}
+                                            onChange={(e) => setPreference((p) => ({ ...p, max_distance_km: e.target.value === '' ? '' : Number(e.target.value) }))}
+                                            placeholder="VD: 5"
+                                            min={0}
+                                            step={0.5}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>Từ ngày chuyển vào</label>
+                                        <input
+                                            type="date"
+                                            value={preference.move_in_date_min}
+                                            onChange={(e) => setPreference((p) => ({ ...p, move_in_date_min: e.target.value }))}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Đến ngày chuyển vào</label>
+                                        <input
+                                            type="date"
+                                            value={preference.move_in_date_max}
+                                            onChange={(e) => setPreference((p) => ({ ...p, move_in_date_max: e.target.value }))}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-4">
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            checked={preference.transport_nearby === true}
+                                            onChange={(e) => setPreference((p) => ({ ...p, transport_nearby: e.target.checked || null }))}
+                                            className="w-5 h-5 rounded border-border text-primary focus:ring-primary/20"
+                                        />
+                                        <span className="text-foreground group-hover:text-primary transition-colors">Gần phương tiện công cộng</span>
+                                    </label>
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            checked={preference.pet_friendly === true}
+                                            onChange={(e) => setPreference((p) => ({ ...p, pet_friendly: e.target.checked || null }))}
+                                            className="w-5 h-5 rounded border-border text-primary focus:ring-primary/20"
+                                        />
+                                        <span className="text-foreground group-hover:text-primary transition-colors">Cho phép thú cưng</span>
+                                    </label>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>Tuổi bạn ở ghép từ</label>
+                                        <input
+                                            type="number"
+                                            value={preference.preferred_roommate_age_min}
+                                            onChange={(e) => setPreference((p) => ({ ...p, preferred_roommate_age_min: e.target.value === '' ? '' : Number(e.target.value) }))}
+                                            placeholder="VD: 20"
+                                            min={18}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Tuổi bạn ở ghép đến</label>
+                                        <input
+                                            type="number"
+                                            value={preference.preferred_roommate_age_max}
+                                            onChange={(e) => setPreference((p) => ({ ...p, preferred_roommate_age_max: e.target.value === '' ? '' : Number(e.target.value) }))}
+                                            placeholder="VD: 35"
+                                            min={18}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>Trọng số khớp phong cách (0–1)</label>
+                                        <input
+                                            type="number"
+                                            value={preference.lifestyle_match_weight}
+                                            onChange={(e) => setPreference((p) => ({ ...p, lifestyle_match_weight: e.target.value === '' ? '' : Number(e.target.value) }))}
+                                            placeholder="VD: 0.5"
+                                            min={0}
+                                            max={1}
+                                            step={0.1}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Mức ưu tiên an ninh (số)</label>
+                                        <input
+                                            type="number"
+                                            value={preference.safety_priority}
+                                            onChange={(e) => setPreference((p) => ({ ...p, safety_priority: e.target.value === '' ? '' : Number(e.target.value) }))}
+                                            placeholder="VD: 5"
+                                            min={0}
+                                            className={inputClass}
+                                        />
+                                    </div>
                                 </div>
                                 <button
                                     type="submit"
