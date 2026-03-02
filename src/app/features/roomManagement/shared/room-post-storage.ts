@@ -73,3 +73,12 @@ export async function updateRoomPostModerationStatus(
         return null;
     }
 }
+
+export async function fetchAmenities(): Promise<Array<{ id: string; name: string }>> {
+    try {
+        const response = await apiRequest<ApiResponse<Array<{ id: string; name: string }>>>('/rooms/amenities');
+        return response.data || [];
+    } catch {
+        return [];
+    }
+}

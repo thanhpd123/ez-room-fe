@@ -4,15 +4,15 @@ import type { RoomStatus } from '@/lib/models/room.model';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
 import { getRoomPostById } from '../shared/room-post-storage';
 import {
-    ROOM_POST_GENDER_OPTIONS,
     ROOM_POST_STATUS_OPTIONS,
     type ManagedRoomPostItem,
 } from '../shared/types';
 
 const roomStatusClassName: Record<RoomStatus, string> = {
-    available: 'bg-emerald-100 text-emerald-700',
-    rented: 'bg-slate-200 text-slate-700',
-    maintenance: 'bg-amber-100 text-amber-700',
+    PENDING: 'bg-amber-100 text-amber-700',
+    AVAILABLE: 'bg-emerald-100 text-emerald-700',
+    RENTED: 'bg-slate-200 text-slate-700',
+    MAINTENANCE: 'bg-orange-100 text-orange-700',
 };
 
 function formatCurrency(value: number) {
@@ -33,16 +33,13 @@ function getStatusLabel(status: RoomStatus) {
     return ROOM_POST_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
 
-function getGenderLabel(value: string) {
-    return ROOM_POST_GENDER_OPTIONS.find((option) => option.value === value)?.label ?? value;
-}
-
 export function ViewRoomPostDetailPage() {
     const navigate = useNavigate();
     const { rentalId = '', roomPostId = '' } = useParams();
     const [rentalTitle, setRentalTitle] = useState('');
     const [roomPost, setRoomPost] = useState<ManagedRoomPostItem | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
     useEffect(() => {
         let active = true;
@@ -72,6 +69,17 @@ export function ViewRoomPostDetailPage() {
     }, [rentalId, roomPostId]);
 
     const rentalLabel = useMemo(() => rentalTitle || rentalId, [rentalId, rentalTitle]);
+
+    const getImageArray = () => {
+        if (!roomPost) return [];
+        const images = roomPost.images && roomPost.images.length > 0 ? roomPost.images : [];
+        if (images.length === 0 && roomPost.thumbnail_url) {
+            return [roomPost.thumbnail_url];
+        }
+        return images;
+    };
+
+    const imageArray = getImageArray();
 
     if (isLoading) {
         return (
@@ -119,14 +127,43 @@ export function ViewRoomPostDetailPage() {
             </div>
 
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                {/* Main Image */}
                 <img
                     src={
-                        roomPost.thumbnail_url ??
+                        imageArray[selectedImageIndex] ??
                         'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80'
                     }
                     alt={roomPost.title}
                     className="h-64 w-full object-cover sm:h-80"
                 />
+
+                {/* Image Gallery Thumbnails */}
+                {imageArray.length > 1 && (
+                    <div className="border-t border-slate-200 bg-slate-50 p-4">
+                        <div className="flex gap-2 overflow-x-auto">
+                            {imageArray.map((image, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => setSelectedImageIndex(index)}
+                                    className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${
+                                        selectedImageIndex === index
+                                            ? 'border-slate-900'
+                                            : 'border-slate-300 hover:border-slate-400'
+                                    }`}
+                                >
+                                    <img
+                                        src={image}
+                                        alt={`Thumbnail ${index + 1}`}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                        <p className="mt-2 text-xs text-slate-600">
+                            {selectedImageIndex + 1} / {imageArray.length}
+                        </p>
+                    </div>
+                )}
 
                 <div className="space-y-5 p-5 sm:p-6">
                     <header className="space-y-2">
@@ -176,17 +213,24 @@ export function ViewRoomPostDetailPage() {
                                 <dd className="font-medium text-slate-900">{roomPost.max_occupants}</dd>
                             </div>
                             <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Gender preference</dt>
-                                <dd className="font-medium text-slate-900">
-                                    {getGenderLabel(roomPost.gender_preference)}
-                                </dd>
+                                <dt className="text-xs text-slate-500">Images</dt>
+                                <dd className="font-medium text-slate-900">{imageArray.length} photo(s)</dd>
                             </div>
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Floor</dt>
-                                <dd className="font-medium text-slate-900">
-                                    {roomPost.floor !== undefined ? roomPost.floor : 'N/A'}
-                                </dd>
-                            </div>
+                            {roomPost.amenities && roomPost.amenities.length > 0 && (
+                                <div className="md:col-span-2 rounded-xl bg-slate-50 px-4 py-3">
+                                    <dt className="text-xs text-slate-500">Amenities</dt>
+                                    <dd className="mt-2 flex flex-wrap gap-2">
+                                        {roomPost.amenities.map((amenity) => (
+                                            <span
+                                                key={amenity.id}
+                                                className="rounded-lg bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700"
+                                            >
+                                                {amenity.name}
+                                            </span>
+                                        ))}
+                                    </dd>
+                                </div>
+                            )}
                             <div className="rounded-xl bg-slate-50 px-4 py-3">
                                 <dt className="text-xs text-slate-500">Created at</dt>
                                 <dd className="font-medium text-slate-900">
