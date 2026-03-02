@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { RoomStatus } from '@/lib/models/room.model';
-import { ImageUpload } from '@/app/components/ImageUpload';
+import { MultiImageUpload } from '@/app/components/MultiImageUpload';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
-import { createRoomPost } from '../shared/room-post-storage';
+import { createRoomPost, fetchAmenities } from '../shared/room-post-storage';
 import {
-    ROOM_POST_GENDER_OPTIONS,
-    ROOM_POST_STATUS_OPTIONS,
     type CreateManagedRoomPostInput,
-    type RoomPostGenderPreference,
 } from '../shared/types';
+
+interface Amenity {
+    id: string;
+    name: string;
+}
 
 interface CreateRoomPostFormState {
     title: string;
@@ -17,10 +19,9 @@ interface CreateRoomPostFormState {
     price: string;
     area: string;
     max_occupants: string;
-    floor: string;
-    gender_preference: RoomPostGenderPreference;
     status: RoomStatus;
-    thumbnail_url: string;
+    images: string[];
+    amenityIds: string[];
 }
 
 type FormErrors = Partial<Record<keyof CreateRoomPostFormState, string>>;
@@ -31,10 +32,9 @@ const initialForm: CreateRoomPostFormState = {
     price: '',
     area: '',
     max_occupants: '1',
-    floor: '',
-    gender_preference: 'any',
-    status: 'available',
-    thumbnail_url: '',
+    status: 'PENDING',
+    images: [],
+    amenityIds: [],
 };
 
 export function CreateRoomPostPage() {
@@ -44,15 +44,21 @@ export function CreateRoomPostPage() {
     const [form, setForm] = useState<CreateRoomPostFormState>(initialForm);
     const [errors, setErrors] = useState<FormErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [amenities, setAmenities] = useState<Amenity[]>([]);
 
     useEffect(() => {
         let active = true;
-        const loadRental = async () => {
-            const rental = await getManagedRentalById(rentalId);
+        const loadData = async () => {
+            // Load rental + amenities in parallel
+            const [rental, amenitiesList] = await Promise.all([
+                getManagedRentalById(rentalId),
+                fetchAmenities(),
+            ]);
             if (!active) return;
             setRentalTitle(rental?.title ?? '');
+            setAmenities(amenitiesList || []);
         };
-        if (rentalId) void loadRental();
+        if (rentalId) void loadData();
         return () => {
             active = false;
         };
@@ -63,9 +69,8 @@ export function CreateRoomPostPage() {
             price: Number(form.price),
             area: Number(form.area),
             maxOccupants: Number(form.max_occupants),
-            floor: form.floor.trim().length > 0 ? Number(form.floor) : undefined,
         };
-    }, [form.area, form.floor, form.max_occupants, form.price]);
+    }, [form.area, form.max_occupants, form.price]);
 
     const onChangeField =
         <K extends keyof CreateRoomPostFormState>(key: K) =>
@@ -76,19 +81,13 @@ export function CreateRoomPostPage() {
 
     const validate = () => {
         const nextErrors: FormErrors = {};
-        if (!form.title.trim()) nextErrors.title = 'Title is required.';
+        if (!form.title.trim()) nextErrors.title = 'Tiêu đề là bắt buộc.';
         if (!Number.isFinite(parsed.price) || parsed.price <= 0)
-            nextErrors.price = 'Price must be greater than 0.';
+            nextErrors.price = 'Giá phải lớn hơn 0.';
         if (!Number.isFinite(parsed.area) || parsed.area <= 0)
-            nextErrors.area = 'Area must be greater than 0.';
+            nextErrors.area = 'Diện tích phải lớn hơn 0.';
         if (!Number.isFinite(parsed.maxOccupants) || parsed.maxOccupants <= 0)
-            nextErrors.max_occupants = 'Max occupants must be greater than 0.';
-        if (form.floor.trim().length > 0) {
-            const floorValue = parsed.floor;
-            if (floorValue === undefined || !Number.isFinite(floorValue) || floorValue < 0) {
-                nextErrors.floor = 'Floor must be 0 or greater.';
-            }
-        }
+            nextErrors.max_occupants = 'Số người tối đa phải lớn hơn 0.';
 
         setErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
@@ -99,17 +98,17 @@ export function CreateRoomPostPage() {
         if (!rentalId) return;
         if (!validate()) return;
 
-        const payload: CreateManagedRoomPostInput = {
+        const payload: CreateManagedRoomPostInput & { amenityIds?: string[] } = {
             rental_id: rentalId,
             title: form.title,
             description: form.description,
             price: parsed.price,
             area: parsed.area,
             max_occupants: parsed.maxOccupants,
-            floor: parsed.floor,
-            gender_preference: form.gender_preference,
             status: form.status,
-            thumbnail_url: form.thumbnail_url,
+            thumbnail_url: form.images[0] || '',
+            images: form.images,
+            amenityIds: form.amenityIds,
         };
 
         setIsSubmitting(true);
@@ -136,42 +135,46 @@ export function CreateRoomPostPage() {
     return (
         <section className="mx-auto w-full max-w-4xl">
             <header className="mb-6">
-                <h2 className="text-2xl font-semibold text-slate-900">createRoomPost</h2>
-                <p className="mt-1 text-sm text-slate-500">Rental: {rentalTitle || rentalId}</p>
+                <h2 className="text-2xl font-semibold text-slate-900">Thêm phòng mới</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                    Điền thông tin phòng bên dưới để thêm vào bài đăng: <strong>{rentalTitle || rentalId}</strong>
+                </p>
             </header>
 
             <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Title *</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Tiêu đề phòng *</label>
                         <input
                             value={form.title}
                             onChange={(event) => onChangeField('title')(event.target.value)}
-                            placeholder="Example: Room 201 - furnished"
+                            placeholder="VD: Phòng kép - tầng 2"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                         {errors.title ? <p className="mt-1 text-xs text-rose-600">{errors.title}</p> : null}
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Price (VND) *</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Giá (VND) *</label>
                         <input
                             type="number"
                             min={0}
                             value={form.price}
                             onChange={(event) => onChangeField('price')(event.target.value)}
+                            placeholder="VD: 3000000"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                         {errors.price ? <p className="mt-1 text-xs text-rose-600">{errors.price}</p> : null}
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Area (m2) *</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Diện tích (m²) *</label>
                         <input
                             type="number"
                             min={0}
                             value={form.area}
                             onChange={(event) => onChangeField('area')(event.target.value)}
+                            placeholder="VD: 20"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                         {errors.area ? <p className="mt-1 text-xs text-rose-600">{errors.area}</p> : null}
@@ -179,7 +182,7 @@ export function CreateRoomPostPage() {
 
                     <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                            Max occupants *
+                            Số người tối đa *
                         </label>
                         <input
                             type="number"
@@ -194,70 +197,56 @@ export function CreateRoomPostPage() {
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Floor</label>
-                        <input
-                            type="number"
-                            min={0}
-                            value={form.floor}
-                            onChange={(event) => onChangeField('floor')(event.target.value)}
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-                        />
-                        {errors.floor ? <p className="mt-1 text-xs text-rose-600">{errors.floor}</p> : null}
-                    </div>
-
-                    <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Status</label>
-                        <select
-                            value={form.status}
-                            onChange={(event) => onChangeField('status')(event.target.value as RoomStatus)}
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-                        >
-                            {ROOM_POST_STATUS_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                            Gender preference
-                        </label>
-                        <select
-                            value={form.gender_preference}
-                            onChange={(event) =>
-                                onChangeField('gender_preference')(
-                                    event.target.value as RoomPostGenderPreference
-                                )
-                            }
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-                        >
-                            {ROOM_POST_GENDER_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                            <p className="text-sm font-medium text-amber-800">⏳ Trạng thái: Chờ duyệt</p>
+                            <p className="mt-0.5 text-xs text-amber-600">
+                                Phòng mới tạo sẽ ở trạng thái chờ duyệt. Moderator sẽ duyệt để chuyển sang Available.
+                            </p>
+                        </div>
                     </div>
 
                     <div className="md:col-span-2">
-                        <ImageUpload
-                            label="Ảnh bìa (thumbnail)"
-                            value={form.thumbnail_url}
-                            onChange={(url) => onChangeField('thumbnail_url')(url)}
-                            placeholder="Chọn ảnh từ máy tính"
-                            previewClassName="w-24 h-24 rounded-xl object-cover border border-slate-200"
+                        <label className="mb-2 block text-sm font-medium text-slate-700">Tiện ích</label>
+                        <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 p-3 md:grid-cols-3">
+                            {amenities.length > 0 ? (
+                                amenities.map((amenity) => (
+                                    <label key={amenity.id} className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={form.amenityIds.includes(amenity.id)}
+                                            onChange={(event) => {
+                                                const newAmenityIds = event.target.checked
+                                                    ? [...form.amenityIds, amenity.id]
+                                                    : form.amenityIds.filter((id) => id !== amenity.id);
+                                                onChangeField('amenityIds')(newAmenityIds);
+                                            }}
+                                            className="rounded border-slate-300"
+                                        />
+                                        <span className="text-sm text-slate-700">{amenity.name}</span>
+                                    </label>
+                                ))
+                            ) : (
+                                <p className="col-span-2 text-xs text-slate-500 md:col-span-3">Đang tải tiện ích...</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <MultiImageUpload
+                            label="Ảnh phòng"
+                            value={form.images}
+                            onChange={(urls) => onChangeField('images')(urls)}
+                            maxImages={10}
                         />
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Description</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Mô tả chi tiết</label>
                         <textarea
                             value={form.description}
                             onChange={(event) => onChangeField('description')(event.target.value)}
                             rows={4}
-                            placeholder="Describe room condition, amenities, utility fees..."
+                            placeholder="Mô tả tình trạng phòng, thông tin tiện ích, lệ phí,..."
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                     </div>
@@ -269,14 +258,14 @@ export function CreateRoomPostPage() {
                         onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts`)}
                         className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
-                        Cancel
+                        Hủy
                     </button>
                     <button
                         type="submit"
                         disabled={isSubmitting}
                         className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                        {isSubmitting ? 'Creating...' : 'Create room post'}
+                        {isSubmitting ? 'Đang tạo...' : 'Tạo phòng'}
                     </button>
                 </div>
             </form>

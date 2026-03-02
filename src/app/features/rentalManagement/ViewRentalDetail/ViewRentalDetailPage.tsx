@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getRentalByIdRequest } from '@/lib/api';
+import { findOldAddress, type OldAddressInfo } from '@/app/constants/v1-v2-mapping';
 import { RENTAL_STATUS_OPTIONS } from '../shared/types';
 
 const statusClassName: Record<string, string> = {
@@ -47,6 +48,7 @@ export function ViewRentalDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [rental, setRental] = useState<RentalDetail | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [oldAddress, setOldAddress] = useState<OldAddressInfo | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -77,6 +79,23 @@ export function ViewRentalDetailPage() {
             active = false;
         };
     }, [rentalId]);
+
+    // Auto-detect old address when location changes
+    useEffect(() => {
+        const district = rental?.location?.district;
+        const city = rental?.location?.city;
+        
+        if (!district || !city) {
+            setOldAddress(null);
+            return;
+        }
+        
+        const loadOldAddress = async () => {
+            const old = await findOldAddress(district, city);
+            setOldAddress(old);
+        };
+        loadOldAddress();
+    }, [rental?.location?.district, rental?.location?.city]);
 
     if (isLoading) {
         return (
@@ -183,6 +202,15 @@ export function ViewRentalDetailPage() {
                                 {getStatusLabel(rental.status)}
                             </span>
                         </div>
+                        {oldAddress && (
+                            <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                                <p className="text-xs text-blue-900">
+                                    <strong>📋 Cập nhật địa chỉ hành chính:</strong><br/>
+                                    Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br/>
+                                    Bây giờ: <strong>{fullAddress}</strong>
+                                </p>
+                            </div>
+                        )}
                         {fullAddress && <p className="text-sm text-slate-600">{fullAddress}</p>}
                     </header>
 
