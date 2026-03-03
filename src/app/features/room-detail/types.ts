@@ -11,6 +11,7 @@ export interface RoomDetailData {
   amenities: string[];
   rentalName: string;
   landlord: {
+    id: string;
     name: string;
     phone: string;
     email: string;

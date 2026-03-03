@@ -6,7 +6,7 @@ import { getRoomByIdRequest } from '@/lib/api';
 import type { RoomDetailData } from './types';
 
 function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
-  const rental = (api.rental as { title?: string; location?: { address?: string; district?: string; city?: string }; owner?: { fullName?: string; phone?: string; avatarUrl?: string } }) || {};
+  const rental = (api.rental as { title?: string; location?: { address?: string; district?: string; city?: string }; owner?: { id?: string; fullName?: string; phone?: string; avatarUrl?: string } }) || {};
   const loc = rental.location;
   const address = loc ? [loc.address, loc.district, loc.city].filter(Boolean).join(', ') : '';
   const owner = rental.owner || {};
@@ -28,6 +28,7 @@ function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
     amenities,
     rentalName: String(rental.title ?? 'Nhà trọ'),
     landlord: {
+      id: String(owner.id ?? ''),
       name: String(owner.fullName ?? 'Chủ nhà'),
       phone: String(owner.phone ?? ''),
       email: '',

@@ -16,7 +16,7 @@ function mapApiToRentalDetailData(
     status?: string;
     location?: { address?: string; district?: string | null; city?: string | null } | null;
     images?: string[];
-    owner?: { fullName?: string; phone?: string | null; email?: string; avatarUrl?: string | null } | null;
+    owner?: { id?: string; fullName?: string; phone?: string | null; email?: string; avatarUrl?: string | null } | null;
     rooms?: Array<{
       id: string;
       room_name?: string | null;
@@ -46,6 +46,7 @@ function mapApiToRentalDetailData(
     images: api.images?.length ? api.images : [PLACEHOLDER_IMAGE],
     amenities: Array.isArray(api.amenities) ? api.amenities : [],
     landlord: {
+      id: api.owner?.id ?? '',
       name: api.owner?.fullName ?? t('rentalDetail.defaultLandlordName'),
       phone: api.owner?.phone ?? '',
       email: api.owner?.email ?? '',

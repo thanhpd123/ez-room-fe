@@ -720,3 +720,69 @@ export async function searchByImageRequest(
     if (!res.ok) throw new Error(json?.message || 'Lỗi tìm kiếm ảnh');
     return json;
 }
+
+/**
+ * GET /public/landlord/:userId – public landlord profile.
+ */
+export interface LandlordProfileResponse {
+    success: boolean;
+    data: {
+        user: {
+            id: string;
+            fullName: string;
+            avatarUrl: string | null;
+            phone: string | null;
+            createdAt: string;
+        };
+        stats: {
+            totalRentals: number;
+            activeRentals: number;
+            totalRooms: number;
+            availableRooms: number;
+            totalReviews: number;
+            avgRating: number;
+        };
+        rentals: Array<{
+            id: string;
+            title: string;
+            description: string | null;
+            status: string;
+            createdAt: string;
+            location: { address: string; district: string | null; city: string | null } | null;
+            images: string[];
+            roomCount: number;
+        }>;
+        rooms: Array<{
+            id: string;
+            rentalId: string;
+            rentalTitle: string;
+            roomName: string | null;
+            description: string | null;
+            roomType: string | null;
+            price: number;
+            sizeM2: number | null;
+            maxPeople: number | null;
+            status: string;
+            createdAt: string;
+            location: { address: string; district: string | null; city: string | null } | null;
+            images: string[];
+            amenities: string[];
+        }>;
+        reviews: Array<{
+            id: string;
+            rating: number | null;
+            comment: string | null;
+            createdAt: string;
+            reviewer: { id: string; fullName: string; avatarUrl: string | null } | null;
+        }>;
+    };
+}
+
+export async function getLandlordProfileRequest(userId: string): Promise<LandlordProfileResponse> {
+    const url = getApiUrl(`/public/landlord/${encodeURIComponent(userId)}`);
+    const res = await fetch(url, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Không tìm thấy chủ nhà');
+    return json;
+}
+

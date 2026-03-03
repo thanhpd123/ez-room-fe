@@ -1,13 +1,13 @@
-import { 
-  ArrowLeft, 
-  Heart, 
-  Share2, 
-  MapPin, 
-  Users, 
-  Maximize, 
-  Wifi, 
-  Wind, 
-  Droplet, 
+import {
+  ArrowLeft,
+  Heart,
+  Share2,
+  MapPin,
+  Users,
+  Maximize,
+  Wifi,
+  Wind,
+  Droplet,
   Zap,
   Shield,
   Phone,
@@ -15,6 +15,7 @@ import {
   Check
 } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export interface RoomDetailData {
   id: string;
@@ -29,6 +30,7 @@ export interface RoomDetailData {
   amenities: string[];
   rentalName: string;
   landlord: {
+    id: string;
     name: string;
     phone: string;
     email: string;
@@ -79,9 +81,8 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                 className="p-2 rounded-lg hover:bg-muted transition-colors"
               >
                 <Heart
-                  className={`w-5 h-5 ${
-                    isFavorite ? 'fill-accent text-accent' : 'text-foreground'
-                  }`}
+                  className={`w-5 h-5 ${isFavorite ? 'fill-accent text-accent' : 'text-foreground'
+                    }`}
                 />
               </button>
               <button className="p-2 rounded-lg hover:bg-muted transition-colors">
@@ -107,9 +108,8 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
               <button
                 key={index}
                 onClick={() => setSelectedImage(index)}
-                className={`relative overflow-hidden rounded-lg aspect-video ${
-                  selectedImage === index ? 'ring-2 ring-primary' : ''
-                }`}
+                className={`relative overflow-hidden rounded-lg aspect-video ${selectedImage === index ? 'ring-2 ring-primary' : ''
+                  }`}
               >
                 <img
                   src={image}
@@ -218,13 +218,18 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
               {/* Landlord Info */}
               <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
                 <h3 className="font-nunito mb-4">Người cho thuê</h3>
-                
+
                 <div className="flex items-center gap-3 mb-4">
-                  <img
-                    src={room.landlord.avatar}
-                    alt={room.landlord.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
+                  <Link
+                    to={`/landlord/${room.landlord.id}`}
+                    className="flex-shrink-0 hover:opacity-80 transition-opacity"
+                  >
+                    <img
+                      src={room.landlord.avatar}
+                      alt={room.landlord.name}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  </Link>
                   <div>
                     <p className="font-medium text-foreground">{room.landlord.name}</p>
                     <p className="text-sm text-muted-foreground">Chủ nhà</p>
