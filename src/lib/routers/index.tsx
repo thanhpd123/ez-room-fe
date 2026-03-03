@@ -32,6 +32,7 @@ const AdminRentalsPage = lazy(() => import('@/app/features/admin').then((m) => (
 const AdminAmenitiesPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminAmenitiesPage })));
 const AdminLocationsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLocationsPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
+const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
 
 function PageLoader() {
     return (
@@ -132,6 +133,14 @@ export const router = createBrowserRouter([
     {
         path: '/rental/:id',
         element: <RentalDetailPage />,
+    },
+    {
+        path: '/landlord/:id',
+        element: (
+            <Suspense fallback={<PageLoader />}>
+                <ViewLandlordPage />
+            </Suspense>
+        ),
     },
     {
         path: '/room/:id',
