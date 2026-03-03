@@ -9,6 +9,7 @@ export interface RentalRoom {
 }
 
 export interface RentalLandlord {
+  id: string;
   name: string;
   phone: string;
   email: string;

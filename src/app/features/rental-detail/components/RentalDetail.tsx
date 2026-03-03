@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import type { RentalDetailData } from '../types';
 
@@ -280,11 +281,16 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
                 <h3 className="font-nunito mb-4">{t('rentalDetail.landlord')}</h3>
 
                 <div className="flex items-center gap-3 mb-4">
-                  <ImageWithFallback
-                    src={rental.landlord.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=96&h=96&fit=crop'}
-                    alt={rental.landlord.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
+                  <Link
+                    to={`/landlord/${rental.landlord.id}`}
+                    className="flex-shrink-0 hover:opacity-80 transition-opacity"
+                  >
+                    <ImageWithFallback
+                      src={rental.landlord.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=96&h=96&fit=crop'}
+                      alt={rental.landlord.name}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  </Link>
                   <div>
                     <p className="font-medium text-foreground">{rental.landlord.name || t('rentalDetail.landlordLabel')}</p>
                     <p className="text-sm text-muted-foreground">{t('rentalDetail.landlordLabel')}</p>
