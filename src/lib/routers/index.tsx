@@ -33,6 +33,9 @@ const AdminAmenitiesPage = lazy(() => import('@/app/features/admin').then((m) =>
 const AdminLocationsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLocationsPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
 const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
+const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) => ({ default: m.FindRoommatePage })));
+const ChatPage = lazy(() => import('@/app/features/chat').then((m) => ({ default: m.ChatPage })));
+const WalletPage = lazy(() => import('@/app/features/wallet').then((m) => ({ default: m.WalletPage })));
 
 function PageLoader() {
     return (
@@ -104,6 +107,46 @@ export const router = createBrowserRouter([
         element: (
             <ProtectedRoute>
                 <ProfilePage />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/wallet',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <WalletPage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/roommate',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <FindRoommatePage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/chat',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <ChatPage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/chat/:userId',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <ChatPage />
+                </Suspense>
             </ProtectedRoute>
         ),
     },

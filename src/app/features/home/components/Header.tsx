@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { HomeOutlined, BookOutlined, LoginOutlined, HeartOutlined, LogoutOutlined, UserOutlined, GlobalOutlined, MenuOutlined } from '@ant-design/icons';
+import { HomeOutlined, BookOutlined, LoginOutlined, HeartOutlined, LogoutOutlined, UserOutlined, GlobalOutlined, MenuOutlined, MessageOutlined, WalletOutlined } from '@ant-design/icons';
 import { Button, Avatar, Badge, Dropdown, Drawer } from 'antd';
 import type { MenuProps } from 'antd';
 import { useFavorites } from '@/app/context/FavoritesContext';
 import { useAuth } from '@/app/context/AuthContext';
+import { useChatBox } from '@/app/context/ChatBoxContext';
 import { supportedLngs, type SupportedLang } from '@/i18n';
 
 interface HeaderProps {
@@ -21,6 +22,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
     const { t, i18n } = useTranslation();
     const { favorites } = useFavorites();
     const { user, signOut } = useAuth();
+    const chatBox = useChatBox();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const navLink = (to: string, label: string, icon?: React.ReactNode) => {
@@ -96,6 +98,24 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 title={t('nav.favorites')}
                             />
                         </Badge>
+                        {user && (
+                            <Button
+                                type="text"
+                                icon={<MessageOutlined className="text-base sm:text-lg" />}
+                                onClick={() => (chatBox ? chatBox.openChat() : navigate('/chat'))}
+                                className="flex items-center justify-center text-foreground hover:text-primary p-2 sm:px-2 touch-manipulation"
+                                title={t('nav.chat', 'Tin nhắn')}
+                            />
+                        )}
+                        {user && (
+                            <Button
+                                type="text"
+                                icon={<WalletOutlined className="text-base sm:text-lg" />}
+                                onClick={() => navigate('/wallet')}
+                                className="flex items-center justify-center text-foreground hover:text-primary p-2 sm:px-2 touch-manipulation"
+                                title="Ví tiền"
+                            />
+                        )}
 
                         {user ? (
                             <div className="flex items-center gap-1 sm:gap-2">
@@ -115,15 +135,11 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 </Button>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-1 sm:gap-2">
-                                <Button type="text" onClick={handleLogin} className="hidden sm:inline-flex items-center gap-2 text-muted-foreground hover:text-foreground" icon={<LoginOutlined />}>
-                                    {t('nav.login')}
+                            <div className="flex items-center gap-2">
+                                <Button type="text" onClick={handleLogin} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground p-2 sm:px-3 touch-manipulation" icon={<LoginOutlined />}>
+                                    <span className="hidden sm:inline">{t('nav.login')}</span>
                                 </Button>
-                                <Button type="primary" onClick={handleRegister} size="middle" className="hidden sm:inline-flex">
-                                    {t('nav.register')}
-                                </Button>
-                                <Button type="text" onClick={handleLogin} icon={<LoginOutlined />} className="sm:hidden p-2 text-foreground touch-manipulation" title={t('nav.login')} />
-                                <Button type="primary" onClick={handleRegister} size="small" className="sm:hidden px-4 touch-manipulation min-h-[36px] shadow-sm hover:shadow">
+                                <Button type="primary" onClick={handleRegister} size="middle" className="rounded-xl px-4 touch-manipulation min-h-[36px] sm:min-h-[40px] shadow-sm hover:shadow">
                                     {t('nav.register')}
                                 </Button>
                             </div>
@@ -168,6 +184,21 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                             </>
                         ) : (
                             <>
+                                <Button
+                                    type="default"
+                                    block
+                                    size="large"
+                                    icon={<MessageOutlined />}
+                                    className="rounded-xl min-h-[48px]"
+                                    onClick={() => { setMobileMenuOpen(false); chatBox ? chatBox.openChat() : navigate('/chat'); }}
+                                >
+                                    {t('nav.chat', 'Tin nhắn')}
+                                </Button>
+                                <Link to="/wallet" onClick={() => setMobileMenuOpen(false)}>
+                                    <Button type="default" block size="large" icon={<WalletOutlined />} className="rounded-xl min-h-[48px]">
+                                        Ví tiền
+                                    </Button>
+                                </Link>
                                 <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
                                     <Button type="default" block size="large" icon={<UserOutlined />} className="rounded-xl min-h-[48px]">
                                         {t('nav.account')}

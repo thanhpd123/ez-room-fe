@@ -42,11 +42,13 @@ const PERSONALITY_OPTIONS = [
     { value: 'Khác', label: 'Khác' },
 ];
 
-const GENDER_OPTIONS = [
+/** Gender in profile – used for roommate matching (same gender). */
+const PROFILE_GENDER_OPTIONS = [
     { value: '', label: '— Chọn —' },
     { value: 'Nam', label: 'Nam' },
     { value: 'Nữ', label: 'Nữ' },
-    { value: 'Không yêu cầu', label: 'Không yêu cầu' },
+    { value: 'Khác', label: 'Khác' },
+    { value: 'Không tiết lộ', label: 'Không tiết lộ' },
 ];
 
 const ROOM_TYPE_OPTIONS = [
@@ -184,7 +186,6 @@ function toPreferenceForm(p: UserPreferenceResponse | null) {
             budget_max: '' as number | '',
             preferredLocation: '',
             preferred_districts: '',
-            preferred_gender: '',
             room_type: '',
             preferred_amenities: '',
             must_have_amenities: '',
@@ -205,7 +206,6 @@ function toPreferenceForm(p: UserPreferenceResponse | null) {
         budget_max: p.budget_max ?? ('' as number | ''),
         preferredLocation: p.preferredLocation ?? '',
         preferred_districts: (p.preferred_districts ?? []).join(', '),
-        preferred_gender: p.preferred_gender ?? '',
         room_type: p.room_type ?? '',
         preferred_amenities: (p.preferred_amenities ?? []).join(', '),
         must_have_amenities: (p.must_have_amenities ?? []).join(', '),
@@ -231,7 +231,7 @@ export function ProfilePage() {
     const { user, refreshUser } = useAuth();
     const [tab, setTab] = useState<Tab>('profile');
 
-    const [profileForm, setProfileForm] = useState({ fullName: '', phone: '', avatarUrl: '' });
+    const [profileForm, setProfileForm] = useState({ fullName: '', phone: '', avatarUrl: '', gender: '' });
     const [profileSaving, setProfileSaving] = useState(false);
     const [profileError, setProfileError] = useState<string | null>(null);
     const [profileSuccess, setProfileSuccess] = useState(false);
@@ -254,6 +254,7 @@ export function ProfilePage() {
                 fullName: user.fullName ?? '',
                 phone: user.phone ?? '',
                 avatarUrl: user.avatarUrl ?? '',
+                gender: user.gender ?? '',
             });
         }
     }, [user]);
@@ -282,6 +283,7 @@ export function ProfilePage() {
                 fullName: profileForm.fullName.trim(),
                 phone: profileForm.phone.trim() || undefined,
                 avatarUrl: profileForm.avatarUrl.trim() || undefined,
+                gender: profileForm.gender.trim() || null,
             });
             await refreshUser();
             setProfileSuccess(true);
@@ -356,7 +358,6 @@ export function ProfilePage() {
                 budget_max: preference.budget_max === '' ? null : Number(preference.budget_max),
                 preferredLocation: preference.preferredLocation || null,
                 preferred_districts,
-                preferred_gender: preference.preferred_gender || null,
                 room_type: preference.room_type || null,
                 preferred_amenities,
                 must_have_amenities,
@@ -510,6 +511,21 @@ export function ProfilePage() {
                                         className={`${inputClass} pl-11`}
                                     />
                                 </div>
+                            </div>
+                            <div>
+                                <label className={labelClass}>Giới tính</label>
+                                <select
+                                    value={profileForm.gender}
+                                    onChange={(e) => setProfileForm((f) => ({ ...f, gender: e.target.value }))}
+                                    className={inputClass}
+                                >
+                                    {PROFILE_GENDER_OPTIONS.map((o) => (
+                                        <option key={o.value || 'empty'} value={o.value}>
+                                            {o.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-muted-foreground mt-1">Dùng để ghép bạn ở cùng người cùng giới tính</p>
                             </div>
                             <div>
                                 <ImageUpload
@@ -853,23 +869,6 @@ export function ProfilePage() {
                                         placeholder="VD: Quận 1, Quận 7, Bình Thạnh"
                                         className={inputClass}
                                     />
-                                </div>
-                                <div>
-                                    <label className={labelClass}>
-                                        <Users className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
-                                        Giới tính bạn ở ghép ưa thích
-                                    </label>
-                                    <select
-                                        value={preference.preferred_gender}
-                                        onChange={(e) => setPreference((p) => ({ ...p, preferred_gender: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        {GENDER_OPTIONS.map((o) => (
-                                            <option key={o.value || 'empty'} value={o.value}>
-                                                {o.label}
-                                            </option>
-                                        ))}
-                                    </select>
                                 </div>
                                 <div>
                                     <label className={labelClass}>Loại phòng ưa thích</label>

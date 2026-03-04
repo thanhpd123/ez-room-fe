@@ -97,6 +97,7 @@ export function FavoritesPage() {
                                                 </button>
                                                 <button
                                                     type="button"
+                                                    onClick={() => navigate(`/room/${room.id}`)}
                                                     className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors whitespace-nowrap shadow-sm"
                                                 >
                                                     Xem chi tiết
