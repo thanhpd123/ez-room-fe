@@ -41,9 +41,11 @@ export interface RentalStats {
     total: number;
     byStatus: {
         available: number;
-        rented: number;
+        unavailable: number;
         hidden: number;
-        archived: number;
+        violate: number;
+        pending: number;
+        suspend: number;
     };
     thisMonth: number;
 }
@@ -52,7 +54,7 @@ export interface Rental {
     id: string;
     title: string;
     description: string | null;
-    status: 'AVAILABLE' | 'RENTED' | 'HIDDEN' | 'ARCHIVED';
+    status: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN' | 'VIOLATE' | 'PENDING' | 'SUSPEND';
     createdAt: string;
     owner: {
         id: string;

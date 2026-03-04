@@ -65,9 +65,11 @@ export function AdminDashboardPage() {
     const rentalStatusData = rentalStats
         ? [
             { name: 'Đang hiển thị', value: rentalStats.byStatus.available, fill: '#52c41a' },
-            { name: 'Đã thuê', value: rentalStats.byStatus.rented, fill: '#1677ff' },
+            { name: 'Tạm ngưng', value: rentalStats.byStatus.unavailable, fill: '#1677ff' },
             { name: 'Đã ẩn', value: rentalStats.byStatus.hidden, fill: '#faad14' },
-            { name: 'Lưu trữ', value: rentalStats.byStatus.archived, fill: '#d9d9d9' },
+            { name: 'Vi phạm', value: rentalStats.byStatus.violate, fill: '#ff4d4f' },
+            { name: 'Chờ duyệt', value: rentalStats.byStatus.pending, fill: '#722ed1' },
+            { name: 'Tạm khóa', value: rentalStats.byStatus.suspend, fill: '#d9d9d9' },
         ]
         : [];
 
@@ -79,7 +81,7 @@ export function AdminDashboardPage() {
             {/* Stats Cards */}
             <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
                 <Col xs={24} sm={12} lg={6}>
-                    <Card bordered={false} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                    <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Tổng số Users"
                             value={adminStats?.users.total || 0}
@@ -88,17 +90,17 @@ export function AdminDashboardPage() {
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
-                    <Card bordered={false} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                    <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Users hoạt động"
                             value={adminStats?.users.byStatus.active || 0}
                             prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                            valueStyle={{ color: '#52c41a' }}
+                            styles={{ content: { color: '#52c41a' } }}
                         />
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
-                    <Card bordered={false} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                    <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Tổng số Bài đăng"
                             value={rentalStats?.total || 0}
@@ -107,12 +109,12 @@ export function AdminDashboardPage() {
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
-                    <Card bordered={false} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                    <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Bài đăng tháng này"
                             value={rentalStats?.thisMonth || 0}
                             prefix={<ShopOutlined style={{ color: '#faad14' }} />}
-                            valueStyle={{ color: '#faad14' }}
+                            styles={{ content: { color: '#faad14' } }}
                         />
                     </Card>
                 </Col>
@@ -121,38 +123,38 @@ export function AdminDashboardPage() {
             {/* Role breakdown */}
             <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                 <Col xs={12} sm={6}>
-                    <Card size="small" bordered={false}>
+                    <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Admin"
                             value={adminStats?.users.byRole.admins || 0}
-                            valueStyle={{ fontSize: 20 }}
+                            styles={{ content: { fontSize: 20 } }}
                         />
                     </Card>
                 </Col>
                 <Col xs={12} sm={6}>
-                    <Card size="small" bordered={false}>
+                    <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Moderator"
                             value={adminStats?.users.byRole.moderators || 0}
-                            valueStyle={{ fontSize: 20 }}
+                            styles={{ content: { fontSize: 20 } }}
                         />
                     </Card>
                 </Col>
                 <Col xs={12} sm={6}>
-                    <Card size="small" bordered={false}>
+                    <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Chủ trọ"
                             value={adminStats?.users.byRole.landlords || 0}
-                            valueStyle={{ fontSize: 20 }}
+                            styles={{ content: { fontSize: 20 } }}
                         />
                     </Card>
                 </Col>
                 <Col xs={12} sm={6}>
-                    <Card size="small" bordered={false}>
+                    <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Người thuê"
                             value={adminStats?.users.byRole.tenants || 0}
-                            valueStyle={{ fontSize: 20 }}
+                            styles={{ content: { fontSize: 20 } }}
                         />
                     </Card>
                 </Col>
@@ -167,7 +169,7 @@ export function AdminDashboardPage() {
                                 <TeamOutlined /> Phân bố Users theo Role
                             </span>
                         }
-                        bordered={false}
+                        variant="borderless"
                         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
                     >
                         <ResponsiveContainer width="100%" height={300}>
@@ -200,7 +202,7 @@ export function AdminDashboardPage() {
                                 <HomeOutlined /> Trạng thái Bài đăng
                             </span>
                         }
-                        bordered={false}
+                        variant="borderless"
                         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
                     >
                         <ResponsiveContainer width="100%" height={300}>
@@ -222,7 +224,7 @@ export function AdminDashboardPage() {
                 <Col xs={24}>
                     <Card
                         title="Tình trạng hệ thống"
-                        bordered={false}
+                        variant="borderless"
                         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
                     >
                         <Row gutter={[16, 16]}>
@@ -230,15 +232,15 @@ export function AdminDashboardPage() {
                                 <Statistic
                                     title="Bài đăng Available"
                                     value={rentalStats?.byStatus.available || 0}
-                                    valueStyle={{ color: '#52c41a' }}
+                                    styles={{ content: { color: '#52c41a' } }}
                                     prefix={<CheckCircleOutlined />}
                                 />
                             </Col>
                             <Col xs={12} sm={6}>
                                 <Statistic
-                                    title="Bài đăng Rented"
-                                    value={rentalStats?.byStatus.rented || 0}
-                                    valueStyle={{ color: '#1677ff' }}
+                                    title="Bài đăng Unavailable"
+                                    value={rentalStats?.byStatus.unavailable || 0}
+                                    styles={{ content: { color: '#1677ff' } }}
                                     prefix={<HomeOutlined />}
                                 />
                             </Col>
@@ -246,7 +248,7 @@ export function AdminDashboardPage() {
                                 <Statistic
                                     title="Bài đăng Hidden"
                                     value={rentalStats?.byStatus.hidden || 0}
-                                    valueStyle={{ color: '#faad14' }}
+                                    styles={{ content: { color: '#faad14' } }}
                                     prefix={<StopOutlined />}
                                 />
                             </Col>
@@ -254,7 +256,7 @@ export function AdminDashboardPage() {
                                 <Statistic
                                     title="Users bị Ban"
                                     value={adminStats?.users.byStatus.banned || 0}
-                                    valueStyle={{ color: '#ff4d4f' }}
+                                    styles={{ content: { color: '#ff4d4f' } }}
                                     prefix={<StopOutlined />}
                                 />
                             </Col>

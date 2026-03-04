@@ -252,7 +252,7 @@ export function AdminRentalsPage() {
                             <Statistic
                                 title="Đang cho thuê"
                                 value={stats.byStatus.available || 0}
-                                valueStyle={{ color: '#52c41a' }}
+                                styles={{ content: { color: '#52c41a' } }}
                             />
                         </Card>
                     </Col>
@@ -260,8 +260,8 @@ export function AdminRentalsPage() {
                         <Card>
                             <Statistic
                                 title="Đã có người thuê"
-                                value={stats.byStatus.rented || 0}
-                                valueStyle={{ color: '#1890ff' }}
+                                value={stats.byStatus.unavailable || 0}
+                                styles={{ content: { color: '#1890ff' } }}
                             />
                         </Card>
                     </Col>
@@ -270,7 +270,7 @@ export function AdminRentalsPage() {
                             <Statistic
                                 title="Đã ẩn"
                                 value={stats.byStatus.hidden || 0}
-                                valueStyle={{ color: '#999' }}
+                                styles={{ content: { color: '#999' } }}
                             />
                         </Card>
                     </Col>
