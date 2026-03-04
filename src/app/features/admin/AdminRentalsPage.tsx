@@ -38,10 +38,12 @@ const { Title } = Typography;
 const { Option } = Select;
 
 const STATUS_OPTIONS = [
-    { value: 'AVAILABLE', label: 'Đang cho thuê', color: 'success' },
+    { value: 'AVAILABLE', label: 'Đang hiển thị', color: 'success' },
+    { value: 'UNAVAILABLE', label: 'Tạm ngưng', color: 'processing' },
     { value: 'HIDDEN', label: 'Đã ẩn', color: 'default' },
-    { value: 'RENTED', label: 'Đã có người thuê', color: 'processing' },
-    { value: 'ARCHIVED', label: 'Lưu trữ', color: 'warning' },
+    { value: 'VIOLATE', label: 'Vi phạm', color: 'error' },
+    { value: 'PENDING', label: 'Chờ duyệt', color: 'warning' },
+    { value: 'SUSPEND', label: 'Tạm khóa', color: 'default' },
 ];
 
 export function AdminRentalsPage() {
@@ -238,34 +240,52 @@ export function AdminRentalsPage() {
             {/* Stats */}
             {stats && (
                 <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col span={6}>
+                    <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
-                                title="Tổng phòng"
+                                title="Tổng bài đăng"
                                 value={stats.total}
                                 prefix={<HomeOutlined />}
                             />
                         </Card>
                     </Col>
-                    <Col span={6}>
+                    <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
-                                title="Đang cho thuê"
+                                title="Đang hiển thị"
                                 value={stats.byStatus.available || 0}
                                 styles={{ content: { color: '#52c41a' } }}
                             />
                         </Card>
                     </Col>
-                    <Col span={6}>
+                    <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
-                                title="Đã có người thuê"
+                                title="Tạm ngưng"
                                 value={stats.byStatus.unavailable || 0}
                                 styles={{ content: { color: '#1890ff' } }}
                             />
                         </Card>
                     </Col>
-                    <Col span={6}>
+                    <Col xs={12} sm={8} lg={4}>
+                        <Card>
+                            <Statistic
+                                title="Chờ duyệt"
+                                value={stats.byStatus.pending || 0}
+                                styles={{ content: { color: '#faad14' } }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={12} sm={8} lg={4}>
+                        <Card>
+                            <Statistic
+                                title="Vi phạm"
+                                value={stats.byStatus.violate || 0}
+                                styles={{ content: { color: '#ff4d4f' } }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
                                 title="Đã ẩn"

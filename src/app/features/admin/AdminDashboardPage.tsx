@@ -7,6 +7,10 @@ import {
     StopOutlined,
     TeamOutlined,
     ShopOutlined,
+    WalletOutlined,
+    DollarOutlined,
+    StarOutlined,
+    ShoppingCartOutlined,
 } from '@ant-design/icons';
 import {
     PieChart,
@@ -115,6 +119,47 @@ export function AdminDashboardPage() {
                             value={rentalStats?.thisMonth || 0}
                             prefix={<ShopOutlined style={{ color: '#faad14' }} />}
                             styles={{ content: { color: '#faad14' } }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
+            {/* Row 2: Wallet, Rooms, Feedback, Preorders */}
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={24} sm={12} lg={6}>
+                    <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                        <Statistic
+                            title="Tổng ví"
+                            value={adminStats?.wallets?.total || 0}
+                            prefix={<WalletOutlined style={{ color: '#13c2c2' }} />}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} lg={6}>
+                    <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                        <Statistic
+                            title="Tổng số dư"
+                            value={Number(adminStats?.wallets?.totalBalance || 0).toLocaleString('vi-VN') + ' đ'}
+                            prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
+                            styles={{ content: { color: '#52c41a', fontSize: 20 } }}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} lg={6}>
+                    <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                        <Statistic
+                            title="Tổng Feedback"
+                            value={adminStats?.feedback?.total || 0}
+                            prefix={<StarOutlined style={{ color: '#faad14' }} />}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} lg={6}>
+                    <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                        <Statistic
+                            title="Tổng Đặt cọc"
+                            value={adminStats?.preorders?.total || 0}
+                            prefix={<ShoppingCartOutlined style={{ color: '#eb2f96' }} />}
                         />
                     </Card>
                 </Col>

@@ -22,6 +22,7 @@ import {
     AdminRentalsPage,
     AdminAmenitiesPage,
     AdminLocationsPage,
+    AdminWalletsPage,
 } from '@/app/features/admin';
 import { LoginPage, ForgotPasswordPage, ResetPasswordPage, CompleteSignupPage } from '@/app/features/auth';
 import { RegisterPage } from '@/app/features/common';
@@ -189,6 +190,10 @@ export const router = createBrowserRouter([
             {
                 path: 'locations',
                 element: <AdminLocationsPage />,
+            },
+            {
+                path: 'wallets',
+                element: <AdminWalletsPage />,
             },
         ],
     },

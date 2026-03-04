@@ -21,6 +21,48 @@ export interface User {
     createdAt: string;
 }
 
+export interface UserDetail extends User {
+    isVip: boolean | null;
+    updated_at: string | null;
+    wallet: {
+        id: string;
+        balance: string;
+        createdAt: string;
+    } | null;
+    rentals: Array<{
+        id: string;
+        title: string;
+        status: string;
+        createdAt: string;
+        rooms: Array<{ id: string }>;
+    }>;
+    lifestyleProfile: {
+        id: string;
+        occupation_type: string | null;
+        personalityType: string | null;
+        created_at: string;
+    } | null;
+    preference: {
+        id: string;
+        budget_min: string | null;
+        budget_max: string | null;
+        preferredLocation: string | null;
+        room_type: string | null;
+    } | null;
+    preorders: Array<{
+        id: string;
+        status: string;
+        payment_status: string;
+        deposit_amount: string | null;
+        createdAt: string;
+    }>;
+    stats: {
+        totalRentals: number;
+        totalFavorites: number;
+        totalPreorders: number;
+    };
+}
+
 export interface AdminStats {
     users: {
         total: number;
@@ -34,6 +76,22 @@ export interface AdminStats {
             active: number;
             banned: number;
         };
+    };
+    rentals?: {
+        total: number;
+    };
+    rooms?: {
+        total: number;
+    };
+    wallets?: {
+        total: number;
+        totalBalance: number;
+    };
+    feedback?: {
+        total: number;
+    };
+    preorders?: {
+        total: number;
     };
 }
 
@@ -91,6 +149,50 @@ export interface Location {
     longitude: number | null;
 }
 
+export interface WalletInfo {
+    id: string;
+    userId: string;
+    balance: string;
+    createdAt: string;
+    user: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        role: string;
+        status: string;
+    };
+}
+
+export interface WalletTransaction {
+    id: string;
+    walletId: string;
+    transaction_type: 'DEPOSIT' | 'WITHDRAW' | 'TRANSFER' | 'PREORDER' | 'REFUND' | 'PAYMENT';
+    status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+    amount: string;
+    description: string | null;
+    createdAt: string;
+    payosOrderCode: string | null;
+    paidAt: string | null;
+}
+
+export interface WalletStats {
+    totalWallets: number;
+    totalBalance: number;
+    avgBalance: number;
+    maxBalance: number;
+    transactionsByType: Array<{
+        type: string;
+        count: number;
+        totalAmount: number;
+    }>;
+    transactionsByStatus: Array<{
+        status: string;
+        count: number;
+    }>;
+}
+
 export interface PaginationInfo {
     page: number;
     limit: number;
@@ -128,7 +230,7 @@ export async function getRentalStats(): Promise<RentalStats> {
         console.error('getRentalStats error:', error);
         return {
             total: 0,
-            byStatus: { available: 0, rented: 0, hidden: 0, archived: 0 },
+            byStatus: { available: 0, unavailable: 0, hidden: 0, violate: 0, pending: 0, suspend: 0 },
             thisMonth: 0,
         };
     }
@@ -413,6 +515,99 @@ export async function deleteLocation(id: string): Promise<{ success: boolean; me
         return {
             success: false,
             message: err.response?.data?.message || 'Lỗi khi xóa địa điểm',
+        };
+    }
+}
+
+// ==================== User Detail API ====================
+
+export async function getUserDetail(userId: string): Promise<UserDetail | null> {
+    try {
+        const res = await axios.get(`${API_BASE}/admin/users/${userId}`, {
+            headers: getAuthHeader(),
+        });
+        return res.data.data;
+    } catch (error) {
+        console.error('getUserDetail error:', error);
+        return null;
+    }
+}
+
+// ==================== Wallets API (READ-ONLY) ====================
+
+export interface GetWalletsParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+    minBalance?: number;
+    maxBalance?: number;
+}
+
+export async function getWallets(params: GetWalletsParams = {}): Promise<{
+    data: WalletInfo[];
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(`${API_BASE}/admin/wallets`, {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            data: res.data.data,
+            pagination: res.data.pagination,
+        };
+    } catch (error) {
+        console.error('getWallets error:', error);
+        return {
+            data: [],
+            pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function getWalletTransactions(
+    walletId: string,
+    params: { page?: number; limit?: number; type?: string; status?: string } = {}
+): Promise<{
+    wallet: { id: string; balance: string; user: { id: string; fullName: string; email: string; role: string } };
+    transactions: WalletTransaction[];
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(`${API_BASE}/admin/wallets/${walletId}/transactions`, {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            wallet: res.data.data.wallet,
+            transactions: res.data.data.transactions,
+            pagination: res.data.pagination,
+        };
+    } catch (error) {
+        console.error('getWalletTransactions error:', error);
+        return {
+            wallet: { id: '', balance: '0', user: { id: '', fullName: '', email: '', role: '' } },
+            transactions: [],
+            pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function getWalletStats(): Promise<WalletStats> {
+    try {
+        const res = await axios.get(`${API_BASE}/admin/wallets/stats`, {
+            headers: getAuthHeader(),
+        });
+        return res.data.data;
+    } catch (error) {
+        console.error('getWalletStats error:', error);
+        return {
+            totalWallets: 0,
+            totalBalance: 0,
+            avgBalance: 0,
+            maxBalance: 0,
+            transactionsByType: [],
+            transactionsByStatus: [],
         };
     }
 }
