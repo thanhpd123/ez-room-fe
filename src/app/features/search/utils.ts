@@ -17,10 +17,13 @@ export function sortRooms(rooms: Room[], sortBy: SortOption): Room[] {
             sorted.sort((a, b) => b.area - a.area);
             break;
         case 'rating':
-            sorted.sort((a, b) => b.rating - a.rating);
+            sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+            break;
+        case 'relevant':
+            sorted.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
             break;
         default:
-            // Keep original order (relevant)
+            sorted.sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0));
             break;
     }
 

@@ -1,17 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { RouterProvider } from 'react-router-dom';
-import { AuthProvider } from './app/context/AuthContext';
-import { FavoritesProvider } from './app/context/FavoritesContext';
-import { router } from './lib/routers';
+import { AppWithLocale } from './app/AppWithLocale';
+import './i18n';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <FavoritesProvider>
-        <RouterProvider router={router} />
-      </FavoritesProvider>
-    </AuthProvider>
+    <AppWithLocale />
   </StrictMode>
 );

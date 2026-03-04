@@ -27,7 +27,7 @@ export function LocationCard({ location, onClick }: LocationCardProps) {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 text-white">
-                <h3 className="font-heading font-semibold mb-1">{location.name}</h3>
+                <h3 className="font-heading font-semibold mb-1 text-orange-400">{location.name}</h3>
                 <p className="text-white/90 text-sm">{location.count}</p>
             </div>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Search, LayoutGrid, FileText } from 'lucide-react';
+import { Building2, Plus, Search, LayoutGrid, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RentalStatus } from '@/lib/models/rental.model';
 import { getMyRentalsRequest } from '@/lib/api';
 import { RENTAL_STATUS_OPTIONS } from '../shared/types';
@@ -13,6 +13,8 @@ const statusClassName: Record<string, string> = {
     PENDING: 'bg-amber-100 text-amber-700',
     SUSPEND: 'bg-red-100 text-red-700',
 };
+
+const ITEMS_PER_PAGE = 5;
 
 function formatDateTime(dateString: string) {
     return new Date(dateString).toLocaleString('vi-VN', {
@@ -48,6 +50,8 @@ export function ViewListRentalPage() {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [keyword, setKeyword] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | RentalStatus>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageInput, setPageInput] = useState('1');
 
     useEffect(() => {
         let active = true;
@@ -58,6 +62,7 @@ export function ViewListRentalPage() {
                 const result = await getMyRentalsRequest({ limit: 100 });
                 if (!active) return;
                 setRentals(result.data);
+                setCurrentPage(1);
             } catch (err) {
                 if (!active) return;
                 setLoadError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
@@ -84,6 +89,41 @@ export function ViewListRentalPage() {
             return matchesKeyword && matchesStatus;
         });
     }, [keyword, rentals, statusFilter]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+        setPageInput('1');
+    }, [keyword, statusFilter]);
+
+    const handlePageInputChange = (value: string) => {
+        setPageInput(value);
+    };
+
+    const handleGoToPage = () => {
+        const pageNum = parseInt(pageInput, 10);
+        if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) {
+            setPageInput(String(currentPage));
+            return;
+        }
+        setCurrentPage(pageNum);
+    };
+
+    const handlePreviousPage = () => {
+        const newPage = Math.max(1, currentPage - 1);
+        setCurrentPage(newPage);
+        setPageInput(String(newPage));
+    };
+
+    const handleNextPage = () => {
+        const newPage = Math.min(totalPages, currentPage + 1);
+        setCurrentPage(newPage);
+        setPageInput(String(newPage));
+    };
+
+    const totalPages = Math.ceil(filteredRentals.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedRentals = filteredRentals.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
     return (
         <section className="mx-auto w-full max-w-6xl">
@@ -159,86 +199,141 @@ export function ViewListRentalPage() {
                     </button>
                 </div>
             ) : (
-                <div className="grid gap-5">
-                    {filteredRentals.map((item) => (
-                        <article
-                            key={item.id}
-                            className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
-                        >
-                            <div className="grid gap-5 p-5 md:grid-cols-[220px_1fr]">
-                                <img
-                                    src={item.images?.[0] ?? DEFAULT_THUMB}
-                                    alt={item.title}
-                                    className="h-44 w-full rounded-xl object-cover border border-border"
-                                />
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <h3 className="font-heading text-lg font-semibold text-foreground">
-                                            {item.title}
-                                        </h3>
-                                        <span
-                                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClassName[item.status] ?? 'bg-slate-100 text-slate-600'}`}
-                                        >
-                                            {getStatusLabel(item.status)}
-                                        </span>
-                                    </div>
-                                    {item.location && (
-                                        <p className="text-sm text-muted-foreground">
-                                            {[item.location.address, item.location.district, item.location.city].filter(Boolean).join(', ')}
-                                        </p>
-                                    )}
-                                    {item.description ? (
-                                        <p className="line-clamp-2 text-sm text-muted-foreground">
-                                            {item.description}
-                                        </p>
-                                    ) : null}
-                                    <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-                                        <div className="rounded-xl bg-muted/50 px-3 py-2">
-                                            <dt className="text-xs text-muted-foreground">Trạng thái</dt>
-                                            <dd className="font-medium text-foreground">
+                <>
+                    <div className="grid gap-5">
+                        {paginatedRentals.map((item) => (
+                            <article
+                                key={item.id}
+                                className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
+                            >
+                                <div className="grid gap-5 p-5 md:grid-cols-[220px_1fr]">
+                                    <img
+                                        src={item.images?.[0] ?? DEFAULT_THUMB}
+                                        alt={item.title}
+                                        className="h-44 w-full rounded-xl object-cover border border-border"
+                                    />
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="font-heading text-lg font-semibold text-foreground">
+                                                {item.title}
+                                            </h3>
+                                            <span
+                                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClassName[item.status] ?? 'bg-slate-100 text-slate-600'}`}
+                                            >
                                                 {getStatusLabel(item.status)}
-                                            </dd>
+                                            </span>
                                         </div>
-                                        <div className="rounded-xl bg-muted/50 px-3 py-2">
-                                            <dt className="text-xs text-muted-foreground">Số ảnh</dt>
-                                            <dd className="font-medium text-foreground">{item.images?.length ?? 0}</dd>
+                                        {item.location && (
+                                            <p className="text-sm text-muted-foreground">
+                                                {[item.location.address, item.location.district, item.location.city].filter(Boolean).join(', ')}
+                                            </p>
+                                        )}
+                                        {item.description ? (
+                                            <p className="line-clamp-2 text-sm text-muted-foreground">
+                                                {item.description}
+                                            </p>
+                                        ) : null}
+                                        <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+                                            <div className="rounded-xl bg-muted/50 px-3 py-2">
+                                                <dt className="text-xs text-muted-foreground">Trạng thái</dt>
+                                                <dd className="font-medium text-foreground">
+                                                    {getStatusLabel(item.status)}
+                                                </dd>
+                                            </div>
+                                            <div className="rounded-xl bg-muted/50 px-3 py-2">
+                                                <dt className="text-xs text-muted-foreground">Số ảnh</dt>
+                                                <dd className="font-medium text-foreground">{item.images?.length ?? 0}</dd>
+                                            </div>
+                                            <div className="rounded-xl bg-muted/50 px-3 py-2">
+                                                <dt className="text-xs text-muted-foreground">Ngày tạo</dt>
+                                                <dd className="font-medium text-foreground">
+                                                    {formatDateTime(item.createdAt)}
+                                                </dd>
+                                            </div>
+                                        </dl>
+                                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    navigate(`/rental-management/rentals/${item.id}`)
+                                                }
+                                                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                                            >
+                                                <FileText className="h-4 w-4" />
+                                                Chi tiết
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/rental-management/rentals/${item.id}/room-posts`
+                                                    )
+                                                }
+                                                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
+                                            >
+                                                <LayoutGrid className="h-4 w-4" />
+                                                Danh sách phòng
+                                            </button>
                                         </div>
-                                        <div className="rounded-xl bg-muted/50 px-3 py-2">
-                                            <dt className="text-xs text-muted-foreground">Ngày tạo</dt>
-                                            <dd className="font-medium text-foreground">
-                                                {formatDateTime(item.createdAt)}
-                                            </dd>
-                                        </div>
-                                    </dl>
-                                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                navigate(`/rental-management/rentals/${item.id}`)
-                                            }
-                                            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                                        >
-                                            <FileText className="h-4 w-4" />
-                                            Chi tiết
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                navigate(
-                                                    `/rental-management/rentals/${item.id}/room-posts`
-                                                )
-                                            }
-                                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
-                                        >
-                                            <LayoutGrid className="h-4 w-4" />
-                                            Danh sách phòng
-                                        </button>
                                     </div>
                                 </div>
+                            </article>
+                        ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="mt-8 flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                            <div className="flex flex-wrap items-center justify-center gap-3">
+                                <button
+                                    onClick={handlePreviousPage}
+                                    disabled={currentPage === 1}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    type="button"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Trước
+                                </button>
+
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={totalPages}
+                                        value={pageInput}
+                                        onChange={(e) => handlePageInputChange(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleGoToPage();
+                                        }}
+                                        className="w-14 rounded-lg border border-border bg-background px-3 py-2 text-center text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        placeholder="1"
+                                    />
+                                    <span className="text-sm font-medium text-muted-foreground">/ {totalPages}</span>
+                                    <button
+                                        onClick={handleGoToPage}
+                                        className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                                        type="button"
+                                    >
+                                        Đi
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={handleNextPage}
+                                    disabled={currentPage === totalPages}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    type="button"
+                                >
+                                    Tiếp
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
                             </div>
-                        </article>
-                    ))}
-                </div>
+                            <p className="text-xs text-muted-foreground">
+                                Tổng cộng {filteredRentals.length} nhà trọ
+                            </p>
+                        </div>
+                    )}
+                </>
             )}
         </section>
     );

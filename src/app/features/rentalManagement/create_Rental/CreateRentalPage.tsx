@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ImageUpload } from '@/app/components/ImageUpload';
+import { MultiImageUpload } from '@/app/components/MultiImageUpload';
 import { createRentalRequest } from '@/lib/api';
+import { useProvinces } from '@/app/hooks/useProvinces';
+import { findOldAddress, type OldAddressInfo } from '@/app/constants/v1-v2-mapping';
 import { PROPERTY_TYPE_OPTIONS, type PropertyType } from '../shared/types';
 
 interface CreateRentalFormState {
@@ -13,7 +15,7 @@ interface CreateRentalFormState {
     address: string;
     property_type: PropertyType;
     available_room: string;
-    image: string;
+    images: string[];
 }
 
 type FormErrors = Partial<Record<keyof CreateRentalFormState, string>>;
@@ -27,7 +29,7 @@ const initialForm: CreateRentalFormState = {
     address: '',
     property_type: 'boarding_house',
     available_room: '1',
-    image: '',
+    images: [],
 };
 
 export function CreateRentalPage() {
@@ -36,6 +38,7 @@ export function CreateRentalPage() {
     const [errors, setErrors] = useState<FormErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [oldAddress, setOldAddress] = useState<OldAddressInfo | null>(null);
 
     const availableRoomNumber = useMemo(() => Number(form.available_room), [form.available_room]);
 
@@ -44,7 +47,7 @@ export function CreateRentalPage() {
 
         if (!form.title.trim()) nextErrors.title = 'Tiêu đề là bắt buộc.';
         if (!form.city.trim()) nextErrors.city = 'Thành phố là bắt buộc.';
-        if (!form.district.trim()) nextErrors.district = 'Quận/huyện là bắt buộc.';
+        if (!form.district.trim()) nextErrors.district = 'Phường/xã là bắt buộc.';
         if (!form.address.trim()) nextErrors.address = 'Địa chỉ là bắt buộc.';
         if (!Number.isFinite(availableRoomNumber) || availableRoomNumber < 0) {
             nextErrors.available_room = 'Số phòng phải là số nguyên dương.';
@@ -54,10 +57,26 @@ export function CreateRentalPage() {
         return Object.keys(nextErrors).length === 0;
     };
 
+    const { provinces, getWardsFor, loading: locationsLoading } = useProvinces();
+    const wardOptions = form.city ? getWardsFor(form.city) : [];
+
+    // Auto-detect old address when district/city changes
+    useEffect(() => {
+        const loadOldAddress = async () => {
+            const old = await findOldAddress(form.district, form.city);
+            setOldAddress(old);
+        };
+        loadOldAddress();
+    }, [form.district, form.city]);
+
     const onChangeField =
         <K extends keyof CreateRentalFormState>(key: K) =>
             (value: CreateRentalFormState[K]) => {
-                setForm((prev) => ({ ...prev, [key]: value }));
+                setForm((prev) => {
+                    const next = { ...prev, [key]: value };
+                    if (key === 'city') next.district = '';
+                    return next;
+                });
                 setErrors((prev) => ({ ...prev, [key]: undefined }));
             };
 
@@ -68,15 +87,17 @@ export function CreateRentalPage() {
         setSubmitError(null);
         setIsSubmitting(true);
 
+        const payload = {
+            title: form.title,
+            description: form.description || undefined,
+            city: form.city,
+            district: form.district,
+            address: form.address,
+            images: form.images.length > 0 ? form.images : undefined,
+        };
+
         try {
-            await createRentalRequest({
-                title: form.title,
-                description: form.description || undefined,
-                city: form.city,
-                district: form.district,
-                address: form.address,
-                images: form.image ? [form.image] : undefined,
-            });
+            await createRentalRequest(payload);
 
             navigate('/rental-management/rentals');
         } catch (err) {
@@ -96,6 +117,15 @@ export function CreateRentalPage() {
             </header>
 
             <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+                {oldAddress && (
+                    <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                        <p className="text-sm text-blue-900">
+                            <strong>📋 Cập nhật địa chỉ hành chính:</strong><br/>
+                            Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br/>
+                            Bây giờ: <strong>{form.district}, {form.city}</strong>
+                        </p>
+                    </div>
+                )}
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="md:col-span-2">
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">Tiêu đề *</label>
@@ -135,33 +165,43 @@ export function CreateRentalPage() {
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Thành phố *</label>
-                        <input
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Tỉnh / Thành phố *</label>
+                        <select
                             value={form.city}
                             onChange={(event) => onChangeField('city')(event.target.value)}
-                            placeholder="Hà Nội"
+                            disabled={locationsLoading}
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-                        />
+                        >
+                            <option value="">Chọn tỉnh / thành phố</option>
+                            {provinces.map((p) => (
+                                <option key={p.code} value={p.name}>{p.name}</option>
+                            ))}
+                        </select>
                         {errors.city ? <p className="mt-1 text-xs text-rose-600">{errors.city}</p> : null}
                     </div>
 
                     <div>
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Quận/huyện *</label>
-                        <input
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Phường / Xã *</label>
+                        <select
                             value={form.district}
                             onChange={(event) => onChangeField('district')(event.target.value)}
-                            placeholder="Đống Đa"
+                            disabled={!form.city || locationsLoading}
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-                        />
+                        >
+                            <option value="">Chọn phường / xã</option>
+                            {wardOptions.map((w) => (
+                                <option key={w.code} value={w.name}>{w.name}</option>
+                            ))}
+                        </select>
                         {errors.district ? <p className="mt-1 text-xs text-rose-600">{errors.district}</p> : null}
                     </div>
 
                     <div className="md:col-span-2">
-                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Địa chỉ *</label>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">Địa chỉ chi tiết (đường, số nhà) *</label>
                         <input
                             value={form.address}
                             onChange={(event) => onChangeField('address')(event.target.value)}
-                            placeholder="268 Tây Sơn"
+                            placeholder="VD: 268 Tây Sơn"
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                         />
                         {errors.address ? <p className="mt-1 text-xs text-rose-600">{errors.address}</p> : null}
@@ -184,10 +224,11 @@ export function CreateRentalPage() {
                     </div>
 
                     <div className="md:col-span-2">
-                        <ImageUpload
+                        <MultiImageUpload
                             label="Ảnh bài đăng"
-                            value={form.image}
-                            onChange={(url) => onChangeField('image')(url)}
+                            value={form.images}
+                            onChange={(urls) => onChangeField('images')(urls)}
+                            maxImages={10}
                         />
                     </div>
 

@@ -1,0 +1,19 @@
+/**
+ * Role-based redirect configuration.
+ * Open/Closed: add new roles by extending the map, no switch edits.
+ */
+
+const ROLE_REDIRECTS: Record<string, string> = {
+    ADMIN: '/admin',
+    MODERATOR: '/moderator',
+    LANDLORD: '/rental-management',
+    TENANT: '/home',
+    GUEST: '/home',
+};
+
+const DEFAULT_REDIRECT = '/home';
+
+export function getRedirectByRole(role?: string): string {
+    if (!role) return DEFAULT_REDIRECT;
+    return ROLE_REDIRECTS[role] ?? DEFAULT_REDIRECT;
+}

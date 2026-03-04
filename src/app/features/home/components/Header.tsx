@@ -1,127 +1,186 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { Home as HomeIcon, BookOpen, LogIn, Heart, LogOut, User } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { HomeOutlined, BookOutlined, LoginOutlined, HeartOutlined, LogoutOutlined, UserOutlined, GlobalOutlined, MenuOutlined } from '@ant-design/icons';
+import { Button, Avatar, Badge, Dropdown, Drawer } from 'antd';
+import type { MenuProps } from 'antd';
 import { useFavorites } from '@/app/context/FavoritesContext';
 import { useAuth } from '@/app/context/AuthContext';
+import { supportedLngs, type SupportedLang } from '@/i18n';
 
 interface HeaderProps {
     onLogin?: () => void;
     onRegister?: () => void;
 }
 
+const langLabels: Record<SupportedLang, string> = { en: 'English', vi: 'Tiếng Việt' };
+
 export function Header({ onLogin, onRegister }: HeaderProps) {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { t, i18n } = useTranslation();
     const { favorites } = useFavorites();
     const { user, signOut } = useAuth();
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    const navLink = (to: string, label: string, icon?: React.ReactNode) => {
+        const isActive = location.pathname === to || (to === '/home' && location.pathname === '/') || (to !== '/home' && location.pathname.startsWith(to));
+        return (
+            <Link
+                to={to}
+                className={`relative py-2 transition-colors font-medium no-underline after:absolute after:bottom-0 after:left-0 after:h-0.5 after:rounded-full after:bg-primary after:transition-all after:duration-200 ${
+                    isActive ? 'text-primary after:w-full' : 'text-muted-foreground hover:text-primary after:w-0 hover:after:w-full'
+                } flex items-center gap-1.5`}
+            >
+                {icon}
+                {label}
+            </Link>
+        );
+    };
+
+    const langMenuItems: MenuProps['items'] = supportedLngs.map((lng) => ({
+        key: lng,
+        label: langLabels[lng],
+        onClick: () => i18n.changeLanguage(lng),
+    }));
 
     const handleLogin = () => {
+        setMobileMenuOpen(false);
         if (onLogin) onLogin();
         else navigate('/login');
     };
 
     const handleRegister = () => {
+        setMobileMenuOpen(false);
         if (onRegister) onRegister();
         else navigate('/register');
     };
 
+    const navLinkClass = "block py-3 text-foreground hover:text-primary transition-colors font-medium no-underline border-b border-border hover:bg-muted/50 -mx-4 px-4 rounded-lg last:border-0";
+
     return (
-        <header className="sticky top-0 z-40 bg-card border-b border-border shadow-sm">
+        <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border shadow-sm safe-area-inset-top">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
-                    <Link to="/home" className="flex items-center gap-2">
-                        <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm">
-                            <HomeIcon className="w-5 h-5 text-primary-foreground" strokeWidth={2} />
+                <div className="flex items-center justify-between h-14 sm:h-16">
+                    <Link to="/home" className="flex items-center gap-2 no-underline min-w-0">
+                        <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm shrink-0">
+                            <HomeOutlined className="text-white text-base sm:text-lg" />
                         </div>
-                        <span className="font-heading font-bold text-xl text-primary">EzRoom</span>
+                        <span className="font-heading font-bold text-lg sm:text-xl text-primary truncate">EzRoom</span>
                     </Link>
 
-                    <nav className="hidden md:flex items-center gap-8">
-                        <Link to="/home" className="text-foreground hover:text-primary transition-colors font-medium">
-                            Trang chủ
-                        </Link>
-                        <Link to="/roommate" className="text-muted-foreground hover:text-primary transition-colors">
-                            Tìm bạn ở ghép
-                        </Link>
-                        {user?.role === 'LANDLORD' && (
-                            <Link to="/rental-management" className="text-muted-foreground hover:text-primary transition-colors">
-                                Quản lý cho thuê
-                            </Link>
-                        )}
-                        <Link to="/blog" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
-                            <BookOpen className="w-4 h-4" strokeWidth={2} />
-                            Blog
-                        </Link>
+                    <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+                        {navLink('/home', t('nav.home'))}
+                        {navLink('/roommate', t('nav.findRoommate'))}
+                        {user?.role === 'LANDLORD' && navLink('/rental-management', t('nav.rentalManagement'))}
+                        {navLink('/blog', t('nav.blog'), <BookOutlined className="text-sm" />)}
                     </nav>
 
-                    <div className="flex items-center gap-2 sm:gap-3">
-                        <button
-                            onClick={() => navigate('/favorites')}
-                            className="relative p-2.5 rounded-xl hover:bg-muted transition-colors group text-foreground hover:text-accent"
-                            title="Phòng yêu thích"
-                        >
-                            <Heart className="w-5 h-5" strokeWidth={2} />
-                            {favorites.length > 0 && (
-                                <span className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 bg-accent text-accent-foreground text-xs rounded-full flex items-center justify-center font-semibold">
-                                    {favorites.length}
-                                </span>
-                            )}
-                        </button>
+                    <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
+                        <Button
+                            type="text"
+                            icon={<MenuOutlined className="text-xl" />}
+                            onClick={() => setMobileMenuOpen(true)}
+                            className="md:hidden p-2 -mr-1 text-foreground hover:text-primary touch-manipulation"
+                            aria-label={t('nav.menu') || 'Menu'}
+                        />
+                        <Dropdown menu={{ items: langMenuItems }} placement="bottomRight" trigger={['click']}>
+                            <Button type="text" icon={<GlobalOutlined className="text-base sm:text-lg" />} className="text-foreground hover:text-primary p-2 sm:px-2 touch-manipulation" title={langLabels[i18n.language as SupportedLang] ?? 'Language'} />
+                        </Dropdown>
+                        <Badge count={favorites.length} size="small" offset={[-2, 2]}>
+                            <Button
+                                type="text"
+                                icon={<HeartOutlined className="text-base sm:text-lg" />}
+                                onClick={() => navigate('/favorites')}
+                                className="flex items-center justify-center text-foreground hover:text-accent p-2 sm:px-2 touch-manipulation"
+                                title={t('nav.favorites')}
+                            />
+                        </Badge>
 
                         {user ? (
-                            <div className="flex items-center gap-2">
-                                <Link
-                                    to="/profile"
-                                    className="hidden sm:flex items-center gap-2 text-foreground text-sm max-w-[140px] truncate hover:opacity-90"
-                                >
+                            <div className="flex items-center gap-1 sm:gap-2">
+                                <Link to="/profile" className="hidden sm:flex items-center gap-2 text-foreground text-sm max-w-[140px] truncate hover:opacity-90 no-underline">
                                     {user.avatarUrl ? (
-                                        <img
-                                            src={user.avatarUrl}
-                                            alt=""
-                                            className="w-8 h-8 rounded-full object-cover ring-2 ring-border"
-                                        />
+                                        <Avatar src={user.avatarUrl} size={32} className="ring-2 ring-border" />
                                     ) : (
-                                        <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <User className="w-4 h-4 text-primary" strokeWidth={2} />
-                                        </span>
+                                        <Avatar icon={<UserOutlined />} size={32} className="bg-primary/10 text-primary" />
                                     )}
-                                    {user.fullName || user.email}
+                                    <span className="truncate">{user.fullName || user.email}</span>
                                 </Link>
-                                <Link
-                                    to="/profile"
-                                    className="sm:hidden p-2.5 rounded-xl hover:bg-muted text-foreground"
-                                    title="Tài khoản"
-                                >
-                                    <User className="w-5 h-5" strokeWidth={2} />
+                                <Link to="/profile" className="sm:hidden" title={t('nav.account')}>
+                                    <Button type="text" icon={<UserOutlined />} className="text-foreground p-2 touch-manipulation" />
                                 </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => signOut()}
-                                    className="flex items-center gap-2 px-4 py-2.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors text-sm font-medium"
-                                    title="Đăng xuất"
-                                >
-                                    <LogOut className="w-4 h-4" strokeWidth={2} />
-                                    <span className="hidden sm:inline">Đăng xuất</span>
-                                </button>
+                                <Button type="text" icon={<LogoutOutlined />} onClick={() => signOut()} className="text-muted-foreground hover:text-foreground hidden sm:inline-flex items-center gap-2 p-2 touch-manipulation" title={t('nav.logout')}>
+                                    <span className="hidden sm:inline">{t('nav.logout')}</span>
+                                </Button>
                             </div>
                         ) : (
-                            <>
-                                <button
-                                    onClick={handleLogin}
-                                    className="hidden sm:flex items-center gap-2 px-4 py-2.5 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors font-medium text-sm"
-                                >
-                                    <LogIn className="w-4 h-4" strokeWidth={2} />
-                                    Đăng nhập
-                                </button>
-                                <button
-                                    onClick={handleRegister}
-                                    className="hidden sm:block px-4 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:bg-primary/90 shadow-sm transition-all"
-                                >
-                                    Đăng ký
-                                </button>
-                            </>
+                            <div className="flex items-center gap-1 sm:gap-2">
+                                <Button type="text" onClick={handleLogin} className="hidden sm:inline-flex items-center gap-2 text-muted-foreground hover:text-foreground" icon={<LoginOutlined />}>
+                                    {t('nav.login')}
+                                </Button>
+                                <Button type="primary" onClick={handleRegister} size="middle" className="hidden sm:inline-flex">
+                                    {t('nav.register')}
+                                </Button>
+                                <Button type="text" onClick={handleLogin} icon={<LoginOutlined />} className="sm:hidden p-2 text-foreground touch-manipulation" title={t('nav.login')} />
+                                <Button type="primary" onClick={handleRegister} size="small" className="sm:hidden px-4 touch-manipulation min-h-[36px] shadow-sm hover:shadow">
+                                    {t('nav.register')}
+                                </Button>
+                            </div>
                         )}
                     </div>
                 </div>
             </div>
+
+            <Drawer
+                open={mobileMenuOpen}
+                onClose={() => setMobileMenuOpen(false)}
+                placement="right"
+                size={320}
+                className="md:hidden [&_.ant-drawer-header]:border-b [&_.ant-drawer-body]:p-4"
+                title={<span className="font-heading font-bold text-primary">EzRoom</span>}
+            >
+                <nav className="flex flex-col">
+                    <Link to="/home" className={navLinkClass} onClick={() => setMobileMenuOpen(false)}>
+                        {t('nav.home')}
+                    </Link>
+                    <Link to="/roommate" className={navLinkClass} onClick={() => setMobileMenuOpen(false)}>
+                        {t('nav.findRoommate')}
+                    </Link>
+                    {user?.role === 'LANDLORD' && (
+                        <Link to="/rental-management" className={navLinkClass} onClick={() => setMobileMenuOpen(false)}>
+                            {t('nav.rentalManagement')}
+                        </Link>
+                    )}
+                    <Link to="/blog" className={`${navLinkClass} flex items-center gap-2`} onClick={() => setMobileMenuOpen(false)}>
+                        <BookOutlined />
+                        {t('nav.blog')}
+                    </Link>
+                    <div className="border-t border-border pt-4 mt-4 flex flex-col gap-3">
+                        {!user ? (
+                            <>
+                                <Button type="default" block size="large" onClick={handleLogin} icon={<LoginOutlined />} className="rounded-xl min-h-[48px]">
+                                    {t('nav.login')}
+                                </Button>
+                                <Button type="primary" block size="large" onClick={handleRegister} className="rounded-xl min-h-[48px]">
+                                    {t('nav.register')}
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
+                                    <Button type="default" block size="large" icon={<UserOutlined />} className="rounded-xl min-h-[48px]">
+                                        {t('nav.account')}
+                                    </Button>
+                                </Link>
+                                <Button type="default" block size="large" onClick={() => { signOut(); setMobileMenuOpen(false); }} icon={<LogoutOutlined />} className="rounded-xl min-h-[48px]">
+                                    {t('nav.logout')}
+                                </Button>
+                            </>
+                        )}
+                    </div>
+                </nav>
+            </Drawer>
         </header>
     );
 }

@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Loader2, X, ImagePlus } from 'lucide-react';
 import { uploadImageRequest } from '@/lib/api';
 
@@ -21,7 +21,6 @@ export function MultiImageUpload({
     maxImages = 10,
     maxSizeMB = 5,
 }: MultiImageUploadProps) {
-    const inputId = useId();
     const inputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadCount, setUploadCount] = useState(0);
@@ -29,9 +28,17 @@ export function MultiImageUpload({
 
     const handleFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
+        if (!files || files.length === 0) {
+            return;
+        }
+
+        // Convert to array NGAY LẬP TỨC - trước reset!
+        const filesArray = Array.from(files);
+        
+        // Reset the input AFTER Array.from
         e.target.value = '';
+
         setError(null);
-        if (!files || files.length === 0) return;
 
         const remaining = maxImages - value.length;
         if (remaining <= 0) {
@@ -39,12 +46,14 @@ export function MultiImageUpload({
             return;
         }
 
-        const selectedFiles = Array.from(files).slice(0, remaining);
+        const selectedFiles = filesArray.slice(0, remaining);
 
         // Validate sizes
         const oversized = selectedFiles.find((f) => f.size > maxSizeMB * 1024 * 1024);
         if (oversized) {
-            setError(`Ảnh "${oversized.name}" vượt quá ${maxSizeMB}MB`);
+            const msg = `Ảnh "${oversized.name}" vượt quá ${maxSizeMB}MB`;
+            console.log('Size validation failed:', msg);
+            setError(msg);
             return;
         }
 
@@ -67,8 +76,8 @@ export function MultiImageUpload({
                     const errMsg = result.reason instanceof Error
                         ? result.reason.message
                         : `Lỗi upload ${selectedFiles[index].name}`;
-                    errors.push(errMsg);
                     console.error(`Upload failed for ${selectedFiles[index].name}:`, result.reason);
+                    errors.push(errMsg);
                 }
             });
 
@@ -89,6 +98,12 @@ export function MultiImageUpload({
 
     const removeImage = (index: number) => {
         onChange(value.filter((_, i) => i !== index));
+    };
+
+    const handleClickUpload = () => {
+        if (inputRef.current) {
+            inputRef.current.click();
+        }
     };
 
     const canAddMore = value.length < maxImages && !uploading;
@@ -123,7 +138,6 @@ export function MultiImageUpload({
 
             {/* Hidden file input */}
             <input
-                id={inputId}
                 ref={inputRef}
                 type="file"
                 accept={accept}
@@ -133,10 +147,12 @@ export function MultiImageUpload({
                 className="hidden"
             />
 
-            {/* Upload trigger – uses <label htmlFor> as primary trigger for better browser compat */}
+            {/* Upload trigger button */}
             {value.length < maxImages && (
-                <label
-                    htmlFor={canAddMore ? inputId : undefined}
+                <button
+                    type="button"
+                    onClick={handleClickUpload}
+                    disabled={!canAddMore}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:border-slate-400 transition-colors text-sm font-medium w-full justify-center ${!canAddMore ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
                         }`}
                 >
@@ -151,7 +167,7 @@ export function MultiImageUpload({
                             Thêm ảnh ({value.length}/{maxImages})
                         </>
                     )}
-                </label>
+                </button>
             )}
 
             {error && <p className="mt-1.5 text-sm text-rose-600">{error}</p>}

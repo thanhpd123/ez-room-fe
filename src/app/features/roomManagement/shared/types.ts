@@ -1,8 +1,5 @@
 import type { RoomStatus } from '@/lib/models/room.model';
 
-export type RoomPostGenderPreference = 'any' | 'male' | 'female';
-export type RoomPostModerationStatus = 'pending_review' | 'approved' | 'rejected';
-
 export interface ManagedRoomPostItem {
     room_post_id: string;
     rental_id: string;
@@ -11,11 +8,10 @@ export interface ManagedRoomPostItem {
     price: number;
     area: number;
     max_occupants: number;
-    floor?: number;
-    gender_preference: RoomPostGenderPreference;
     status: RoomStatus;
-    moderation_status: RoomPostModerationStatus;
     thumbnail_url?: string;
+    images?: string[];
+    amenities?: Array<{ id: string; name: string }>;
     created_at: string;
 }
 
@@ -26,24 +22,15 @@ export interface CreateManagedRoomPostInput {
     price: number;
     area: number;
     max_occupants: number;
-    floor?: number;
-    gender_preference: RoomPostGenderPreference;
-    status: RoomStatus;
-    moderation_status?: RoomPostModerationStatus;
+    status?: RoomStatus;
     thumbnail_url?: string;
+    images?: string[];
+    amenityIds?: string[];
 }
 
 export const ROOM_POST_STATUS_OPTIONS: Array<{ value: RoomStatus; label: string }> = [
-    { value: 'available', label: 'Available' },
-    { value: 'rented', label: 'Rented' },
-    { value: 'maintenance', label: 'Maintenance' },
-];
-
-export const ROOM_POST_GENDER_OPTIONS: Array<{
-    value: RoomPostGenderPreference;
-    label: string;
-}> = [
-    { value: 'any', label: 'Any' },
-    { value: 'male', label: 'Male only' },
-    { value: 'female', label: 'Female only' },
+    { value: 'PENDING', label: 'Chờ duyệt' },
+    { value: 'AVAILABLE', label: 'Còn phòng' },
+    { value: 'RENTED', label: 'Đã cho thuê' },
+    { value: 'MAINTENANCE', label: 'Bảo trì' },
 ];

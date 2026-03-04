@@ -6,6 +6,8 @@ type SearchTabValue = 'text' | 'image';
 interface SearchTabsProps {
     defaultTab?: SearchTabValue;
     onTabChange?: (tab: SearchTabValue) => void;
+    /** Show "Tìm bằng hình ảnh" tab (tenant/VIP only). */
+    showImageTab?: boolean;
     children: (activeTab: SearchTabValue) => React.ReactNode;
 }
 
@@ -34,7 +36,7 @@ function TabButton({ value, activeTab, onClick, icon, label }: TabButtonProps) {
     );
 }
 
-export function SearchTabs({ defaultTab = 'text', onTabChange, children }: SearchTabsProps) {
+export function SearchTabs({ defaultTab = 'text', onTabChange, showImageTab = true, children }: SearchTabsProps) {
     const [activeTab, setActiveTab] = useState<SearchTabValue>(defaultTab);
 
     const handleTabChange = (tab: SearchTabValue) => {
@@ -44,8 +46,8 @@ export function SearchTabs({ defaultTab = 'text', onTabChange, children }: Searc
 
     return (
         <div className="w-full">
-            {/* Tab List */}
-            <div className="flex bg-muted p-1 rounded-xl max-w-md mx-auto mb-8">
+            {showImageTab && (
+            <div className="flex bg-muted p-1 rounded-xl max-w-md mx-auto mb-4 sm:mb-8">
                 <TabButton
                     value="text"
                     activeTab={activeTab}
@@ -61,9 +63,10 @@ export function SearchTabs({ defaultTab = 'text', onTabChange, children }: Searc
                     label="Tìm bằng hình ảnh"
                 />
             </div>
+            )}
 
             {/* Tab Content */}
-            {children(activeTab)}
+            {children(showImageTab ? activeTab : 'text')}
         </div>
     );
 }

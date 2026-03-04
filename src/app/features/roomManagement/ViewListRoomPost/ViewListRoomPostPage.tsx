@@ -4,15 +4,15 @@ import type { RoomStatus } from '@/lib/models/room.model';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
 import { listRoomPostsByRentalId } from '../shared/room-post-storage';
 import {
-    ROOM_POST_GENDER_OPTIONS,
     ROOM_POST_STATUS_OPTIONS,
     type ManagedRoomPostItem,
 } from '../shared/types';
 
 const roomStatusClassName: Record<RoomStatus, string> = {
-    available: 'bg-emerald-100 text-emerald-700',
-    rented: 'bg-slate-200 text-slate-700',
-    maintenance: 'bg-amber-100 text-amber-700',
+    PENDING: 'bg-amber-100 text-amber-700',
+    AVAILABLE: 'bg-emerald-100 text-emerald-700',
+    RENTED: 'bg-slate-200 text-slate-700',
+    MAINTENANCE: 'bg-orange-100 text-orange-700',
 };
 
 function formatCurrency(value: number) {
@@ -31,10 +31,6 @@ function formatDateTime(dateString: string) {
 
 function getStatusLabel(status: RoomStatus) {
     return ROOM_POST_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
-}
-
-function getGenderLabel(value: string) {
-    return ROOM_POST_GENDER_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
 export function ViewListRoomPostPage() {
@@ -211,10 +207,26 @@ export function ViewListRoomPostPage() {
                                             <dt className="text-xs text-slate-500">Max occupants</dt>
                                             <dd className="font-medium">{post.max_occupants}</dd>
                                         </div>
-                                        <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                            <dt className="text-xs text-slate-500">Gender preference</dt>
-                                            <dd className="font-medium">{getGenderLabel(post.gender_preference)}</dd>
-                                        </div>
+                                        {post.amenities && post.amenities.length > 0 && (
+                                            <div className="col-span-2 sm:col-span-4 rounded-lg bg-slate-50 px-3 py-2">
+                                                <dt className="text-xs text-slate-500">Amenities</dt>
+                                                <dd className="mt-1 flex flex-wrap gap-1">
+                                                    {post.amenities.slice(0, 3).map((amenity) => (
+                                                        <span
+                                                            key={amenity.id}
+                                                            className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700"
+                                                        >
+                                                            {amenity.name}
+                                                        </span>
+                                                    ))}
+                                                    {post.amenities.length > 3 && (
+                                                        <span className="text-xs text-slate-500">
+                                                            +{post.amenities.length - 3} more
+                                                        </span>
+                                                    )}
+                                                </dd>
+                                            </div>
+                                        )}
                                     </dl>
 
                                     <div className="flex items-center justify-between pt-1">
