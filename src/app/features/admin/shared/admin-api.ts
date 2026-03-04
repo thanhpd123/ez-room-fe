@@ -522,7 +522,7 @@ export async function deleteLocation(id: string): Promise<{ success: boolean; me
 
 export async function getUserDetail(userId: string): Promise<UserDetail | null> {
     try {
-        const res = await axios.get(`${API_BASE}/admin/users/${userId}`, {
+        const res = await axios.get(getApiUrl(`/admin/users/${userId}`), {
             headers: getAuthHeader(),
         });
         return res.data.data;
@@ -547,7 +547,7 @@ export async function getWallets(params: GetWalletsParams = {}): Promise<{
     pagination: PaginationInfo;
 }> {
     try {
-        const res = await axios.get(`${API_BASE}/admin/wallets`, {
+        const res = await axios.get(getApiUrl('/admin/wallets'), {
             headers: getAuthHeader(),
             params,
         });
@@ -573,7 +573,7 @@ export async function getWalletTransactions(
     pagination: PaginationInfo;
 }> {
     try {
-        const res = await axios.get(`${API_BASE}/admin/wallets/${walletId}/transactions`, {
+        const res = await axios.get(getApiUrl(`/admin/wallets/${walletId}/transactions`), {
             headers: getAuthHeader(),
             params,
         });
@@ -594,7 +594,7 @@ export async function getWalletTransactions(
 
 export async function getWalletStats(): Promise<WalletStats> {
     try {
-        const res = await axios.get(`${API_BASE}/admin/wallets/stats`, {
+        const res = await axios.get(getApiUrl('/admin/wallets/stats'), {
             headers: getAuthHeader(),
         });
         return res.data.data;
