@@ -81,13 +81,11 @@
     "submitLogin": "Log in",
     "or": "or",
     "loginWithGoogle": "Log in with Google",
-    "loginWithFacebook": "Log in with Facebook",
     "noAccount": "Don't have an account?",
     "registerNow": "Register now",
     "registerSuccess": "Registration successful! You can log in now.",
     "loginError": "Login failed",
     "googleError": "Google login failed. Please try again.",
-    "facebookError": "Facebook login failed. Please try again.",
     "emailRequired": "Please enter your email",
     "emailInvalid": "Invalid email",
     "passwordRequired": "Please enter your password"

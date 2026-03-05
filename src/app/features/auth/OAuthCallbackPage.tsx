@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 /**
- * OAuth callback route: Google/Facebook redirect here with #access_token=...
+ * OAuth callback route: Google redirect here with #access_token=...
  * We must stay on this URL so the hash is preserved; Supabase parses it on getSession().
  * Then we redirect to /home (or /complete-signup if backend returns NEED_REGISTER).
  */
