@@ -5,6 +5,7 @@ import {
     DoorOpen,
     Flag,
     MessageSquareText,
+    Users,
     ChevronLeft,
     ChevronRight,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ const items = [
     { label: 'Duyệt bài đăng phòng', path: '/moderator/room-posts', Icon: DoorOpen },
     { label: 'Báo cáo vi phạm', path: '/moderator/reports', Icon: Flag },
     { label: 'Đánh giá', path: '/moderator/reviews', Icon: MessageSquareText },
+    { label: 'Người thuê / Chủ trọ', path: '/moderator/users', Icon: Users },
 ] as const;
 
 export default function SidebarModerator({

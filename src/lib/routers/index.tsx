@@ -25,6 +25,7 @@ const ModerateRentalListPage = lazy(() => import('@/app/features/moderator/moder
 const ModerateReviewsPage = lazy(() => import('@/app/features/moderator/moderate-reviews').then((m) => ({ default: m.ModerateReviewsPage })));
 const ModerateRoomPostListPage = lazy(() => import('@/app/features/moderator/moderateRoomPost').then((m) => ({ default: m.ModerateRoomPostListPage })));
 const ModeratorDashboardPage = lazy(() => import('@/app/features/moderator').then((m) => ({ default: m.ModeratorDashboardPage })));
+const TenantLandlordListPage = lazy(() => import('@/app/features/moderator/tenant-landlord').then((m) => ({ default: m.TenantLandlordListPage })));
 const AdminLayout = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLayout })));
 const AdminDashboardPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminDashboardPage })));
 const AdminUsersPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminUsersPage })));
@@ -204,6 +205,7 @@ export const router = createBrowserRouter([
             { path: 'room-posts', element: <Suspense fallback={<PageLoader />}><ModerateRoomPostListPage /></Suspense> },
             { path: 'reports', element: <Suspense fallback={<PageLoader />}><HandleReportsPage /></Suspense> },
             { path: 'reviews', element: <Suspense fallback={<PageLoader />}><ModerateReviewsPage /></Suspense> },
+            { path: 'users', element: <Suspense fallback={<PageLoader />}><TenantLandlordListPage /></Suspense> },
         ],
     },
     {

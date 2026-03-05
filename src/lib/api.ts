@@ -1050,3 +1050,82 @@ export async function getLandlordProfileRequest(userId: string): Promise<Landlor
     return json;
 }
 
+// ============ REPORT / VIOLATION ============
+// Align với report_status_enum và report_target_type_enum trong Prisma schema
+
+export type ReportTargetTypeEnum = 'USER' | 'ROOM' | 'BOOKING' | 'REVIEW';
+export type ReportStatusEnum = 'PENDING' | 'APPROVED' | 'REJECTED' | 'DISMISSED';
+
+export interface ReportItem {
+    id: string;
+    reporterId: string;
+    targetType: ReportTargetTypeEnum;
+    targetId: string;
+    reason: string;
+    description: string | null;
+    status: ReportStatusEnum;
+    reviewedBy: string | null;
+    moderatorNote: string | null;
+    reviewedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    reporter?: { id: string; fullName: string; email: string; avatarUrl: string | null };
+    moderator?: { id: string; fullName: string } | null;
+}
+
+/**
+ * POST /reports – submit a violation report (any logged-in user).
+ */
+export async function createReportRequest(body: {
+    targetType: 'USER' | 'ROOM' | 'BOOKING' | 'REVIEW';
+    targetId: string;
+    reason: string;
+    description?: string;
+}): Promise<{ success: boolean; message: string; data: ReportItem }> {
+    const res = await authFetch('/reports', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi báo cáo thất bại');
+    return data;
+}
+
+/**
+ * GET /reports – list reports (moderator/admin).
+ */
+export async function getReportsRequest(params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+}): Promise<{
+    success: boolean;
+    data: ReportItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.status) search.set('status', params.status);
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    const qs = search.toString();
+    const res = await authFetch(`/reports${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách báo cáo');
+    return data;
+}
+
+/**
+ * PATCH /reports/:id – handle/resolve a report (moderator/admin).
+ */
+export async function handleReportRequest(
+    reportId: string,
+    body: { status: Exclude<ReportStatusEnum, 'PENDING'>; moderatorNote?: string }
+): Promise<{ success: boolean; message: string; data: ReportItem }> {
+    const res = await authFetch(`/reports/${encodeURIComponent(reportId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Xử lý báo cáo thất bại');
+    return data;
+}
