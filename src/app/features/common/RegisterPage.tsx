@@ -25,7 +25,6 @@ export function RegisterPage() {
         phone: '',
         password: '',
         confirmPassword: '',
-        role: 'TENANT' as 'TENANT' | 'LANDLORD',
     });
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
@@ -33,12 +32,13 @@ export function RegisterPage() {
     const [suggestLoading, setSuggestLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+    const [showProfileReminder, setShowProfileReminder] = useState(false);
     const pwdReqs = passwordRequirements(form.password);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const name = e.target.name;
-        const value = e.target.type === 'select-one' ? (e.target as HTMLSelectElement).value : e.target.value;
-        setForm((f) => ({ ...f, [name]: name === 'role' ? value : value }));
+        const value = e.target.value;
+        setForm((f) => ({ ...f, [name]: value }));
         setError(null);
         setFieldErrors([]);
     };
@@ -56,7 +56,6 @@ export function RegisterPage() {
                 phone: form.phone.trim() || undefined,
                 password: form.password,
                 confirmPassword: form.confirmPassword,
-                role: form.role,
             };
             const res = await axios.post(getApiUrl('/auth/register'), payload, {
                 timeout: 15000,
@@ -64,7 +63,7 @@ export function RegisterPage() {
                 validateStatus: () => true,
             });
             if (res.status >= 200 && res.status < 300 && res.data?.success) {
-                navigate('/login', { state: { registered: true } });
+                setShowProfileReminder(true);
                 return;
             }
             const data = res.data || {};
@@ -124,6 +123,14 @@ export function RegisterPage() {
     const inputClassWithRight = 'w-full pl-11 pr-11 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
     const iconClass = 'absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground';
     const toggleClass = 'absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors';
+    const goToLogin = (focusProfile: boolean) => {
+        navigate('/login', {
+            state: {
+                registered: true,
+                postLoginRedirect: focusProfile ? '/profile' : undefined,
+            },
+        });
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
@@ -165,18 +172,6 @@ export function RegisterPage() {
                                 <Mail className={iconClass} strokeWidth={2} />
                                 <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="your.email@example.com" className={inputClass} required />
                             </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Vai trò</label>
-                            <select
-                                name="role"
-                                value={form.role}
-                                onChange={handleChange}
-                                className="w-full px-4 py-3.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                            >
-                                <option value="TENANT">Người thuê phòng (Tenant)</option>
-                                <option value="LANDLORD">Chủ nhà / Cho thuê (Landlord)</option>
-                            </select>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-1.5">Số điện thoại</label>
@@ -274,6 +269,36 @@ export function RegisterPage() {
                     </p>
                 </div>
             </div>
+            {showProfileReminder && (
+                <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center px-4">
+                    <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-xl p-6">
+                        <h3 className="text-lg font-semibold text-foreground">Hoan nghênh bạn đến EzRoom</h3>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            Tài khoản mới luôn là <strong>Tenant</strong>. Để đăng ký thành <strong>Landlord</strong>, vui lòng cập nhật:
+                            hồ sơ cá nhân, sở thích tìm phòng, phong cách sống và CCCD (Căn Cước Công Dân) theo chính sách xác minh.
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            Bạn có thể bỏ qua bước này và cập nhật sau trong trang hồ sơ.
+                        </p>
+                        <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={() => goToLogin(false)}
+                                className="px-4 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
+                            >
+                                Bỏ qua
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => goToLogin(true)}
+                                className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                            >
+                                Đăng nhập và cập nhật ngay
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -157,7 +157,7 @@ export const router = createBrowserRouter([
     {
         path: '/rental-management',
         element: (
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="LANDLORD">
                 <Suspense fallback={<PageLoader />}>
                     <LayoutRentalManagements />
                 </Suspense>

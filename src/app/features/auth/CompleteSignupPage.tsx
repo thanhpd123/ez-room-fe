@@ -8,7 +8,7 @@ const PENDING_KEY = 'pendingOAuth';
 export function CompleteSignupPage() {
     const navigate = useNavigate();
     const [pending, setPending] = useState<{ email: string; full_name: string; avatar_url: string } | null>(null);
-    const [form, setForm] = useState({ fullName: '', phone: '', role: 'TENANT' as 'TENANT' | 'LANDLORD' });
+    const [form, setForm] = useState({ fullName: '', phone: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +37,6 @@ export function CompleteSignupPage() {
                 email: pending.email,
                 fullName: form.fullName.trim(),
                 phone: form.phone.trim() || undefined,
-                role: form.role,
             });
             sessionStorage.removeItem(PENDING_KEY);
             window.location.href = '/home';
@@ -67,7 +66,7 @@ export function CompleteSignupPage() {
                     </div>
                     <h1 className="text-2xl font-heading font-bold text-foreground text-center mb-2">Hoàn tất đăng ký</h1>
                     <p className="text-muted-foreground text-sm text-center mb-8">
-                        Chọn vai trò và điền thông tin để tạo tài khoản EzRoom
+                        Hoàn thiện thông tin để tạo tài khoản EzRoom (mặc định là Tenant)
                     </p>
 
                     {error && (
@@ -111,17 +110,6 @@ export function CompleteSignupPage() {
                                     className="w-full pl-11 pr-4 py-3.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 />
                             </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Vai trò</label>
-                            <select
-                                value={form.role}
-                                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as 'TENANT' | 'LANDLORD' }))}
-                                className="w-full px-4 py-3.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-                            >
-                                <option value="TENANT">Người thuê phòng (Tenant)</option>
-                                <option value="LANDLORD">Chủ nhà / Cho thuê (Landlord)</option>
-                            </select>
                         </div>
                         <button
                             type="submit"

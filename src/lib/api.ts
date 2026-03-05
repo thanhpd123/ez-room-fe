@@ -98,7 +98,6 @@ export async function registerOAuthRequest(payload: {
     email: string;
     fullName: string;
     phone?: string;
-    role: 'TENANT' | 'LANDLORD';
 }): Promise<{ success: boolean; user: Record<string, unknown> }> {
     const res = await fetch(getApiUrl('/auth/register-oauth'), {
         method: 'POST',
@@ -107,6 +106,75 @@ export async function registerOAuthRequest(payload: {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Đăng ký thất bại');
+    return data;
+}
+
+export async function registerLandlordRequest(body: {
+    citizenCardNumber?: string;
+    citizenCardFrontImageUrl?: string;
+    citizenCardBackImageUrl?: string;
+}): Promise<{
+    success: boolean;
+    message: string;
+    user?: { id: string; role: string };
+    checks?: {
+        profile: boolean;
+        lifestyle: boolean;
+        preference: boolean;
+        citizenCardVerified: boolean;
+        citizenCardStatus: string;
+    };
+}> {
+    const res = await authFetch('/auth/register-landlord', {
+        method: 'POST',
+        body: JSON.stringify(body || {}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const error = new Error(data?.message || 'Đăng ký chủ nhà thất bại') as Error & { checks?: unknown };
+        if (data?.checks) error.checks = data.checks;
+        throw error;
+    }
+    return data;
+}
+
+export interface CitizenCardVerificationResponse {
+    id?: string;
+    citizenCardNumber?: string;
+    citizenCardFrontImageUrl?: string;
+    citizenCardBackImageUrl?: string;
+    status?: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    reviewNote?: string | null;
+    submittedAt?: string;
+    reviewedAt?: string | null;
+    reviewedBy?: string | null;
+}
+
+export async function getCitizenCardRequest(): Promise<{
+    success: boolean;
+    citizenCard: CitizenCardVerificationResponse | null;
+}> {
+    const res = await authFetch('/auth/citizen-card');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Tải CCCD thất bại');
+    return data;
+}
+
+export async function upsertCitizenCardRequest(body: {
+    citizenCardNumber: string;
+    citizenCardFrontImageUrl: string;
+    citizenCardBackImageUrl: string;
+}): Promise<{
+    success: boolean;
+    message: string;
+    citizenCard: CitizenCardVerificationResponse;
+}> {
+    const res = await authFetch('/auth/citizen-card', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi CCCD thất bại');
     return data;
 }
 

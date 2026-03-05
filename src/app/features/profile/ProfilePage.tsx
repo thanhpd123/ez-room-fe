@@ -25,6 +25,10 @@ import {
     upsertLifestyleRequest,
     getPreferenceRequest,
     upsertPreferenceRequest,
+    getCitizenCardRequest,
+    upsertCitizenCardRequest,
+    registerLandlordRequest,
+    type CitizenCardVerificationResponse,
     type LifestyleProfileResponse,
     type UserPreferenceResponse,
 } from '@/lib/api';
@@ -241,12 +245,29 @@ export function ProfilePage() {
     const [lifestyleSaving, setLifestyleSaving] = useState(false);
     const [lifestyleError, setLifestyleError] = useState<string | null>(null);
     const [lifestyleSuccess, setLifestyleSuccess] = useState(false);
+    const [hasLifestyleProfile, setHasLifestyleProfile] = useState(false);
 
     const [preference, setPreference] = useState(toPreferenceForm(null));
     const [preferenceLoading, setPreferenceLoading] = useState(true);
     const [preferenceSaving, setPreferenceSaving] = useState(false);
     const [preferenceError, setPreferenceError] = useState<string | null>(null);
     const [preferenceSuccess, setPreferenceSuccess] = useState(false);
+    const [hasPreferenceProfile, setHasPreferenceProfile] = useState(false);
+
+    const [citizenCardForm, setCitizenCardForm] = useState({
+        citizenCardNumber: '',
+        citizenCardFrontImageUrl: '',
+        citizenCardBackImageUrl: '',
+    });
+    const [citizenCardStatus, setCitizenCardStatus] = useState<CitizenCardVerificationResponse['status'] | 'NOT_SUBMITTED'>('NOT_SUBMITTED');
+    const [citizenCardReviewNote, setCitizenCardReviewNote] = useState<string | null>(null);
+    const [citizenCardSaving, setCitizenCardSaving] = useState(false);
+    const [citizenCardLoading, setCitizenCardLoading] = useState(true);
+    const [citizenCardError, setCitizenCardError] = useState<string | null>(null);
+    const [citizenCardSuccess, setCitizenCardSuccess] = useState(false);
+    const [landlordLoading, setLandlordLoading] = useState(false);
+    const [landlordError, setLandlordError] = useState<string | null>(null);
+    const [landlordSuccess, setLandlordSuccess] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -261,16 +282,42 @@ export function ProfilePage() {
 
     useEffect(() => {
         getLifestyleRequest()
-            .then((r) => setLifestyle(toLifestyleForm(r.profile ?? null)))
+            .then((r) => {
+                setHasLifestyleProfile(!!r.profile);
+                setLifestyle(toLifestyleForm(r.profile ?? null));
+            })
             .catch(() => setLifestyleError('Không tải được'))
             .finally(() => setLifestyleLoading(false));
     }, []);
 
     useEffect(() => {
         getPreferenceRequest()
-            .then((r) => setPreference(toPreferenceForm(r.preference ?? null)))
+            .then((r) => {
+                setHasPreferenceProfile(!!r.preference);
+                setPreference(toPreferenceForm(r.preference ?? null));
+            })
             .catch(() => setPreferenceError('Không tải được'))
             .finally(() => setPreferenceLoading(false));
+    }, []);
+
+    useEffect(() => {
+        getCitizenCardRequest()
+            .then((r) => {
+                const c = r.citizenCard;
+                if (!c) {
+                    setCitizenCardStatus('NOT_SUBMITTED');
+                    return;
+                }
+                setCitizenCardForm({
+                    citizenCardNumber: c.citizenCardNumber ?? '',
+                    citizenCardFrontImageUrl: c.citizenCardFrontImageUrl ?? '',
+                    citizenCardBackImageUrl: c.citizenCardBackImageUrl ?? '',
+                });
+                setCitizenCardStatus(c.status ?? 'NOT_SUBMITTED');
+                setCitizenCardReviewNote(c.reviewNote ?? null);
+            })
+            .catch(() => setCitizenCardError('Không tải được trạng thái CCCD'))
+            .finally(() => setCitizenCardLoading(false));
     }, []);
 
     const handleSaveProfile = async (e: React.FormEvent) => {
@@ -329,6 +376,7 @@ export function ProfilePage() {
                 temperature_preference: lifestyle.temperature_preference || null,
                 quiet_hours_preference: lifestyle.quiet_hours_preference || null,
             });
+            setHasLifestyleProfile(true);
             setLifestyleSuccess(true);
             setTimeout(() => setLifestyleSuccess(false), 3000);
         } catch (err) {
@@ -372,12 +420,62 @@ export function ProfilePage() {
                 lifestyle_match_weight: preference.lifestyle_match_weight === '' ? null : Number(preference.lifestyle_match_weight),
                 safety_priority: preference.safety_priority === '' ? null : Number(preference.safety_priority),
             });
+            setHasPreferenceProfile(true);
             setPreferenceSuccess(true);
             setTimeout(() => setPreferenceSuccess(false), 3000);
         } catch (err) {
             setPreferenceError(err instanceof Error ? err.message : 'Lưu thất bại');
         } finally {
             setPreferenceSaving(false);
+        }
+    };
+
+    const isProfileReady = !!(
+        profileForm.fullName.trim().length >= 2 &&
+        profileForm.phone.trim().length > 0 &&
+        profileForm.gender.trim().length > 0
+    );
+    const isCitizenCardInputReady = !!(
+        /^\d{12}$/.test(citizenCardForm.citizenCardNumber.trim()) &&
+        citizenCardForm.citizenCardFrontImageUrl.trim().length > 0 &&
+        citizenCardForm.citizenCardBackImageUrl.trim().length > 0
+    );
+    const isCitizenCardVerified = citizenCardStatus === 'VERIFIED';
+
+    const handleSubmitCitizenCard = async () => {
+        setCitizenCardError(null);
+        setCitizenCardSuccess(false);
+        setCitizenCardSaving(true);
+        try {
+            const res = await upsertCitizenCardRequest({
+                citizenCardNumber: citizenCardForm.citizenCardNumber.trim(),
+                citizenCardFrontImageUrl: citizenCardForm.citizenCardFrontImageUrl.trim(),
+                citizenCardBackImageUrl: citizenCardForm.citizenCardBackImageUrl.trim(),
+            });
+            setCitizenCardStatus(res.citizenCard.status ?? 'PENDING');
+            setCitizenCardReviewNote(res.citizenCard.reviewNote ?? null);
+            setCitizenCardSuccess(true);
+            setTimeout(() => setCitizenCardSuccess(false), 4000);
+        } catch (err) {
+            setCitizenCardError(err instanceof Error ? err.message : 'Gửi CCCD thất bại');
+        } finally {
+            setCitizenCardSaving(false);
+        }
+    };
+
+    const handleRegisterLandlord = async () => {
+        setLandlordError(null);
+        setLandlordSuccess(false);
+        setLandlordLoading(true);
+        try {
+            await registerLandlordRequest({});
+            await refreshUser();
+            setLandlordSuccess(true);
+            setTimeout(() => setLandlordSuccess(false), 4000);
+        } catch (err) {
+            setLandlordError(err instanceof Error ? err.message : 'Đăng ký chủ nhà thất bại');
+        } finally {
+            setLandlordLoading(false);
         }
     };
 
@@ -544,6 +642,106 @@ export function ProfilePage() {
                                 {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                 Lưu thay đổi
                             </button>
+
+                            {user?.role !== 'LANDLORD' && (
+                                <div className="mt-3 rounded-xl border border-border bg-muted/20 p-4 space-y-4">
+                                    <div>
+                                        <h4 className="font-semibold text-foreground">Đăng ký trở thành Chủ nhà</h4>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Theo chính sách xác minh, bạn cần hoàn tất hồ sơ cá nhân, phong cách sống, sở thích tìm phòng
+                                            và cung cấp CCCD (Căn Cước Công Dân).
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                        <div className={isProfileReady ? 'text-primary' : 'text-muted-foreground'}>{isProfileReady ? '✓' : '○'} Hồ sơ cá nhân</div>
+                                        <div className={hasLifestyleProfile ? 'text-primary' : 'text-muted-foreground'}>{hasLifestyleProfile ? '✓' : '○'} Phong cách sống</div>
+                                        <div className={hasPreferenceProfile ? 'text-primary' : 'text-muted-foreground'}>{hasPreferenceProfile ? '✓' : '○'} Sở thích tìm phòng</div>
+                                        <div className={isCitizenCardVerified ? 'text-primary' : 'text-muted-foreground'}>
+                                            {isCitizenCardVerified ? '✓' : '○'} CCCD đã duyệt
+                                        </div>
+                                    </div>
+
+                                    {citizenCardStatus !== 'NOT_SUBMITTED' && (
+                                        <div className="text-xs text-muted-foreground">
+                                            Trạng thái CCCD hiện tại:{' '}
+                                            <span className="font-semibold text-foreground">{citizenCardStatus}</span>
+                                            {citizenCardReviewNote ? ` - Ghi chú: ${citizenCardReviewNote}` : ''}
+                                        </div>
+                                    )}
+
+                                    {citizenCardError && (
+                                        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
+                                            {citizenCardError}
+                                        </div>
+                                    )}
+                                    {citizenCardSuccess && (
+                                        <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm">
+                                            Đã gửi CCCD để xác minh thành công.
+                                        </div>
+                                    )}
+
+                                    {landlordError && (
+                                        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
+                                            {landlordError}
+                                        </div>
+                                    )}
+                                    {landlordSuccess && (
+                                        <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm">
+                                            Đăng ký chủ nhà thành công. Hệ thống đã nâng cấp vai trò của bạn.
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className={labelClass}>Số CCCD</label>
+                                            <input
+                                                value={citizenCardForm.citizenCardNumber}
+                                                onChange={(e) => setCitizenCardForm((f) => ({ ...f, citizenCardNumber: e.target.value }))}
+                                                placeholder="12 chữ số"
+                                                className={inputClass}
+                                                maxLength={12}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>Ảnh CCCD mặt trước (URL)</label>
+                                            <input
+                                                value={citizenCardForm.citizenCardFrontImageUrl}
+                                                onChange={(e) => setCitizenCardForm((f) => ({ ...f, citizenCardFrontImageUrl: e.target.value }))}
+                                                placeholder="https://..."
+                                                className={inputClass}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>Ảnh CCCD mặt sau (URL)</label>
+                                            <input
+                                                value={citizenCardForm.citizenCardBackImageUrl}
+                                                onChange={(e) => setCitizenCardForm((f) => ({ ...f, citizenCardBackImageUrl: e.target.value }))}
+                                                placeholder="https://..."
+                                                className={inputClass}
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleSubmitCitizenCard}
+                                            disabled={citizenCardLoading || citizenCardSaving || !isCitizenCardInputReady}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all"
+                                        >
+                                            {citizenCardSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                            {citizenCardSaving ? 'Đang gửi CCCD...' : 'Gửi CCCD xác minh'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleRegisterLandlord}
+                                            disabled={landlordLoading || !isCitizenCardVerified}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-accent text-accent-foreground rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-60 transition-all"
+                                        >
+                                            {landlordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                                            {landlordLoading ? 'Đang gửi...' : 'Đăng ký thành Chủ nhà'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </form>
                     </div>
                 )}
