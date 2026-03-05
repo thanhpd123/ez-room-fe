@@ -41,6 +41,7 @@ function toTitleFromPath(pathname: string) {
     if (pathname.includes('/moderator/room-posts')) return 'Duyệt bài đăng phòng';
     if (pathname.includes('/moderator/reports')) return 'Báo cáo vi phạm';
     if (pathname.includes('/moderator/reviews')) return 'Đánh giá';
+    if (pathname.includes('/moderator/users')) return 'Người thuê / Chủ trọ';
     return 'Moderator Dashboard';
 }
 

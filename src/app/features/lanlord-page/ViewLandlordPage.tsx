@@ -89,7 +89,7 @@ export function ViewLandlordPage() {
 
         return (
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-                <LandlordProfileHeader user={data.user} stats={data.stats} />
+                <LandlordProfileHeader landlordId={id!} user={data.user} stats={data.stats} />
                 <LandlordRentalList
                     rentals={data.rentals}
                     rooms={data.rooms}

@@ -1,5 +1,11 @@
-import { getRentalsForModeration as getRentalsForModerationApi, updateRentalStatusRequest } from '@/lib/api';
-import { listManagedRoomPosts, updateRoomPostModerationStatus } from '@/app/features/roomManagement/shared/room-post-storage';
+import {
+    getRentalsForModeration as getRentalsForModerationApi,
+    updateRentalStatusRequest,
+    getReportsRequest,
+    handleReportRequest,
+    type ReportStatusEnum,
+} from '@/lib/api';
+import { listManagedRoomPosts, moderateRoomPostApi } from '@/app/features/roomManagement/shared/room-post-storage';
 import type {
     HandleReportInput,
     ModerateRentalInput,
@@ -255,24 +261,54 @@ export async function listRoomPostModerationItems() {
         listManagedRoomPosts(),
         getRentalsForModerationApi().catch(() => ({ data: [] })),
     ]);
-    const rentalMap = new Map(rentalsResponse.data.map((item) => [item.id, item.title]));
+
+    interface RentalInfo {
+        title: string;
+        owner_name?: string;
+        owner_email?: string;
+        owner_phone?: string;
+    }
+    const rentalMap = new Map<string, RentalInfo>();
+    for (const r of rentalsResponse.data) {
+        const owner = r.owner as Record<string, unknown> | undefined;
+        rentalMap.set(r.id, {
+            title: r.title,
+            owner_name: (owner?.fullName as string) ?? undefined,
+            owner_email: (owner?.email as string) ?? undefined,
+            owner_phone: (owner?.phone as string) ?? undefined,
+        });
+    }
+
     const state = readState();
+
+    const deriveStatus = (roomStatus: string): ModerationDecision => {
+        if (roomStatus === 'PENDING') return 'pending_review';
+        if (roomStatus === 'MAINTENANCE') return 'rejected';
+        return 'approved';
+    };
 
     const result: RoomPostModerationItem[] = posts.map((post) => {
         const decision = state.room_post_decisions[post.room_post_id];
+        const rentalInfo = rentalMap.get(post.rental_id);
         return {
             room_post_id: post.room_post_id,
             rental_id: post.rental_id,
-            rental_title: rentalMap.get(post.rental_id) ?? post.rental_id,
+            rental_title: rentalInfo?.title ?? post.rental_id,
             title: post.title,
             price: post.price,
             area: post.area,
             max_occupants: post.max_occupants,
             created_at: post.created_at,
             listing_status: post.status,
-            moderation_status: decision?.decision ?? post.moderation_status,
+            moderation_status: decision?.decision ?? deriveStatus(post.status),
             last_moderated_at: decision?.moderated_at,
             last_note: decision?.note,
+            images: post.images,
+            amenities: post.amenities,
+            description: post.description,
+            owner_name: rentalInfo?.owner_name,
+            owner_email: rentalInfo?.owner_email,
+            owner_phone: rentalInfo?.owner_phone,
         };
     });
 
@@ -301,50 +337,113 @@ export async function moderateRoomPost(input: ModerateRoomPostInput) {
     });
 
     writeState(state);
-    await updateRoomPostModerationStatus(input.room_post_id, input.decision);
+    await moderateRoomPostApi(input.room_post_id, input.decision, input.note);
 }
 
-export async function listViolationReports() {
-    await wait();
-    const state = readState();
-    return [...state.reports].sort((a, b) => {
-        if (a.status === b.status) {
+export async function listViolationReports(): Promise<ViolationReport[]> {
+    try {
+        const response = await getReportsRequest({ limit: 100 });
+        return response.data.map((r) => {
+            // Map report_status_enum (BE) -> ViolationReport.status (FE)
+            let status: ViolationReport['status'] = 'open';
+            if (r.status === 'APPROVED' || r.status === 'REJECTED') status = 'resolved';
+            else if (r.status === 'DISMISSED') status = 'dismissed';
+
+            // Map report_target_type_enum (BE) -> ViolationReport.target_type (FE)
+            let target_type: ViolationReport['target_type'] = 'user';
+            if (r.targetType === 'ROOM') target_type = 'room_post';
+            else if (r.targetType === 'REVIEW') target_type = 'review';
+            else if (r.targetType === 'BOOKING') target_type = 'rental';
+
+            // Map action_taken from status
+            let action_taken: ViolationReport['action_taken'] | undefined;
+            if (r.status === 'APPROVED') action_taken = 'warning';
+            else if (r.status === 'DISMISSED') action_taken = 'dismiss_report';
+            else if (r.status === 'REJECTED') action_taken = 'remove_content';
+
+            return {
+                report_id: r.id,
+                reporter_id: r.reporter?.fullName ?? r.reporterId,
+                target_user_id: r.targetId,
+                target_type,
+                target_id: r.targetId,
+                category: r.reason as ViolationReport['category'],
+                details: r.description ?? '',
+                status,
+                action_taken,
+                created_at: r.createdAt,
+                resolved_at: r.reviewedAt ?? undefined,
+            } satisfies ViolationReport;
+        }).sort((a, b) => {
+            if (a.status === b.status) {
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            }
+            if (a.status === 'open') return -1;
+            if (b.status === 'open') return 1;
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        }
-        if (a.status === 'open') return -1;
-        if (b.status === 'open') return 1;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+        });
+    } catch (err) {
+        console.error('Failed to fetch reports from API, falling back to local:', err);
+        await wait();
+        const state = readState();
+        return [...state.reports].sort((a, b) => {
+            if (a.status === b.status) {
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            }
+            if (a.status === 'open') return -1;
+            if (b.status === 'open') return 1;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+    }
 }
 
 export async function handleViolationReport(input: HandleReportInput) {
-    await wait();
-    const state = readState();
-    const resolvedAt = new Date().toISOString();
-    const status = input.action === 'dismiss_report' ? 'dismissed' : 'resolved';
+    // Map frontend action -> report_status_enum (BE)
+    let backendStatus: Exclude<ReportStatusEnum, 'PENDING'>;
+    if (input.action === 'dismiss_report') {
+        backendStatus = 'DISMISSED';
+    } else if (input.action === 'remove_content' || input.action === 'restrict_content') {
+        backendStatus = 'REJECTED';
+    } else {
+        backendStatus = 'APPROVED';
+    }
 
-    state.reports = state.reports.map((report) =>
-        report.report_id === input.report_id
-            ? {
-                ...report,
-                status,
-                action_taken: input.action,
-                resolved_at: resolvedAt,
-            }
-            : report
-    );
+    try {
+        await handleReportRequest(input.report_id, {
+            status: backendStatus,
+            moderatorNote: input.note?.trim() || undefined,
+        });
+    } catch (err) {
+        console.error('Failed to handle report via API, falling back to local:', err);
+        // Fallback to local storage if API fails
+        await wait();
+        const state = readState();
+        const resolvedAt = new Date().toISOString();
+        const status = input.action === 'dismiss_report' ? 'dismissed' : 'resolved';
 
-    state.history.unshift({
-        history_id: createHistoryId(),
-        target_type: 'report',
-        target_id: input.report_id,
-        action: input.action,
-        note: input.note?.trim() || undefined,
-        moderator_id: input.moderator_id,
-        created_at: resolvedAt,
-    });
+        state.reports = state.reports.map((report) =>
+            report.report_id === input.report_id
+                ? {
+                    ...report,
+                    status,
+                    action_taken: input.action,
+                    resolved_at: resolvedAt,
+                }
+                : report
+        );
 
-    writeState(state);
+        state.history.unshift({
+            history_id: createHistoryId(),
+            target_type: 'report',
+            target_id: input.report_id,
+            action: input.action,
+            note: input.note?.trim() || undefined,
+            moderator_id: input.moderator_id,
+            created_at: resolvedAt,
+        });
+
+        writeState(state);
+    }
 }
 
 export async function listModeratedReviews() {
