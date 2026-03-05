@@ -9,6 +9,7 @@ import { LoginPage, ForgotPasswordPage, ResetPasswordPage, CompleteSignupPage, O
 import { RegisterPage } from '@/app/features/common';
 import { ProfilePage } from '@/app/features/profile';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
+import { PageLoader } from '@/app/components/PageLoader';
 
 /* Lazy-loaded chunks – admin/moderator/rental-mgmt only loaded when visited */
 const BookingHistoryPage = lazy(() => import('@/app/features/booking-history').then((m) => ({ default: m.BookingHistoryPage })));
@@ -32,19 +33,12 @@ const AdminUsersPage = lazy(() => import('@/app/features/admin').then((m) => ({ 
 const AdminRentalsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminRentalsPage })));
 const AdminAmenitiesPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminAmenitiesPage })));
 const AdminLocationsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLocationsPage })));
+const AdminWalletsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminWalletsPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
 const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
 const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) => ({ default: m.FindRoommatePage })));
 const ChatPage = lazy(() => import('@/app/features/chat').then((m) => ({ default: m.ChatPage })));
 const WalletPage = lazy(() => import('@/app/features/wallet').then((m) => ({ default: m.WalletPage })));
-
-function PageLoader() {
-    return (
-        <div className="min-h-[200px] flex items-center justify-center">
-            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
-        </div>
-    );
-}
 
 export const router = createBrowserRouter([
     {
@@ -223,6 +217,7 @@ export const router = createBrowserRouter([
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><AdminRentalsPage /></Suspense> },
             { path: 'amenities', element: <Suspense fallback={<PageLoader />}><AdminAmenitiesPage /></Suspense> },
             { path: 'locations', element: <Suspense fallback={<PageLoader />}><AdminLocationsPage /></Suspense> },
+            { path: 'wallets', element: <Suspense fallback={<PageLoader />}><AdminWalletsPage /></Suspense> },
         ],
     },
 ]);

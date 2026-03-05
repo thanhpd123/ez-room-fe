@@ -4,3 +4,4 @@ export { AdminUsersPage } from './AdminUsersPage';
 export { AdminRentalsPage } from './AdminRentalsPage';
 export { AdminAmenitiesPage } from './AdminAmenitiesPage';
 export { AdminLocationsPage } from './AdminLocationsPage';
+export { AdminWalletsPage } from './AdminWalletsPage';
