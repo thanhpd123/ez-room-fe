@@ -38,7 +38,6 @@ export function HandleReportsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<'all' | ReportStatus>('open');
     const [selectedId, setSelectedId] = useState('');
-    const [action, setAction] = useState<ReportAction>('warning');
     const [note, setNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -78,7 +77,7 @@ export function HandleReportsPage() {
         setIsSubmitting(true);
         await handleViolationReport({
             report_id: selectedReport.report_id,
-            action,
+            action: 'dismiss_report',
             note,
             moderator_id: 'moderator-demo',
         });
@@ -126,9 +125,8 @@ export function HandleReportsPage() {
                                         <button
                                             type="button"
                                             onClick={() => setSelectedId(report.report_id)}
-                                            className={`w-full px-4 py-3 text-left transition ${
-                                                selectedId === report.report_id ? 'bg-slate-50' : 'hover:bg-slate-50'
-                                            }`}
+                                            className={`w-full px-4 py-3 text-left transition ${selectedId === report.report_id ? 'bg-slate-50' : 'hover:bg-slate-50'
+                                                }`}
                                         >
                                             <div className="flex items-center justify-between gap-2">
                                                 <p className="font-medium text-slate-900">{report.category}</p>
@@ -167,10 +165,22 @@ export function HandleReportsPage() {
                                     <div className="rounded-lg bg-slate-50 px-3 py-2">
                                         <dt className="text-xs text-slate-500">Reporter</dt>
                                         <dd className="font-medium">{selectedReport.reporter_id}</dd>
+                                        {selectedReport.reporter_email && (
+                                            <dd className="mt-0.5 text-xs text-slate-500">📧 {selectedReport.reporter_email}</dd>
+                                        )}
+                                        {selectedReport.reporter_phone && (
+                                            <dd className="mt-0.5 text-xs text-slate-500">📱 {selectedReport.reporter_phone}</dd>
+                                        )}
                                     </div>
                                     <div className="rounded-lg bg-slate-50 px-3 py-2">
                                         <dt className="text-xs text-slate-500">Target user</dt>
                                         <dd className="font-medium">{selectedReport.target_user_id}</dd>
+                                        {selectedReport.target_user_email && (
+                                            <dd className="mt-0.5 text-xs text-slate-500">📧 {selectedReport.target_user_email}</dd>
+                                        )}
+                                        {selectedReport.target_user_phone && (
+                                            <dd className="mt-0.5 text-xs text-slate-500">📱 {selectedReport.target_user_phone}</dd>
+                                        )}
                                     </div>
                                     <div className="rounded-lg bg-slate-50 px-3 py-2">
                                         <dt className="text-xs text-slate-500">Status</dt>
@@ -190,24 +200,6 @@ export function HandleReportsPage() {
                                         </p>
                                     </div>
                                 ) : null}
-
-                                <div>
-                                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                                        Moderator action
-                                    </label>
-                                    <select
-                                        value={action}
-                                        onChange={(event) => setAction(event.target.value as ReportAction)}
-                                        disabled={!isReportOpen}
-                                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400 disabled:bg-slate-100"
-                                    >
-                                        <option value="warning">Warning user</option>
-                                        <option value="remove_content">Remove content</option>
-                                        <option value="restrict_content">Restrict content</option>
-                                        <option value="suspend_user">Suspend user</option>
-                                        <option value="dismiss_report">Dismiss report</option>
-                                    </select>
-                                </div>
 
                                 <div>
                                     <label className="mb-1.5 block text-sm font-medium text-slate-700">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { listRentalModerationItems, moderateRental } from '../shared/moderator-storage';
-import type { ModerationDecision, RentalModerationItem } from '../shared/types';
+import type { ModerationDecision, RentalDocument, RentalModerationItem } from '../shared/types';
 
 const moderationBadgeClass: Record<ModerationDecision, string> = {
     pending_review: 'bg-amber-100 text-amber-700',
@@ -43,6 +43,29 @@ function formatDateTime(dateString?: string) {
     });
 }
 
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+    CCCD: 'Căn cước công dân',
+    SO_DO: 'Sổ đỏ / GCN quyền sử dụng đất',
+    GPKD: 'Giấy phép kinh doanh',
+    HOP_DONG: 'Hợp đồng thuê nhà',
+    OTHER: 'Giấy tờ khác',
+};
+
+const DOCUMENT_STATUS_LABELS: Record<string, { label: string; className: string }> = {
+    PENDING: { label: 'Chờ xác minh', className: 'bg-amber-100 text-amber-700' },
+    VERIFIED: { label: 'Đã xác minh', className: 'bg-emerald-100 text-emerald-700' },
+    REJECTED: { label: 'Từ chối', className: 'bg-rose-100 text-rose-700' },
+};
+
+function groupDocumentsByType(documents: RentalDocument[]): Record<string, RentalDocument[]> {
+    const grouped: Record<string, RentalDocument[]> = {};
+    for (const doc of documents) {
+        if (!grouped[doc.documentType]) grouped[doc.documentType] = [];
+        grouped[doc.documentType].push(doc);
+    }
+    return grouped;
+}
+
 const DEFAULT_THUMB =
     'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=800&q=80';
 
@@ -55,6 +78,7 @@ export function ModerateRentalListPage() {
     const [note, setNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeImageIdx, setActiveImageIdx] = useState(0);
+    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -320,6 +344,99 @@ export function ModerateRentalListPage() {
                                         </dl>
                                     </section>
 
+                                    {/* ── Verification documents ── */}
+                                    {selectedItem.documents && selectedItem.documents.length > 0 && (
+                                        <section>
+                                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                                <h3 className="text-sm font-semibold text-slate-900 mb-1">
+                                                    Giấy tờ xác minh
+                                                </h3>
+                                                <p className="text-xs text-slate-500 mb-4">
+                                                    Giấy tờ do chủ trọ cung cấp để xác minh quyền sở hữu hợp pháp.
+                                                </p>
+                                                <div className="grid gap-4 md:grid-cols-2">
+                                                    {Object.entries(groupDocumentsByType(selectedItem.documents)).map(
+                                                        ([type, docs]) => (
+                                                            <div
+                                                                key={type}
+                                                                className="bg-white rounded-lg p-3 border border-slate-200"
+                                                            >
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <p className="text-sm font-medium text-slate-800">
+                                                                        {DOCUMENT_TYPE_LABELS[type] ?? type}
+                                                                    </p>
+                                                                    <span className="text-xs text-slate-500">
+                                                                        {docs.length} ảnh
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {docs.map((doc) => (
+                                                                        <div key={doc.id} className="relative group">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    setLightboxUrl(doc.imageUrl)
+                                                                                }
+                                                                                className="block h-20 w-20 rounded-lg overflow-hidden border border-slate-200 hover:border-slate-400 transition"
+                                                                            >
+                                                                                <img
+                                                                                    src={doc.imageUrl}
+                                                                                    alt={
+                                                                                        DOCUMENT_TYPE_LABELS[
+                                                                                            doc.documentType
+                                                                                        ] ?? doc.documentType
+                                                                                    }
+                                                                                    className="h-full w-full object-cover"
+                                                                                />
+                                                                            </button>
+                                                                            <span
+                                                                                className={`absolute -top-1.5 -right-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                                                                                    DOCUMENT_STATUS_LABELS[doc.status]
+                                                                                        ?.className ??
+                                                                                    'bg-slate-100 text-slate-600'
+                                                                                }`}
+                                                                            >
+                                                                                {DOCUMENT_STATUS_LABELS[doc.status]
+                                                                                    ?.label ?? doc.status}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                                {docs.some((d) => d.note) && (
+                                                                    <div className="mt-2 space-y-1">
+                                                                        {docs
+                                                                            .filter((d) => d.note)
+                                                                            .map((d) => (
+                                                                                <p
+                                                                                    key={d.id}
+                                                                                    className="text-xs text-slate-500 italic"
+                                                                                >
+                                                                                    Ghi chú: {d.note}
+                                                                                </p>
+                                                                            ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {(!selectedItem.documents || selectedItem.documents.length === 0) && (
+                                        <section>
+                                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                                                <h3 className="text-sm font-semibold text-slate-900 mb-1">
+                                                    Giấy tờ xác minh
+                                                </h3>
+                                                <p className="text-xs text-slate-500">
+                                                    Chủ trọ chưa cung cấp giấy tờ xác minh cho bài đăng này.
+                                                </p>
+                                            </div>
+                                        </section>
+                                    )}
+
                                     {/* ── Moderation status ── */}
                                     <section>
                                         <h3 className="mb-2 text-sm font-semibold text-slate-900">Trạng thái duyệt</h3>
@@ -391,6 +508,29 @@ export function ModerateRentalListPage() {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Lightbox overlay ── */}
+            {lightboxUrl && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+                    onClick={() => setLightboxUrl(null)}
+                >
+                    <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+                        <img
+                            src={lightboxUrl}
+                            alt="Document preview"
+                            className="max-h-[85vh] max-w-full rounded-lg object-contain"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setLightboxUrl(null)}
+                            className="absolute -top-3 -right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-700 shadow-lg hover:bg-slate-100 transition"
+                        >
+                            ✕
+                        </button>
                     </div>
                 </div>
             )}
