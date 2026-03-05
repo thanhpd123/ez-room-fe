@@ -36,7 +36,7 @@ export function clearStoredAuth(): void {
 export async function loginWithEmail(
     email: string,
     password: string
-): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string } }> {
+): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; gender?: string | null } }> {
     const url = getApiUrl('/auth/login');
     const res = await fetch(url, {
         method: 'POST',
@@ -92,7 +92,7 @@ export async function resetPasswordRequest(
 }
 
 /**
- * POST /auth/register-oauth – complete signup after Google/Facebook
+ * POST /auth/register-oauth – complete signup after Google OAuth
  */
 export async function registerOAuthRequest(payload: {
     email: string;
@@ -113,7 +113,7 @@ export async function registerOAuthRequest(payload: {
 /**
  * PATCH /auth/profile
  */
-export async function updateProfileRequest(updates: { fullName?: string; phone?: string; avatarUrl?: string }) {
+export async function updateProfileRequest(updates: { fullName?: string; phone?: string; avatarUrl?: string; gender?: string | null }) {
     const res = await authFetch('/auth/profile', {
         method: 'PATCH',
         body: JSON.stringify(updates),
@@ -148,14 +148,13 @@ export interface LifestyleProfileResponse {
     quiet_hours_preference?: string | null;
 }
 
-/** User preference – matches backend/DB (UserPreference) */
+/** User preference – matches backend/DB (UserPreference). Roommate matching uses profile gender (same gender). */
 export interface UserPreferenceResponse {
     id?: string;
     budget_min?: number | null;
     budget_max?: number | null;
     preferredLocation?: string | null;
     preferred_districts?: string[];
-    preferred_gender?: string | null;
     room_type?: string | null;
     preferred_amenities?: string[];
     must_have_amenities?: string[];
@@ -224,7 +223,6 @@ export async function upsertPreferenceRequest(body: {
     budget_max?: number | null;
     preferredLocation?: string | null;
     preferred_districts?: string[];
-    preferred_gender?: string | null;
     room_type?: string | null;
     preferred_amenities?: string[];
     must_have_amenities?: string[];
@@ -268,6 +266,271 @@ export async function authFetch(
         ...options,
         headers,
     });
+}
+
+/**
+ * GET /favorites – list current user's favorite rooms (auth required).
+ */
+export async function getMyFavoritesRequest(): Promise<{
+    success: boolean;
+    data: Array<{
+        id: string;
+        title: string;
+        roomName: string | null;
+        price: number;
+        area: number | null;
+        address: string;
+        images: string[];
+        location: { district: string | null; city: string | null } | null;
+        status: string;
+        available: boolean;
+    }>;
+}> {
+    const res = await authFetch('/favorites');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách yêu thích');
+    return data;
+}
+
+/**
+ * GET /favorites/ids – list favorite room IDs only (auth required).
+ */
+export async function getFavoriteIdsRequest(): Promise<{ success: boolean; data: string[] }> {
+    const res = await authFetch('/favorites/ids');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách yêu thích');
+    return data;
+}
+
+/**
+ * POST /favorites/:roomId – add room to favorites (auth required).
+ */
+export async function addFavoriteRequest(roomId: string): Promise<{ success: boolean; data: { roomId: string } }> {
+    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể thêm yêu thích');
+    return data;
+}
+
+/**
+ * DELETE /favorites/:roomId – remove room from favorites (auth required).
+ */
+export async function removeFavoriteRequest(roomId: string): Promise<{ success: boolean; data: { roomId: string } }> {
+    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể bỏ yêu thích');
+    return data;
+}
+
+/** Wallet (mock money flow, no real payment gateway) */
+export interface WalletSummary {
+    id: string;
+    userId: string;
+    balance: number;
+    currency: string;
+    createdAt: string;
+}
+
+export interface WalletTransactionItem {
+    id: string;
+    walletId: string;
+    type: 'DEPOSIT' | 'WITHDRAW' | 'TRANSFER' | 'PREORDER' | 'REFUND' | 'PAYMENT';
+    status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+    amount: number;
+    description: string;
+    createdAt: string;
+}
+
+export async function getMyWalletRequest(): Promise<{ success: boolean; data: WalletSummary }> {
+    const res = await authFetch('/wallet');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải ví');
+    return data;
+}
+
+export async function getMyWalletTransactionsRequest(params?: {
+    page?: number;
+    limit?: number;
+    type?: WalletTransactionItem['type'];
+}): Promise<{
+    success: boolean;
+    data: WalletTransactionItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    if (params?.type) search.set('type', params.type);
+    const qs = search.toString();
+    const res = await authFetch(`/wallet/transactions${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải lịch sử ví');
+    return data;
+}
+
+export async function depositWalletRequest(body: {
+    amount: number;
+    description?: string;
+}): Promise<{
+    success: boolean;
+    message: string;
+    data: { wallet: WalletSummary; transaction: WalletTransactionItem };
+}> {
+    const res = await authFetch('/wallet/deposit', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Nạp tiền thất bại');
+    return data;
+}
+
+export async function withdrawWalletRequest(body: {
+    amount: number;
+    description?: string;
+}): Promise<{
+    success: boolean;
+    message: string;
+    data: { wallet: WalletSummary; transaction: WalletTransactionItem };
+}> {
+    const res = await authFetch('/wallet/withdraw', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Rút tiền thất bại');
+    return data;
+}
+
+/** Roommate matching – same gender + lifestyle score */
+
+export interface RoommateSuggestionItem {
+    user: { id: string; fullName: string; avatarUrl: string | null; gender: string | null };
+    lifestyle: {
+        smoking: boolean | null;
+        drinking: boolean | null;
+        pets_allowed: boolean | null;
+        sleep_schedule: string | null;
+        work_from_home: boolean | null;
+        personalityType: string | null;
+        social_level: string | null;
+        interests: string[];
+    } | null;
+    preference: { preferred_districts: string[]; room_type: string | null } | null;
+    matchScore: number;
+}
+
+export async function getRoommateSuggestionsRequest(limit?: number): Promise<{
+    success: boolean;
+    data: RoommateSuggestionItem[];
+    message?: string;
+}> {
+    const qs = limit != null ? `?limit=${limit}` : '';
+    const res = await authFetch(`/roommate/suggestions${qs}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải gợi ý roommate');
+    return data;
+}
+
+export interface RoommateMatchItem {
+    id: string;
+    status: string;
+    createdAt: string;
+    isRequester: boolean;
+    otherUser: { id: string; fullName: string; avatarUrl: string | null; gender: string | null } | null;
+}
+
+export async function getRoommateMatchesRequest(): Promise<{ success: boolean; data: RoommateMatchItem[] }> {
+    const res = await authFetch('/roommate/matches');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách match');
+    return data;
+}
+
+export async function sendRoommateRequestRequest(targetId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { id: string; requesterId: string; targetId: string; status: string; createdAt: string };
+}> {
+    const res = await authFetch(`/roommate/request/${encodeURIComponent(targetId)}`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi lời mời thất bại');
+    return data;
+}
+
+export async function updateRoommateMatchStatusRequest(
+    matchId: string,
+    status: 'ACCEPTED' | 'REJECTED'
+): Promise<{ success: boolean; message: string; data: { id: string; status: string } }> {
+    const res = await authFetch(`/roommate/matches/${encodeURIComponent(matchId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Cập nhật thất bại');
+    return data;
+}
+
+/** Chat / messages */
+
+export interface ConversationItem {
+    peer: { id: string; fullName: string; avatarUrl: string | null };
+    lastMessage: { id: string; content: string; created_at: string; isFromMe: boolean };
+    unreadCount: number;
+}
+
+export async function getConversationsRequest(): Promise<{ success: boolean; data: ConversationItem[] }> {
+    const res = await authFetch('/messages/conversations');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải hội thoại');
+    return data;
+}
+
+export interface ChatMessage {
+    id: string;
+    senderId: string;
+    receiverId: string;
+    content: string;
+    message_type: string;
+    status: string;
+    created_at: string;
+    isFromMe: boolean;
+    sender: { id: string; fullName: string; avatarUrl: string | null } | null;
+}
+
+export async function getThreadRequest(
+    userId: string,
+    options?: { limit?: number; before?: string }
+): Promise<{
+    success: boolean;
+    data: {
+        peer: { id: string; fullName: string; avatarUrl: string | null };
+        messages: ChatMessage[];
+        hasMore: boolean;
+        nextCursor: string | null;
+    };
+}> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.before) params.set('before', options.before);
+    const qs = params.toString();
+    const res = await authFetch(`/messages/with/${encodeURIComponent(userId)}${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải tin nhắn');
+    return data;
+}
+
+export async function sendMessageRequest(
+    receiverId: string,
+    content: string
+): Promise<{ success: boolean; data: ChatMessage }> {
+    const res = await authFetch('/messages', {
+        method: 'POST',
+        body: JSON.stringify({ receiverId, content }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi tin nhắn thất bại');
+    return data;
 }
 
 /**
@@ -587,6 +850,7 @@ export async function fetchAuthMe(): Promise<{
         role?: string;
         phone?: string | null;
         isVip?: boolean;
+        gender?: string | null;
     };
     message?: string;
 }> {
@@ -786,3 +1050,82 @@ export async function getLandlordProfileRequest(userId: string): Promise<Landlor
     return json;
 }
 
+// ============ REPORT / VIOLATION ============
+// Align với report_status_enum và report_target_type_enum trong Prisma schema
+
+export type ReportTargetTypeEnum = 'USER' | 'ROOM' | 'BOOKING' | 'REVIEW';
+export type ReportStatusEnum = 'PENDING' | 'APPROVED' | 'REJECTED' | 'DISMISSED';
+
+export interface ReportItem {
+    id: string;
+    reporterId: string;
+    targetType: ReportTargetTypeEnum;
+    targetId: string;
+    reason: string;
+    description: string | null;
+    status: ReportStatusEnum;
+    reviewedBy: string | null;
+    moderatorNote: string | null;
+    reviewedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    reporter?: { id: string; fullName: string; email: string; avatarUrl: string | null };
+    moderator?: { id: string; fullName: string } | null;
+}
+
+/**
+ * POST /reports – submit a violation report (any logged-in user).
+ */
+export async function createReportRequest(body: {
+    targetType: 'USER' | 'ROOM' | 'BOOKING' | 'REVIEW';
+    targetId: string;
+    reason: string;
+    description?: string;
+}): Promise<{ success: boolean; message: string; data: ReportItem }> {
+    const res = await authFetch('/reports', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi báo cáo thất bại');
+    return data;
+}
+
+/**
+ * GET /reports – list reports (moderator/admin).
+ */
+export async function getReportsRequest(params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+}): Promise<{
+    success: boolean;
+    data: ReportItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.status) search.set('status', params.status);
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    const qs = search.toString();
+    const res = await authFetch(`/reports${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách báo cáo');
+    return data;
+}
+
+/**
+ * PATCH /reports/:id – handle/resolve a report (moderator/admin).
+ */
+export async function handleReportRequest(
+    reportId: string,
+    body: { status: Exclude<ReportStatusEnum, 'PENDING'>; moderatorNote?: string }
+): Promise<{ success: boolean; message: string; data: ReportItem }> {
+    const res = await authFetch(`/reports/${encodeURIComponent(reportId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Xử lý báo cáo thất bại');
+    return data;
+}

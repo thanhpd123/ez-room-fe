@@ -18,6 +18,7 @@ export interface AuthUser {
     avatarUrl: string | undefined;
     phone?: string | null;
     role?: string;
+    gender?: string | null;
 }
 
 interface AuthContextValue {
@@ -29,7 +30,6 @@ interface AuthContextValue {
     /** Reload user from backend (e.g. after profile update). */
     refreshUser: () => Promise<void>;
     signInWithGoogle: () => Promise<void>;
-    signInWithFacebook: () => Promise<void>;
     signInWithEmail: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
 }
@@ -46,13 +46,49 @@ function mapSupabaseUser(user: User | null): AuthUser | null {
     };
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<AuthUser | null>(null);
-    const [session, setSession] = useState<unknown>(null);
-    const [accessToken, setAccessToken] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+function readInitialStoredAuth(): {
+    user: AuthUser | null;
+    accessToken: string | null;
+    isLoading: boolean;
+} {
+    if (typeof window === 'undefined') {
+        return { user: null, accessToken: null, isLoading: true };
+    }
+    try {
+        const token = localStorage.getItem('ezroom_token');
+        const stored = localStorage.getItem('ezroom_user');
+        if (!token || !stored) {
+            return { user: null, accessToken: null, isLoading: true };
+        }
+        const u = JSON.parse(stored);
+        return {
+            user: {
+                id: u.id,
+                email: u.email,
+                fullName: u.fullName ?? undefined,
+                avatarUrl: u.avatarUrl ?? undefined,
+                phone: u.phone,
+                role: u.role,
+                gender: u.gender ?? undefined,
+            },
+            accessToken: token,
+            isLoading: false,
+        };
+    } catch {
+        localStorage.removeItem('ezroom_token');
+        localStorage.removeItem('ezroom_user');
+        return { user: null, accessToken: null, isLoading: true };
+    }
+}
 
-    const setUserFromBackend = useCallback((data: { user: { id: string; email: string | null; full_name: string | null; avatar_url: string | null; role?: string; phone?: string | null } }) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
+    const initialStoredAuth = readInitialStoredAuth();
+    const [user, setUser] = useState<AuthUser | null>(initialStoredAuth.user);
+    const [session, setSession] = useState<unknown>(null);
+    const [accessToken, setAccessToken] = useState<string | null>(initialStoredAuth.accessToken);
+    const [isLoading, setIsLoading] = useState(initialStoredAuth.isLoading);
+
+    const setUserFromBackend = useCallback((data: { user: { id: string; email: string | null; full_name: string | null; avatar_url: string | null; role?: string; phone?: string | null; gender?: string | null } }) => {
         const u = data.user;
         setUser({
             id: u.id,
@@ -61,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             avatarUrl: u.avatar_url ?? undefined,
             role: u.role,
             phone: u.phone ?? undefined,
+            gender: u.gender ?? undefined,
         });
     }, []);
 
@@ -75,27 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.auth.getSession().then(({ data: { session: s } }) => {
             if (s) {
                 updateAuth(s);
-            } else {
-                // Restore email/password session from localStorage
-                const token = localStorage.getItem('ezroom_token');
-                const stored = localStorage.getItem('ezroom_user');
-                if (token && stored) {
-                    try {
-                        const u = JSON.parse(stored);
-                        setUser({
-                            id: u.id,
-                            email: u.email,
-                            fullName: u.fullName ?? undefined,
-                            avatarUrl: u.avatarUrl ?? undefined,
-                            phone: u.phone,
-                            role: u.role,
-                        });
-                        setAccessToken(token);
-                    } catch {
-                        localStorage.removeItem('ezroom_token');
-                        localStorage.removeItem('ezroom_user');
-                    }
-                }
             }
             setIsLoading(false);
         });
@@ -160,15 +176,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }, []);
 
-    const signInWithFacebook = useCallback(async () => {
-        await supabase.auth.signInWithOAuth({
-            provider: 'facebook',
-            options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
-            },
-        });
-    }, []);
-
     const signInWithEmail = useCallback(async (email: string, password: string) => {
         const { token, user: u } = await loginWithEmail(email, password);
         setStoredAuth(token, u);
@@ -179,6 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             avatarUrl: u.avatarUrl ?? undefined,
             phone: u.phone,
             role: u.role,
+            gender: u.gender ?? undefined,
         });
         setAccessToken(token);
         setSession(null);
@@ -197,6 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 avatarUrl: u.avatar_url,
                 phone: u.phone ?? null,
                 role: u.role,
+                gender: u.gender ?? null,
             };
             localStorage.setItem('ezroom_user', JSON.stringify(stored));
         }
@@ -217,7 +226,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         refreshUser,
         signInWithGoogle,
-        signInWithFacebook,
         signInWithEmail,
         signOut,
     };
@@ -225,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextValue {
     const ctx = useContext(AuthContext);
     if (!ctx) {

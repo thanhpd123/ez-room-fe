@@ -12,12 +12,16 @@ import {
   Phone,
   Mail,
   Check,
-  Bed
+  Bed,
+  MessageCircle
 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+import { useFavorites } from '@/app/context/FavoritesContext';
+import { useAuth } from '@/app/context/AuthContext';
+import { useChatBox } from '@/app/context/ChatBoxContext';
 import type { RentalDetailData } from '../types';
 
 interface RentalDetailProps {
@@ -28,8 +32,37 @@ interface RentalDetailProps {
 
 export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) {
   const { t } = useTranslation();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const chatBox = useChatBox();
+  const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [selectedImage, setSelectedImage] = useState(0);
+
+  const handleContactRental = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (chatBox && rental.landlord.id) {
+      chatBox.openChatWith(rental.landlord.id);
+    }
+  };
+
+  const handleRoomFavorite = (room: typeof rental.rooms[0]) => {
+    if (isFavorite(room.id)) {
+      removeFavorite(room.id);
+    } else {
+      addFavorite({
+        id: room.id,
+        name: room.title,
+        price: room.price,
+        area: room.area,
+        address: rental.address,
+        image: room.images?.[0] ?? '',
+        available: room.status === 'available',
+      });
+    }
+  };
 
   const statusConfig: Record<string, { label: string; color: string }> = {
     AVAILABLE: { label: t('rentalDetail.statusAvailable'), color: 'bg-primary text-primary-foreground' },
@@ -67,15 +100,6 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
             </button>
 
             <div className="flex items-center gap-1 sm:gap-3">
-              <button
-                onClick={() => setIsFavorite(!isFavorite)}
-                className="p-2 rounded-lg hover:bg-muted transition-colors min-w-[44px] min-h-[44px] touch-manipulation"
-              >
-                <Heart
-                  className={`w-5 h-5 ${isFavorite ? 'fill-accent text-accent' : 'text-foreground'
-                    }`}
-                />
-              </button>
               <button className="p-2 rounded-lg hover:bg-muted transition-colors min-w-[44px] min-h-[44px] touch-manipulation">
                 <Share2 className="w-5 h-5" />
               </button>
@@ -234,17 +258,29 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
                           </p>
                           <p className="text-xs text-muted-foreground">{t('listing.perMonth')}</p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => onViewRoom(room.id)}
-                          disabled={room.status !== 'available'}
-                          className={`w-full sm:w-auto px-4 py-2.5 rounded-lg transition-colors min-h-[44px] touch-manipulation ${room.status === 'available'
-                            ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                            : 'bg-muted text-muted-foreground cursor-not-allowed'
-                            }`}
-                        >
-                          {room.status === 'available' ? t('rentalDetail.viewRoom') : t('rentalDetail.roomRentedBtn')}
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleRoomFavorite(room)}
+                            className="p-2.5 rounded-lg border border-border hover:bg-muted transition-colors min-h-[44px] touch-manipulation"
+                            title={isFavorite(room.id) ? t('listing.unfavorite') : t('listing.favorite')}
+                          >
+                            <Heart
+                              className={`w-5 h-5 ${isFavorite(room.id) ? 'fill-accent text-accent' : 'text-foreground'}`}
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onViewRoom(room.id)}
+                            disabled={room.status !== 'available'}
+                            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-lg transition-colors min-h-[44px] touch-manipulation ${room.status === 'available'
+                              ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                              : 'bg-muted text-muted-foreground cursor-not-allowed'
+                              }`}
+                          >
+                            {room.status === 'available' ? t('rentalDetail.viewRoom') : t('rentalDetail.roomRentedBtn')}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -268,11 +304,13 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
                   </p>
                 </div>
 
-                <button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-lg transition-colors mb-3 min-h-[44px] touch-manipulation">
-                  {t('rentalDetail.contactRent')}
-                </button>
-                <button className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground py-3 rounded-lg transition-colors min-h-[44px] touch-manipulation">
-                  {t('rentalDetail.scheduleView')}
+                <button
+                  type="button"
+                  onClick={handleContactRental}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-lg transition-colors min-h-[44px] touch-manipulation flex items-center justify-center gap-2 font-medium"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  {user ? t('rentalDetail.contactRent') : t('auth.login', 'Đăng nhập')}
                 </button>
               </div>
 

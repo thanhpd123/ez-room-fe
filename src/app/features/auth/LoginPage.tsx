@@ -12,7 +12,7 @@ export function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation();
-    const { user, signInWithGoogle, signInWithFacebook, signInWithEmail, isLoading } = useAuth();
+    const { user, signInWithGoogle, signInWithEmail, isLoading } = useAuth();
     const justRegistered = (location.state as { registered?: boolean })?.registered === true;
 
     const [submitLoading, setSubmitLoading] = useState(false);
@@ -47,16 +47,6 @@ export function LoginPage() {
         } catch (err) {
             console.error('Google sign-in error:', err);
             setError(t('auth.googleError'));
-        }
-    };
-
-    const handleFacebookLogin = async () => {
-        setError(null);
-        try {
-            await signInWithFacebook();
-        } catch (err) {
-            console.error('Facebook sign-in error:', err);
-            setError(t('auth.facebookError'));
         }
     };
 
@@ -134,21 +124,10 @@ export function LoginPage() {
                         block
                         onClick={handleGoogleLogin}
                         disabled={isLoading}
-                        className="rounded-xl h-11 sm:h-12 min-h-[44px] flex items-center justify-center gap-3 font-medium mb-3 touch-manipulation"
+                        className="rounded-xl h-11 sm:h-12 min-h-[44px] flex items-center justify-center gap-3 font-medium touch-manipulation"
                     >
                         <GoogleIcon className="w-5 h-5" />
                         {t('auth.loginWithGoogle')}
-                    </Button>
-
-                    <Button
-                        size="large"
-                        block
-                        onClick={handleFacebookLogin}
-                        disabled={isLoading}
-                        className="rounded-xl h-11 sm:h-12 min-h-[44px] flex items-center justify-center gap-3 font-medium touch-manipulation"
-                    >
-                        <FacebookIcon className="w-5 h-5" />
-                        {t('auth.loginWithFacebook')}
                     </Button>
 
                     <Paragraph className="text-center text-sm text-muted-foreground mt-8 !mb-0">
@@ -178,10 +157,3 @@ function GoogleIcon({ className }: { className?: string }) {
     );
 }
 
-function FacebookIcon({ className }: { className?: string }) {
-    return (
-        <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-        </svg>
-    );
-}

@@ -12,10 +12,14 @@ import {
   Shield,
   Phone,
   Mail,
-  Check
+  Check,
+  MessageCircle
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useFavorites } from '@/app/context/FavoritesContext';
+import { useAuth } from '@/app/context/AuthContext';
+import { useChatBox } from '@/app/context/ChatBoxContext';
 
 export interface RoomDetailData {
   id: string;
@@ -44,14 +48,45 @@ interface RoomDetailProps {
 }
 
 export function RoomDetail({ room, onBack }: RoomDetailProps) {
-  const [isFavorite, setIsFavorite] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const chatBox = useChatBox();
+  const { isFavorite, addFavorite, removeFavorite } = useFavorites();
+  const favorited = isFavorite(room.id);
   const [selectedImage, setSelectedImage] = useState(0);
 
-  const statusConfig = {
+  const handleContactNow = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (chatBox && room.landlord.id) {
+      chatBox.openChatWith(room.landlord.id);
+    }
+  };
+
+  const handleFavoriteClick = () => {
+    if (favorited) {
+      removeFavorite(room.id);
+    } else {
+      addFavorite({
+        id: room.id,
+        name: room.title,
+        price: room.price,
+        area: room.area,
+        address: room.address,
+        image: room.images[0] ?? '',
+        available: room.status === 'available',
+      });
+    }
+  };
+
+  const statusConfig: Record<string, { label: string; color: string }> = {
     available: { label: 'Còn trống', color: 'bg-primary text-primary-foreground' },
     occupied: { label: 'Đã cho thuê', color: 'bg-muted text-muted-foreground' },
-    maintenance: { label: 'Bảo trì', color: 'bg-accent text-accent-foreground' }
+    maintenance: { label: 'Bảo trì', color: 'bg-accent text-accent-foreground' },
   };
+  const statusInfo = statusConfig[room.status] ?? statusConfig.available;
 
   const amenityIcons: { [key: string]: any } = {
     'Wifi': Wifi,
@@ -77,12 +112,12 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={handleFavoriteClick}
                 className="p-2 rounded-lg hover:bg-muted transition-colors"
+                title={favorited ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
               >
                 <Heart
-                  className={`w-5 h-5 ${isFavorite ? 'fill-accent text-accent' : 'text-foreground'
-                    }`}
+                  className={`w-5 h-5 ${favorited ? 'fill-accent text-accent' : 'text-foreground'}`}
                 />
               </button>
               <button className="p-2 rounded-lg hover:bg-muted transition-colors">
@@ -128,8 +163,8 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
             <div>
               <div className="flex items-start justify-between gap-4 mb-3">
                 <h1 className="font-nunito">{room.title}</h1>
-                <span className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap ${statusConfig[room.status].color}`}>
-                  {statusConfig[room.status].label}
+                <span className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap ${statusInfo.color}`}>
+                  {statusInfo.label}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground mb-4">
@@ -207,8 +242,21 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                   <p className="text-muted-foreground">/ tháng</p>
                 </div>
 
-                <button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-lg transition-colors mb-3">
-                  Đặt phòng ngay
+                <button
+                  type="button"
+                  onClick={handleContactNow}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-lg transition-colors mb-3 flex items-center justify-center gap-2 font-medium"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  {user ? 'Liên hệ ngay' : 'Đăng nhập để nhắn tin'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFavoriteClick}
+                  className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground py-3 rounded-lg transition-colors mb-3 flex items-center justify-center gap-2 font-medium"
+                >
+                  <Heart className={`w-5 h-5 ${favorited ? 'fill-accent text-accent' : ''}`} />
+                  {favorited ? 'Đã yêu thích' : 'Thêm vào yêu thích'}
                 </button>
                 <button className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground py-3 rounded-lg transition-colors">
                   Yêu cầu xem phòng

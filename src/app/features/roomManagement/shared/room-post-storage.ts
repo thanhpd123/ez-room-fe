@@ -13,12 +13,12 @@ async function apiRequest<T>(
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
     };
-    
+
     const res = await fetch(getApiUrl(endpoint), {
         ...options,
         headers,
     });
-    
+
     const data = await res.json();
     if (!res.ok) {
         throw new Error(data?.message || 'API request failed');
@@ -59,14 +59,15 @@ export async function createRoomPost(payload: CreateManagedRoomPostInput): Promi
     return response.data;
 }
 
-export async function updateRoomPostModerationStatus(
+export async function moderateRoomPostApi(
     roomPostId: string,
-    moderationStatus: ManagedRoomPostItem['moderation_status']
+    decision: 'approved' | 'rejected',
+    note?: string
 ): Promise<ManagedRoomPostItem | null> {
     try {
-        const response = await apiRequest<ApiResponse<ManagedRoomPostItem>>(`/rooms/${roomPostId}`, {
+        const response = await apiRequest<ApiResponse<ManagedRoomPostItem>>(`/rooms/${roomPostId}/moderate`, {
             method: 'PUT',
-            body: JSON.stringify({ moderation_status: moderationStatus }),
+            body: JSON.stringify({ decision, note }),
         });
         return response.data || null;
     } catch {
