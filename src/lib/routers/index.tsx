@@ -20,6 +20,8 @@ const ViewRentalDetailPage = lazy(() => import('@/app/features/rentalManagement/
 const CreateRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.CreateRoomPostPage })));
 const ViewListRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewListRoomPostPage })));
 const ViewRoomPostDetailPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewRoomPostDetailPage })));
+const EditRentalPage = lazy(() => import('@/app/features/rentalManagement/EditRental/EditRentalPage').then((m) => ({ default: m.EditRentalPage })));
+const EditRoomPostPage = lazy(() => import('@/app/features/roomManagement/EditRoomPost/EditRoomPostPage').then((m) => ({ default: m.EditRoomPostPage })));
 const HandleReportsPage = lazy(() => import('@/app/features/moderator/handle-reports').then((m) => ({ default: m.HandleReportsPage })));
 const ModerateRentalListPage = lazy(() => import('@/app/features/moderator/moderate-rental').then((m) => ({ default: m.ModerateRentalListPage })));
 const ModerateReviewsPage = lazy(() => import('@/app/features/moderator/moderate-reviews').then((m) => ({ default: m.ModerateReviewsPage })));
@@ -125,9 +127,11 @@ export const router = createBrowserRouter([
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><ViewListRentalPage /></Suspense> },
             { path: 'rentals/create', element: <Suspense fallback={<PageLoader />}><CreateRentalPage /></Suspense> },
             { path: 'rentals/:rentalId', element: <Suspense fallback={<PageLoader />}><ViewRentalDetailPage /></Suspense> },
+            { path: 'rentals/:rentalId/edit', element: <Suspense fallback={<PageLoader />}><EditRentalPage /></Suspense> },
             { path: 'rentals/:rentalId/room-posts', element: <Suspense fallback={<PageLoader />}><ViewListRoomPostPage /></Suspense> },
             { path: 'rentals/:rentalId/room-posts/create', element: <Suspense fallback={<PageLoader />}><CreateRoomPostPage /></Suspense> },
             { path: 'rentals/:rentalId/room-posts/:roomPostId', element: <Suspense fallback={<PageLoader />}><ViewRoomPostDetailPage /></Suspense> },
+            { path: 'rentals/:rentalId/room-posts/:roomPostId/edit', element: <Suspense fallback={<PageLoader />}><EditRoomPostPage /></Suspense> },
         ],
     },
     {
