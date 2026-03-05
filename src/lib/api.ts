@@ -706,6 +706,44 @@ export async function updateRentalStatusRequest(
 }
 
 /**
+ * PUT /rentals/:rentalId – landlord update their rental.
+ */
+export async function updateRentalRequest(
+    rentalId: string,
+    payload: {
+        title?: string;
+        description?: string;
+        address?: string;
+        district?: string;
+        city?: string;
+        images?: string[];
+        status?: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN';
+    }
+): Promise<{ success: boolean; message: string; data: Record<string, unknown> }> {
+    const res = await authFetch(`/rentals/${rentalId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Cập nhật bài đăng thất bại');
+    return data;
+}
+
+/**
+ * DELETE /rentals/:rentalId – landlord delete their rental.
+ */
+export async function deleteRentalRequest(
+    rentalId: string
+): Promise<{ success: boolean; message: string; data: { id: string; title: string } }> {
+    const res = await authFetch(`/rentals/${rentalId}`, {
+        method: 'DELETE',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Xóa bài đăng thất bại');
+    return data;
+}
+
+/**
  * GET /public/rentals – list AVAILABLE rentals (no auth). For home & browse.
  */
 export interface PublicRental {

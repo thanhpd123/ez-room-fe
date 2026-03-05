@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { RoomStatus } from '@/lib/models/room.model';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
-import { getRoomPostById } from '../shared/room-post-storage';
+import { getRoomPostById, deleteRoomPost } from '../shared/room-post-storage';
 import {
     ROOM_POST_STATUS_OPTIONS,
     type ManagedRoomPostItem,
@@ -40,6 +40,8 @@ export function ViewRoomPostDetailPage() {
     const [roomPost, setRoomPost] = useState<ManagedRoomPostItem | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -115,16 +117,66 @@ export function ViewRoomPostDetailPage() {
                     onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts`)}
                     className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
-                    Back to room posts
+                    ← Quay lại danh sách phòng
                 </button>
-                <button
-                    type="button"
-                    onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts/create`)}
-                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                >
-                    CreateRoomPost
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts/${roomPostId}/edit`)}
+                        className="rounded-xl border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                    >
+                        ✏️ Sửa
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="rounded-xl border border-rose-500 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
+                    >
+                        🗑️ Xóa
+                    </button>
+                </div>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6">
+                        <h3 className="text-lg font-semibold text-slate-900">Xác nhận xóa phòng</h3>
+                        <p className="mt-2 text-sm text-slate-600">
+                            Bạn có chắc muốn xóa phòng <strong>"{roomPost?.title}"</strong>? 
+                            Hành động này không thể hoàn tác.
+                        </p>
+                        <div className="mt-4 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteConfirm(false)}
+                                disabled={isDeleting}
+                                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    setIsDeleting(true);
+                                    const success = await deleteRoomPost(roomPostId);
+                                    setIsDeleting(false);
+                                    if (success) {
+                                        navigate(`/rental-management/rentals/${rentalId}/room-posts`);
+                                    } else {
+                                        alert('Xóa phòng thất bại');
+                                        setShowDeleteConfirm(false);
+                                    }
+                                }}
+                                disabled={isDeleting}
+                                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
+                            >
+                                {isDeleting ? 'Đang xóa...' : 'Xóa'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                 {/* Main Image */}

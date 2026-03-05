@@ -18,13 +18,34 @@ interface CreateRentalFormState {
     images: string[];
 }
 
-type FormErrors = Partial<Record<keyof CreateRentalFormState, string>>;
+interface DocumentsState {
+    cccd: string[];      // Căn cước công dân (2 ảnh: mặt trước + mặt sau)
+    soDo: string[];      // Sổ đỏ / Giấy CN quyền sử dụng đất
+    gpkd: string[];      // Giấy phép kinh doanh
+    other: string[];     // Giấy tờ khác (hợp đồng thuê, ủy quyền...)
+}
+
+const DOCUMENT_LABELS: Record<keyof DocumentsState, { label: string; required: boolean; description: string; minImages: number; maxImages: number }> = {
+    cccd: { label: 'Căn cước công dân', required: true, description: 'Mặt trước và mặt sau', minImages: 2, maxImages: 2 },
+    soDo: { label: 'Sổ đỏ / GCN quyền sử dụng đất', required: true, description: 'Các trang cần thiết', minImages: 1, maxImages: 1 },
+    gpkd: { label: 'Giấy phép kinh doanh', required: true, description: 'Ảnh chụp rõ nét', minImages: 1, maxImages: 1 },
+    other: { label: 'Giấy tờ khác', required: false, description: 'Hợp đồng thuê nhà, ủy quyền...', minImages: 0, maxImages: 5 },
+};
+
+const initialDocuments: DocumentsState = {
+    cccd: [],
+    soDo: [],
+    gpkd: [],
+    other: [],
+};
+
+type FormErrors = Partial<Record<keyof CreateRentalFormState | keyof DocumentsState, string>>;
 
 const initialForm: CreateRentalFormState = {
     title: '',
     summary: '',
     description: '',
-    city: '',
+    city: 'Thành phố Hà Nội',
     district: '',
     address: '',
     property_type: 'boarding_house',
@@ -35,6 +56,7 @@ const initialForm: CreateRentalFormState = {
 export function CreateRentalPage() {
     const navigate = useNavigate();
     const [form, setForm] = useState<CreateRentalFormState>(initialForm);
+    const [documents, setDocuments] = useState<DocumentsState>(initialDocuments);
     const [errors, setErrors] = useState<FormErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
@@ -49,6 +71,18 @@ export function CreateRentalPage() {
         if (!form.city.trim()) nextErrors.city = 'Thành phố là bắt buộc.';
         if (!form.district.trim()) nextErrors.district = 'Phường/xã là bắt buộc.';
         if (!form.address.trim()) nextErrors.address = 'Địa chỉ là bắt buộc.';
+        
+        // Validation giấy tờ bắt buộc
+        if (documents.cccd.length < 2) {
+            nextErrors.cccd = 'Cần upload đủ 2 ảnh CCCD (mặt trước + mặt sau).';
+        }
+        if (documents.soDo.length < 1) {
+            nextErrors.soDo = 'Sổ đỏ / GCN quyền sử dụng đất là bắt buộc.';
+        }
+        if (documents.gpkd.length < 1) {
+            nextErrors.gpkd = 'Giấy phép kinh doanh là bắt buộc.';
+        }
+        
         if (!Number.isFinite(availableRoomNumber) || availableRoomNumber < 0) {
             nextErrors.available_room = 'Số phòng phải là số nguyên dương.';
         }
@@ -94,6 +128,12 @@ export function CreateRentalPage() {
             district: form.district,
             address: form.address,
             images: form.images.length > 0 ? form.images : undefined,
+            documents: [
+                ...documents.cccd.map(url => ({ documentType: 'CCCD', imageUrl: url })),
+                ...documents.soDo.map(url => ({ documentType: 'SO_DO', imageUrl: url })),
+                ...documents.gpkd.map(url => ({ documentType: 'GPKD', imageUrl: url })),
+                ...documents.other.map(url => ({ documentType: 'OTHER', imageUrl: url })),
+            ],
         };
 
         try {
@@ -120,7 +160,7 @@ export function CreateRentalPage() {
                 {oldAddress && (
                     <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
                         <p className="text-sm text-blue-900">
-                            <strong>📋 Cập nhật địa chỉ hành chính:</strong><br/>
+                            <strong> Cập nhật địa chỉ hành chính:</strong><br/>
                             Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br/>
                             Bây giờ: <strong>{form.district}, {form.city}</strong>
                         </p>
@@ -157,7 +197,7 @@ export function CreateRentalPage() {
 
                     <div>
                         <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-                            <p className="text-sm font-medium text-amber-800">⏳ Trạng thái: Chờ duyệt</p>
+                            <p className="text-sm font-medium text-amber-800"> Trạng thái: Chờ duyệt</p>
                             <p className="mt-0.5 text-xs text-amber-600">
                                 Bài đăng mới tạo sẽ ở trạng thái chờ duyệt. Moderator sẽ duyệt để chuyển sang Available.
                             </p>
@@ -166,18 +206,11 @@ export function CreateRentalPage() {
 
                     <div>
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">Tỉnh / Thành phố *</label>
-                        <select
-                            value={form.city}
-                            onChange={(event) => onChangeField('city')(event.target.value)}
-                            disabled={locationsLoading}
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-                        >
-                            <option value="">Chọn tỉnh / thành phố</option>
-                            {provinces.map((p) => (
-                                <option key={p.code} value={p.name}>{p.name}</option>
-                            ))}
-                        </select>
-                        {errors.city ? <p className="mt-1 text-xs text-rose-600">{errors.city}</p> : null}
+                        <input
+                            value="Thành phố Hà Nội"
+                            disabled
+                            className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700 cursor-not-allowed"
+                        />
                     </div>
 
                     <div>
@@ -230,6 +263,41 @@ export function CreateRentalPage() {
                             onChange={(urls) => onChangeField('images')(urls)}
                             maxImages={10}
                         />
+                    </div>
+
+                    {/* Giấy tờ xác minh */}
+                    <div className="md:col-span-2 mt-4">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <h3 className="text-sm font-semibold text-slate-900 mb-3">
+                                Giấy tờ xác minh (không hiển thị công khai)
+                            </h3>
+                            <p className="text-xs text-slate-600 mb-4">
+                                Ảnh giấy tờ chỉ dùng để xác minh bạn là chủ sở hữu hợp pháp. Moderator sẽ kiểm tra và duyệt bài đăng của bạn.
+                            </p>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {(Object.keys(DOCUMENT_LABELS) as Array<keyof DocumentsState>).map((key) => {
+                                    const { label, required, description, minImages, maxImages } = DOCUMENT_LABELS[key];
+                                    const hasError = errors[key];
+                                    return (
+                                        <div key={key} className={`bg-white rounded-lg p-3 border ${hasError ? 'border-rose-300' : 'border-slate-200'}`}>
+                                            <MultiImageUpload
+                                                label={`${label}${required ? ' *' : ''}`}
+                                                value={documents[key]}
+                                                onChange={(urls) => {
+                                                    setDocuments(prev => ({ ...prev, [key]: urls }));
+                                                    setErrors(prev => ({ ...prev, [key]: undefined }));
+                                                }}
+                                                maxImages={maxImages}
+                                            />
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                {description} {minImages > 0 ? `(tối thiểu ${minImages} ảnh)` : ''}
+                                            </p>
+                                            {hasError && <p className="mt-1 text-xs text-rose-600">{hasError}</p>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="md:col-span-2">
