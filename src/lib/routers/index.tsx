@@ -9,6 +9,7 @@ import { LoginPage, ForgotPasswordPage, ResetPasswordPage, CompleteSignupPage, O
 import { RegisterPage } from '@/app/features/common';
 import { ProfilePage } from '@/app/features/profile';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
+import { PageLoader } from '@/app/components/PageLoader';
 
 /* Lazy-loaded chunks – admin/moderator/rental-mgmt only loaded when visited */
 const BookingHistoryPage = lazy(() => import('@/app/features/booking-history').then((m) => ({ default: m.BookingHistoryPage })));
@@ -27,22 +28,19 @@ const ModerateRentalListPage = lazy(() => import('@/app/features/moderator/moder
 const ModerateReviewsPage = lazy(() => import('@/app/features/moderator/moderate-reviews').then((m) => ({ default: m.ModerateReviewsPage })));
 const ModerateRoomPostListPage = lazy(() => import('@/app/features/moderator/moderateRoomPost').then((m) => ({ default: m.ModerateRoomPostListPage })));
 const ModeratorDashboardPage = lazy(() => import('@/app/features/moderator').then((m) => ({ default: m.ModeratorDashboardPage })));
+const TenantLandlordListPage = lazy(() => import('@/app/features/moderator/tenant-landlord').then((m) => ({ default: m.TenantLandlordListPage })));
 const AdminLayout = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLayout })));
 const AdminDashboardPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminDashboardPage })));
 const AdminUsersPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminUsersPage })));
 const AdminRentalsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminRentalsPage })));
 const AdminAmenitiesPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminAmenitiesPage })));
 const AdminLocationsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLocationsPage })));
+const AdminWalletsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminWalletsPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
 const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
-
-function PageLoader() {
-    return (
-        <div className="min-h-[200px] flex items-center justify-center">
-            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
-        </div>
-    );
-}
+const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) => ({ default: m.FindRoommatePage })));
+const ChatPage = lazy(() => import('@/app/features/chat').then((m) => ({ default: m.ChatPage })));
+const WalletPage = lazy(() => import('@/app/features/wallet').then((m) => ({ default: m.WalletPage })));
 
 export const router = createBrowserRouter([
     {
@@ -110,6 +108,46 @@ export const router = createBrowserRouter([
         ),
     },
     {
+        path: '/wallet',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <WalletPage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/roommate',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <FindRoommatePage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/chat',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <ChatPage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/chat/:userId',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <ChatPage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
+    {
         path: '/login',
         element: <LoginPage />,
     },
@@ -165,6 +203,7 @@ export const router = createBrowserRouter([
             { path: 'room-posts', element: <Suspense fallback={<PageLoader />}><ModerateRoomPostListPage /></Suspense> },
             { path: 'reports', element: <Suspense fallback={<PageLoader />}><HandleReportsPage /></Suspense> },
             { path: 'reviews', element: <Suspense fallback={<PageLoader />}><ModerateReviewsPage /></Suspense> },
+            { path: 'users', element: <Suspense fallback={<PageLoader />}><TenantLandlordListPage /></Suspense> },
         ],
     },
     {
@@ -182,6 +221,7 @@ export const router = createBrowserRouter([
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><AdminRentalsPage /></Suspense> },
             { path: 'amenities', element: <Suspense fallback={<PageLoader />}><AdminAmenitiesPage /></Suspense> },
             { path: 'locations', element: <Suspense fallback={<PageLoader />}><AdminLocationsPage /></Suspense> },
+            { path: 'wallets', element: <Suspense fallback={<PageLoader />}><AdminWalletsPage /></Suspense> },
         ],
     },
 ]);

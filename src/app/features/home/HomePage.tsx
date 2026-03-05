@@ -13,6 +13,7 @@ import {
 import type { SearchFilters } from './components';
 import { usePublicRentals } from './hooks/usePublicRentals';
 import { usePopularAreas } from './hooks/usePopularAreas';
+import { useRecommendedRooms } from './hooks/useRecommendedRooms';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import { MapPin } from 'lucide-react';
 import { buildSearchUrl } from '@/lib/utils/searchUrlBuilder';
@@ -31,6 +32,7 @@ export function HomePage() {
     const heroRentals = useMemo(() => rentals.slice(0, HERO_SLIDES_COUNT), [rentals]);
     const featuredRentals = useMemo(() => rentals.slice(0, FEATURED_COUNT), [rentals]);
     const popularAreas = usePopularAreas(rentals, 4);
+    const { rooms: recommendedRooms, hint: recommendHint, loading: recommendLoading, isLoggedIn } = useRecommendedRooms();
 
     const handleSearch = (query: string, filters: SearchFilters) => {
         navigate(buildSearchUrl(query, filters));
@@ -40,6 +42,7 @@ export function HomePage() {
     const handleRegister = () => navigate('/register');
     const handleViewAll = () => navigate('/browse');
     const handleRentalClick = (id: string) => navigate(`/rental/${id}`);
+    const handleRoomClick = (id: string) => navigate(`/room/${id}`);
 
     return (
         <div className="min-h-screen bg-background">
@@ -159,6 +162,92 @@ export function HomePage() {
                                         type="button"
                                         className="mt-3 w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 active:scale-[0.98] transition-all"
                                     >
+                                        {t('home.viewDetail')}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            {/* Gợi ý cho bạn — recommended rooms (lifestyle + favourites, when logged in) */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+                    <div>
+                        <Title level={2} className="!text-foreground !mb-2 !font-heading">
+                            {isLoggedIn ? t('home.recommendedTitle', 'Gợi ý cho bạn') : t('home.recommendedLoginTitle', 'Gợi ý cá nhân')}
+                        </Title>
+                        <Paragraph type="secondary" className="!mb-0">
+                            {isLoggedIn ? (recommendHint || t('home.recommendedSubtitle', 'Phòng phù hợp sở thích và phòng bạn đã lưu')) : t('home.recommendedLoginSubtitle', 'Đăng nhập để xem gợi ý phòng dựa trên sở thích và phòng yêu thích của bạn')}
+                        </Paragraph>
+                    </div>
+                    {isLoggedIn && recommendedRooms.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => navigate('/search')}
+                            className="p-0 font-semibold flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors group"
+                        >
+                            {t('home.viewAll')}
+                            <span className="group-hover:translate-x-0.5 transition-transform" aria-hidden>→</span>
+                        </button>
+                    )}
+                </div>
+                {!isLoggedIn ? (
+                    <div className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-8 sm:p-12 text-center">
+                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">{t('home.recommendedLoginDesc', 'Gợi ý dựa trên lối sống, ngân sách, khu vực ưa thích và các phòng bạn đã lưu.')}</p>
+                        <Button type="primary" size="large" className="rounded-xl font-semibold" onClick={handleLogin}>
+                            {t('home.loginToSeeRecommend', 'Đăng nhập để xem gợi ý')}
+                        </Button>
+                    </div>
+                ) : recommendLoading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="bg-card rounded-2xl border border-border overflow-hidden animate-pulse">
+                                <div className="h-48 bg-muted" />
+                                <div className="p-4 space-y-3">
+                                    <div className="h-5 bg-muted rounded w-3/4" />
+                                    <div className="h-4 bg-muted rounded w-1/2" />
+                                    <div className="h-10 bg-muted rounded-xl w-full" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : recommendedRooms.length === 0 ? (
+                    <div className="py-12 text-center rounded-2xl border-2 border-dashed border-border bg-muted/20">
+                        <Paragraph type="secondary" className="!mb-0 text-base">{t('home.noRecommended', 'Chưa có gợi ý. Cập nhật sở thích hoặc lưu vài phòng để nhận gợi ý phù hợp hơn.')}</Paragraph>
+                        <button type="button" onClick={() => navigate('/search')} className="mt-4 text-primary font-semibold hover:underline">
+                            {t('home.viewAll')}
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                        {recommendedRooms.slice(0, 8).map((room) => (
+                            <div
+                                key={room.id}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleRoomClick(room.id)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleRoomClick(room.id)}
+                                className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/20 transition-all duration-200 cursor-pointer group/card"
+                            >
+                                <div className="relative h-48 overflow-hidden">
+                                    <ImageWithFallback
+                                        src={room.images?.[0] || ''}
+                                        alt={room.title}
+                                        className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
+                                </div>
+                                <div className="p-4">
+                                    <Title level={5} className="!font-heading !mb-2 truncate group-hover/card:text-primary transition-colors">{room.title}</Title>
+                                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                        <MapPin className="w-4 h-4 shrink-0" />
+                                        <span className="truncate">
+                                            {room.location ? [room.location.district, room.location.city].filter(Boolean).join(', ') : '—'}
+                                        </span>
+                                    </div>
+                                    <button type="button" className="mt-3 w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 active:scale-[0.98] transition-all">
                                         {t('home.viewDetail')}
                                     </button>
                                 </div>

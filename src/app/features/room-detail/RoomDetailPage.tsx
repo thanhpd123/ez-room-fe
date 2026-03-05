@@ -15,6 +15,15 @@ function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
     ? (api.amenities as { name?: string }[]).map((a) => (a && typeof a === 'object' && 'name' in a ? String(a.name) : '')).filter(Boolean)
     : [];
 
+  const rawStatus = String(api.status ?? '').toUpperCase();
+  const statusMap: Record<string, RoomDetailData['status']> = {
+    AVAILABLE: 'available',
+    RENTED: 'occupied',
+    MAINTENANCE: 'maintenance',
+    PENDING: 'available',
+  };
+  const status = statusMap[rawStatus] ?? 'available';
+
   return {
     id: String(api.id ?? ''),
     title: String(api.roomName ?? api.title ?? 'Phòng'),
@@ -22,7 +31,7 @@ function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
     price: Number(api.price ?? 0),
     area: Number(api.sizeM2 ?? api.area ?? 0),
     max_occupants: Number(api.maxPeople ?? api.max_occupants ?? 1),
-    status: (api.status as RoomDetailData['status']) || 'available',
+    status,
     address,
     images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
     amenities,

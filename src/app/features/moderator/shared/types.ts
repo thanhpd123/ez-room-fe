@@ -43,6 +43,12 @@ export interface RoomPostModerationItem {
     moderation_status: ModerationDecision;
     last_moderated_at?: string;
     last_note?: string;
+    images?: string[];
+    amenities?: Array<{ id: string; name: string }>;
+    description?: string;
+    owner_name?: string;
+    owner_email?: string;
+    owner_phone?: string;
 }
 
 export type ReportStatus = 'open' | 'resolved' | 'dismissed';

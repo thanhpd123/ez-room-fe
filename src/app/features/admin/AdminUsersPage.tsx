@@ -9,9 +9,15 @@ import {
     Tag,
     Avatar,
     Modal,
+    Drawer,
+    Descriptions,
+    Spin,
     message,
     Typography,
     Popconfirm,
+    Divider,
+    Badge,
+    List,
 } from 'antd';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import {
@@ -20,16 +26,24 @@ import {
     EditOutlined,
     StopOutlined,
     CheckOutlined,
+    EyeOutlined,
+    WalletOutlined,
+    HomeOutlined,
+    ShoppingCartOutlined,
+    HeartOutlined,
+    CrownOutlined,
 } from '@ant-design/icons';
 import {
     getUsers,
+    getUserDetail,
     updateUserRole,
     updateUserStatus,
     type User,
+    type UserDetail,
     type PaginationInfo,
 } from './shared/admin-api';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 
 const ROLE_OPTIONS = [
@@ -47,6 +61,15 @@ const STATUS_OPTIONS = [
     { value: 'BANNED', label: 'Bị cấm', color: 'error' },
 ];
 
+const RENTAL_STATUS_MAP: Record<string, { label: string; color: string }> = {
+    AVAILABLE: { label: 'Đang hiển thị', color: 'success' },
+    UNAVAILABLE: { label: 'Tạm ngưng', color: 'processing' },
+    HIDDEN: { label: 'Đã ẩn', color: 'default' },
+    VIOLATE: { label: 'Vi phạm', color: 'error' },
+    PENDING: { label: 'Chờ duyệt', color: 'warning' },
+    SUSPEND: { label: 'Tạm khóa', color: 'default' },
+};
+
 export function AdminUsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [pagination, setPagination] = useState<PaginationInfo>({
@@ -59,14 +82,19 @@ export function AdminUsersPage() {
 
     // Filters
     const [search, setSearch] = useState('');
-    const [appliedSearch, setAppliedSearch] = useState(''); // Search that's actually applied
+    const [appliedSearch, setAppliedSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState<string | undefined>();
     const [statusFilter, setStatusFilter] = useState<string | undefined>();
 
-    // Modal state
+    // Role edit modal
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [newRole, setNewRole] = useState<string>('');
     const [modalLoading, setModalLoading] = useState(false);
+
+    // User detail drawer
+    const [detailUser, setDetailUser] = useState<UserDetail | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [drawerOpen, setDrawerOpen] = useState(false);
 
     // Fetch users when filters change
     useEffect(() => {
@@ -105,7 +133,7 @@ export function AdminUsersPage() {
     };
 
     const handleSearch = () => {
-        setAppliedSearch(search); // This triggers the useEffect
+        setAppliedSearch(search);
     };
 
     const handleTableChange = (pag: TablePaginationConfig) => {
@@ -136,6 +164,30 @@ export function AdminUsersPage() {
         } else {
             message.error(result.message);
         }
+    };
+
+    const handleViewDetail = async (user: User) => {
+        setDrawerOpen(true);
+        setDetailLoading(true);
+        const detail = await getUserDetail(user.id);
+        setDetailUser(detail);
+        setDetailLoading(false);
+    };
+
+    const formatDate = (dateStr: string | null | undefined) => {
+        if (!dateStr) return '-';
+        return new Date(dateStr).toLocaleDateString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    const formatMoney = (value: string | number | null | undefined) => {
+        if (value == null) return '-';
+        return Number(value).toLocaleString('vi-VN') + ' đ';
     };
 
     const columns: ColumnsType<User> = [
@@ -197,6 +249,12 @@ export function AdminUsersPage() {
                 <Space>
                     <Button
                         type="text"
+                        icon={<EyeOutlined />}
+                        onClick={() => handleViewDetail(record)}
+                        title="Xem chi tiết"
+                    />
+                    <Button
+                        type="text"
                         icon={<EditOutlined />}
                         onClick={() => {
                             setEditingUser(record);
@@ -204,37 +262,39 @@ export function AdminUsersPage() {
                         }}
                         title="Đổi role"
                     />
-                    {record.status === 'ACTIVE' ? (
-                        <Popconfirm
-                            title="Ban user này?"
-                            description={`Bạn có chắc muốn ban "${record.fullName}"?`}
-                            onConfirm={() => handleStatusToggle(record, 'BANNED')}
-                            okText="Ban"
-                            cancelText="Hủy"
-                            okButtonProps={{ danger: true }}
-                        >
-                            <Button
-                                type="text"
-                                danger
-                                icon={<StopOutlined />}
-                                title="Ban user"
-                            />
-                        </Popconfirm>
-                    ) : (
-                        <Popconfirm
-                            title="Mở khóa user này?"
-                            description={`Bạn có chắc muốn mở khóa "${record.fullName}"?`}
-                            onConfirm={() => handleStatusToggle(record, 'ACTIVE')}
-                            okText="Mở khóa"
-                            cancelText="Hủy"
-                        >
-                            <Button
-                                type="text"
-                                style={{ color: '#52c41a' }}
-                                icon={<CheckOutlined />}
-                                title="Unban user"
-                            />
-                        </Popconfirm>
+                    {record.role !== 'ADMIN' && (
+                        record.status === 'ACTIVE' ? (
+                            <Popconfirm
+                                title="Ban user này?"
+                                description={`Bạn có chắc muốn ban "${record.fullName}"?`}
+                                onConfirm={() => handleStatusToggle(record, 'BANNED')}
+                                okText="Ban"
+                                cancelText="Hủy"
+                                okButtonProps={{ danger: true }}
+                            >
+                                <Button
+                                    type="text"
+                                    danger
+                                    icon={<StopOutlined />}
+                                    title="Ban user"
+                                />
+                            </Popconfirm>
+                        ) : (
+                            <Popconfirm
+                                title="Mở khóa user này?"
+                                description={`Bạn có chắc muốn mở khóa "${record.fullName}"?`}
+                                onConfirm={() => handleStatusToggle(record, 'ACTIVE')}
+                                okText="Mở khóa"
+                                cancelText="Hủy"
+                            >
+                                <Button
+                                    type="text"
+                                    style={{ color: '#52c41a' }}
+                                    icon={<CheckOutlined />}
+                                    title="Unban user"
+                                />
+                            </Popconfirm>
+                        )
                     )}
                 </Space>
             ),
@@ -332,6 +392,220 @@ export function AdminUsersPage() {
                     </Select>
                 </div>
             </Modal>
+
+            {/* User Detail Drawer */}
+            <Drawer
+                title="Chi tiết người dùng"
+                open={drawerOpen}
+                onClose={() => { setDrawerOpen(false); setDetailUser(null); }}
+                size="large"
+            >
+                {detailLoading ? (
+                    <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                        <Spin size="large" />
+                    </div>
+                ) : detailUser ? (
+                    <div>
+                        {/* User header */}
+                        <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+                            <Avatar
+                                src={detailUser.avatarUrl}
+                                icon={!detailUser.avatarUrl && <UserOutlined />}
+                                size={64}
+                                style={{ backgroundColor: '#1677ff' }}
+                            />
+                            <div>
+                                <Title level={4} style={{ margin: 0 }}>
+                                    {detailUser.fullName}
+                                    {detailUser.isVip && (
+                                        <CrownOutlined
+                                            style={{ color: '#faad14', marginLeft: 8, fontSize: 16 }}
+                                            title="VIP"
+                                        />
+                                    )}
+                                </Title>
+                                <Text type="secondary">{detailUser.email}</Text>
+                                <div style={{ marginTop: 4 }}>
+                                    <Tag color={ROLE_OPTIONS.find((r) => r.value === detailUser.role)?.color}>
+                                        {ROLE_OPTIONS.find((r) => r.value === detailUser.role)?.label}
+                                    </Tag>
+                                    <Tag color={STATUS_OPTIONS.find((s) => s.value === detailUser.status)?.color}>
+                                        {STATUS_OPTIONS.find((s) => s.value === detailUser.status)?.label}
+                                    </Tag>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Basic info */}
+                        <Descriptions bordered size="small" column={2}>
+                            <Descriptions.Item label="ID">
+                                <Text copyable style={{ fontSize: 12 }}>{detailUser.id}</Text>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="SĐT">
+                                {detailUser.phone || '-'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Ngày tạo">
+                                {formatDate(detailUser.createdAt)}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Cập nhật lần cuối">
+                                {formatDate(detailUser.updated_at)}
+                            </Descriptions.Item>
+                        </Descriptions>
+
+                        {/* Stats summary */}
+                        <Divider titlePlacement="left">Thống kê</Divider>
+                        <Space size="large" wrap>
+                            <Badge count={detailUser.stats.totalRentals} showZero overflowCount={999}>
+                                <Tag icon={<HomeOutlined />} style={{ padding: '4px 12px' }}>
+                                    Bài đăng
+                                </Tag>
+                            </Badge>
+                            <Badge count={detailUser.stats.totalFavorites} showZero overflowCount={999}>
+                                <Tag icon={<HeartOutlined />} style={{ padding: '4px 12px' }}>
+                                    Yêu thích
+                                </Tag>
+                            </Badge>
+                            <Badge count={detailUser.stats.totalPreorders} showZero overflowCount={999}>
+                                <Tag icon={<ShoppingCartOutlined />} style={{ padding: '4px 12px' }}>
+                                    Đặt cọc
+                                </Tag>
+                            </Badge>
+                        </Space>
+
+                        {/* Wallet info (read-only) */}
+                        {detailUser.wallet && (
+                            <>
+                                <Divider titlePlacement="left">
+                                    <WalletOutlined /> Ví
+                                </Divider>
+                                <Descriptions bordered size="small" column={1}>
+                                    <Descriptions.Item label="Số dư">
+                                        <Text strong style={{ color: '#52c41a', fontSize: 16 }}>
+                                            {formatMoney(detailUser.wallet.balance)}
+                                        </Text>
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label="Ngày tạo ví">
+                                        {formatDate(detailUser.wallet.createdAt)}
+                                    </Descriptions.Item>
+                                </Descriptions>
+                            </>
+                        )}
+
+                        {/* Preferences */}
+                        {detailUser.preference && (
+                            <>
+                                <Divider titlePlacement="left">Sở thích tìm phòng</Divider>
+                                <Descriptions bordered size="small" column={2}>
+                                    <Descriptions.Item label="Ngân sách">
+                                        {detailUser.preference.budget_min && detailUser.preference.budget_max
+                                            ? `${formatMoney(detailUser.preference.budget_min)} - ${formatMoney(detailUser.preference.budget_max)}`
+                                            : '-'}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label="Loại phòng">
+                                        {detailUser.preference.room_type || '-'}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label="Khu vực" span={2}>
+                                        {detailUser.preference.preferredLocation || '-'}
+                                    </Descriptions.Item>
+                                </Descriptions>
+                            </>
+                        )}
+
+                        {/* Lifestyle profile */}
+                        {detailUser.lifestyleProfile && (
+                            <>
+                                <Divider titlePlacement="left">Hồ sơ lối sống</Divider>
+                                <Descriptions bordered size="small" column={2}>
+                                    <Descriptions.Item label="Nghề nghiệp">
+                                        {detailUser.lifestyleProfile.occupation_type || '-'}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label="Tính cách">
+                                        {detailUser.lifestyleProfile.personalityType || '-'}
+                                    </Descriptions.Item>
+                                </Descriptions>
+                            </>
+                        )}
+
+                        {/* Landlord: rentals list */}
+                        {detailUser.role === 'LANDLORD' && detailUser.rentals.length > 0 && (
+                            <>
+                                <Divider titlePlacement="left">
+                                    <HomeOutlined /> Bài đăng ({detailUser.rentals.length})
+                                </Divider>
+                                <List
+                                    size="small"
+                                    dataSource={detailUser.rentals}
+                                    renderItem={(rental) => (
+                                        <List.Item>
+                                            <List.Item.Meta
+                                                title={rental.title}
+                                                description={
+                                                    <Space>
+                                                        <Tag color={RENTAL_STATUS_MAP[rental.status]?.color || 'default'}>
+                                                            {RENTAL_STATUS_MAP[rental.status]?.label || rental.status}
+                                                        </Tag>
+                                                        <Text type="secondary">{rental.rooms.length} phòng</Text>
+                                                        <Text type="secondary">{formatDate(rental.createdAt)}</Text>
+                                                    </Space>
+                                                }
+                                            />
+                                        </List.Item>
+                                    )}
+                                />
+                            </>
+                        )}
+
+                        {/* Preorders */}
+                        {detailUser.preorders.length > 0 && (
+                            <>
+                                <Divider titlePlacement="left">
+                                    <ShoppingCartOutlined /> Đặt cọc gần đây
+                                </Divider>
+                                <List
+                                    size="small"
+                                    dataSource={detailUser.preorders}
+                                    renderItem={(preorder) => (
+                                        <List.Item>
+                                            <List.Item.Meta
+                                                description={
+                                                    <Space>
+                                                        <Tag>{preorder.status}</Tag>
+                                                        <Tag color={preorder.payment_status === 'PAID' ? 'success' : 'warning'}>
+                                                            {preorder.payment_status}
+                                                        </Tag>
+                                                        {preorder.deposit_amount && (
+                                                            <Text>{formatMoney(preorder.deposit_amount)}</Text>
+                                                        )}
+                                                        <Text type="secondary">{formatDate(preorder.createdAt)}</Text>
+                                                    </Space>
+                                                }
+                                            />
+                                        </List.Item>
+                                    )}
+                                />
+                            </>
+                        )}
+
+                        {/* Warning note for landlord data */}
+                        {detailUser.role === 'LANDLORD' && (
+                            <div style={{
+                                marginTop: 24,
+                                padding: '12px 16px',
+                                background: '#fffbe6',
+                                border: '1px solid #ffe58f',
+                                borderRadius: 6,
+                            }}>
+                                <Text type="warning" strong>
+                                    Lưu ý: Dữ liệu chủ trọ có thể liên kết với nhiều bài đăng, phòng,
+                                    đặt cọc và giao dịch. Không nên xóa tài khoản chủ trọ.
+                                </Text>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <Text type="secondary">Không tìm thấy thông tin.</Text>
+                )}
+            </Drawer>
         </div>
     );
 }
