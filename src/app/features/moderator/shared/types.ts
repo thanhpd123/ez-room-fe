@@ -10,6 +10,14 @@ export interface ModerationHistoryRecord {
     created_at: string;
 }
 
+export interface RentalDocument {
+    id: string;
+    documentType: string;
+    imageUrl: string;
+    status: string;
+    note?: string | null;
+}
+
 export interface RentalModerationItem {
     rental_id: string;
     user_id: string;
@@ -25,6 +33,7 @@ export interface RentalModerationItem {
     last_moderated_at?: string;
     last_note?: string;
     images?: string[];
+    documents?: RentalDocument[];
     owner_email?: string;
     owner_phone?: string;
     rooms_count?: number;
@@ -63,7 +72,12 @@ export type ReportAction =
 export interface ViolationReport {
     report_id: string;
     reporter_id: string;
+    reporter_email?: string;
+    reporter_phone?: string;
     target_user_id: string;
+    target_user_name?: string;
+    target_user_email?: string;
+    target_user_phone?: string;
     target_type: 'rental' | 'room_post' | 'review' | 'user';
     target_id: string;
     category: ReportCategory;

@@ -673,6 +673,13 @@ export async function getRentalsForModeration(query?: {
         owner: { id: string; fullName: string; avatarUrl: string | null } | null;
         location: { id: string; address: string; district: string | null; city: string | null } | null;
         images: string[];
+        documents?: Array<{
+            id: string;
+            documentType: string;
+            imageUrl: string;
+            status: string;
+            note?: string | null;
+        }>;
     }>;
     pagination: { page: number; limit: number; total: number; totalPages: number };
 }> {
@@ -1107,7 +1114,8 @@ export interface ReportItem {
     reviewedAt: string | null;
     createdAt: string;
     updatedAt: string;
-    reporter?: { id: string; fullName: string; email: string; avatarUrl: string | null };
+    reporter?: { id: string; fullName: string; email: string; phone: string | null; avatarUrl: string | null };
+    targetUser?: { id: string; fullName: string; email: string; phone: string | null; avatarUrl: string | null } | null;
     moderator?: { id: string; fullName: string } | null;
 }
 
