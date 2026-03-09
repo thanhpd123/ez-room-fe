@@ -402,6 +402,84 @@ export async function withdrawWalletRequest(body: {
     return data;
 }
 
+/** Lịch sử thuê phòng (my-bookings) */
+export interface MyBookingItem {
+    id: string;
+    rentalPeriodId: string;
+    roomId: string;
+    roomName: string;
+    propertyName: string;
+    propertyImage: string;
+    address: string;
+    landlordName: string | null;
+    startDate: string;
+    endDate: string | null;
+    status: 'active' | 'completed' | 'cancelled';
+    hasReview: boolean;
+    userRating?: number;
+    feedbackId?: string;
+    feedbackStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'HIDDEN';
+    moderatorNote?: string;
+    canReview: boolean;
+    canReviewDisabled: boolean;
+}
+
+export async function getMyBookingsRequest(): Promise<{
+    success: boolean;
+    data: MyBookingItem[];
+}> {
+    const res = await authFetch('/rooms/my-bookings');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải lịch sử thuê phòng');
+    return data;
+}
+
+/** Gửi đánh giá phòng */
+export async function createFeedbackRequest(body: {
+    rentalPeriodId: string;
+    roomId: string;
+    rating: number;
+    comment: string;
+    cleanlinessRating?: number;
+    locationRating?: number;
+    valueRating?: number;
+    landlordRating?: number;
+}): Promise<{
+    success: boolean;
+    message: string;
+    data: { id: string; status: string; rating: number };
+}> {
+    const res = await authFetch('/feedback', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi đánh giá thất bại');
+    return data;
+}
+
+/** Lấy feedback theo rental period */
+export async function getFeedbackByRentalPeriodRequest(rentalPeriodId: string): Promise<{
+    success: boolean;
+    data: {
+        id: string;
+        rating: number;
+        comment: string | null;
+        cleanlinessRating: number | null;
+        locationRating: number | null;
+        valueRating: number | null;
+        landlordRating: number | null;
+        status: string;
+        moderatorNote: string | null;
+        createdAt: string;
+    } | null;
+}> {
+    const res = await authFetch(`/feedback/by-rental-period/${encodeURIComponent(rentalPeriodId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải đánh giá');
+    return data;
+}
+
 /** Roommate matching – same gender + lifestyle score */
 
 export interface RoommateSuggestionItem {

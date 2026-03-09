@@ -4,76 +4,149 @@ import {
     BookingCard,
     BookingTabs,
     ReviewModal,
+    ViewFeedbackModal,
     ReportModal,
     EmptyState,
 } from './components';
 import { type BookingTabValue } from './constants';
 import { filterBookings } from './utils';
-import type { ReviewData, ReportData } from './types';
+import {
+    getMyBookingsRequest,
+    createFeedbackRequest,
+    getFeedbackByRentalPeriodRequest,
+} from '@/lib/api';
+import type { Booking, ReviewData, ReportData } from './types';
+import type { FeedbackStatus } from './types';
 
-type ModalState = 'none' | 'review' | 'report';
-
-interface SelectedProperty {
-    id: string;
-    name: string;
-}
+type ModalState = 'none' | 'review' | 'viewFeedback' | 'report';
 
 export function BookingHistoryPage() {
     const navigate = useNavigate();
 
-    // Tab state
     const [activeTab, setActiveTab] = React.useState<BookingTabValue>('all');
+    const [bookings, setBookings] = React.useState<Booking[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
 
-    // Modal state
     const [modalState, setModalState] = React.useState<ModalState>('none');
-    const [selectedProperty, setSelectedProperty] = React.useState<SelectedProperty>({
-        id: '',
-        name: '',
-    });
-    const [isEditingReview, setIsEditingReview] = React.useState(false);
-    const [existingReviewRating, setExistingReviewRating] = React.useState(0);
+    const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
+    const [viewFeedbackData, setViewFeedbackData] = React.useState<{
+        rating: number;
+        comment: string | null;
+        cleanlinessRating?: number | null;
+        locationRating?: number | null;
+        valueRating?: number | null;
+        landlordRating?: number | null;
+        status: FeedbackStatus;
+        moderatorNote?: string | null;
+    } | null>(null);
+    const [submitLoading, setSubmitLoading] = React.useState(false);
 
-    // Filtered bookings (from API when available)
-    const filteredBookings = filterBookings([], activeTab);
+    const fetchBookings = React.useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await getMyBookingsRequest();
+            const items = (res.data || []).map((b) => ({
+                ...b,
+                propertyId: b.roomId,
+            })) as Booking[];
+            setBookings(items);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Lỗi tải lịch sử thuê phòng');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-    // Handlers
-    const handleWriteReview = (bookingId: string, propertyName: string) => {
-        setSelectedProperty({ id: bookingId, name: propertyName });
-        setIsEditingReview(false);
+    React.useEffect(() => {
+        fetchBookings();
+    }, [fetchBookings]);
+
+    const filteredBookings = filterBookings(bookings, activeTab);
+
+    const handleWriteReview = (booking: Booking) => {
+        setSelectedBooking(booking);
         setModalState('review');
     };
 
-    const handleEditReview = (bookingId: string, propertyName: string, rating: number) => {
-        setSelectedProperty({ id: bookingId, name: propertyName });
-        setIsEditingReview(true);
-        setExistingReviewRating(rating);
-        setModalState('review');
+    const handleViewReview = async (booking: Booking) => {
+        setSelectedBooking(booking);
+        setModalState('viewFeedback');
+        const rentalPeriodId = booking.rentalPeriodId || booking.id;
+        try {
+            const res = await getFeedbackByRentalPeriodRequest(rentalPeriodId);
+            if (res.data) {
+                setViewFeedbackData({
+                    rating: res.data.rating,
+                    comment: res.data.comment,
+                    cleanlinessRating: res.data.cleanlinessRating,
+                    locationRating: res.data.locationRating,
+                    valueRating: res.data.valueRating,
+                    landlordRating: res.data.landlordRating,
+                    status: res.data.status as FeedbackStatus,
+                    moderatorNote: res.data.moderatorNote,
+                });
+            } else {
+                setViewFeedbackData(null);
+            }
+        } catch {
+            setViewFeedbackData(null);
+        }
     };
 
     const handleReport = (propertyId: string, propertyName: string) => {
-        setSelectedProperty({ id: propertyId, name: propertyName });
+        setSelectedBooking({
+            id: '',
+            propertyName,
+            propertyImage: '',
+            address: '',
+            landlordName: '',
+            startDate: '',
+            endDate: '',
+            status: 'active',
+            hasReview: false,
+        } as Booking);
         setModalState('report');
     };
 
     const handleContactLandlord = (bookingId: string) => {
-        // TODO: Implement chat/contact feature
-        console.log('Contact landlord for booking:', bookingId);
+        navigate(`/chat?booking=${bookingId}`);
     };
 
-    const handleReviewSubmit = (data: ReviewData) => {
-        console.log('Review submitted:', { propertyId: selectedProperty.id, ...data });
-        // TODO: Call API to submit review
-        setModalState('none');
+    const handleReviewSubmit = async (data: ReviewData) => {
+        if (!selectedBooking?.rentalPeriodId || !selectedBooking?.roomId) return;
+        setSubmitLoading(true);
+        try {
+            await createFeedbackRequest({
+                rentalPeriodId: selectedBooking.rentalPeriodId,
+                roomId: selectedBooking.roomId,
+                rating: data.rating,
+                comment: data.comment,
+                cleanlinessRating: data.cleanlinessRating,
+                locationRating: data.locationRating,
+                valueRating: data.valueRating,
+                landlordRating: data.landlordRating,
+            });
+            setModalState('none');
+            setSelectedBooking(null);
+            fetchBookings();
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Gửi đánh giá thất bại');
+        } finally {
+            setSubmitLoading(false);
+        }
     };
 
     const handleReportSubmit = (data: ReportData) => {
-        console.log('Report submitted:', { propertyId: selectedProperty.id, ...data });
-        // TODO: Call API to submit report
+        console.log('Report submitted:', { propertyId: selectedBooking?.id, ...data });
         setModalState('none');
     };
 
     const handleCloseModal = () => {
         setModalState('none');
+        setSelectedBooking(null);
+        setViewFeedbackData(null);
     };
 
     const handleExplore = () => {
@@ -82,26 +155,26 @@ export function BookingHistoryPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Main Content */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-2xl font-bold mb-2">Lịch sử thuê phòng</h1>
                     <p className="text-foreground/60">Quản lý các booking và đánh giá của bạn</p>
                 </div>
 
-                {/* Tabs */}
                 <BookingTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-                {/* Booking List */}
-                {filteredBookings.length > 0 ? (
+                {loading ? (
+                    <div className="py-12 text-center text-foreground/60">Đang tải...</div>
+                ) : error ? (
+                    <div className="py-12 text-center text-destructive">{error}</div>
+                ) : filteredBookings.length > 0 ? (
                     <div className="space-y-4">
                         {filteredBookings.map((booking) => (
                             <BookingCard
                                 key={booking.id}
                                 booking={booking}
                                 onWriteReview={handleWriteReview}
-                                onEditReview={handleEditReview}
+                                onViewReview={handleViewReview}
                                 onReport={handleReport}
                                 onContactLandlord={handleContactLandlord}
                             />
@@ -112,21 +185,34 @@ export function BookingHistoryPage() {
                 )}
             </main>
 
-            {/* Modals */}
             <ReviewModal
                 isOpen={modalState === 'review'}
                 onClose={handleCloseModal}
                 onSubmit={handleReviewSubmit}
-                propertyName={selectedProperty.name}
-                existingRating={isEditingReview ? existingReviewRating : undefined}
-                isEditMode={isEditingReview}
+                propertyName={selectedBooking?.roomName || selectedBooking?.propertyName || ''}
+                existingRating={selectedBooking?.feedbackStatus === 'REJECTED' ? selectedBooking?.userRating : undefined}
+                isEditMode={selectedBooking?.feedbackStatus === 'REJECTED'}
+            />
+
+            <ViewFeedbackModal
+                isOpen={modalState === 'viewFeedback'}
+                onClose={handleCloseModal}
+                propertyName={selectedBooking?.roomName || selectedBooking?.propertyName || ''}
+                rating={viewFeedbackData?.rating ?? 0}
+                comment={viewFeedbackData?.comment ?? null}
+                cleanlinessRating={viewFeedbackData?.cleanlinessRating}
+                locationRating={viewFeedbackData?.locationRating}
+                valueRating={viewFeedbackData?.valueRating}
+                landlordRating={viewFeedbackData?.landlordRating}
+                status={viewFeedbackData?.status ?? 'PENDING'}
+                moderatorNote={viewFeedbackData?.moderatorNote}
             />
 
             <ReportModal
                 isOpen={modalState === 'report'}
                 onClose={handleCloseModal}
                 onSubmit={handleReportSubmit}
-                propertyName={selectedProperty.name}
+                propertyName={selectedBooking?.roomName || selectedBooking?.propertyName || ''}
             />
         </div>
     );

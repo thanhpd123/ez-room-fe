@@ -193,7 +193,7 @@ export const router = createBrowserRouter([
     {
         path: '/moderator',
         element: (
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole={['MODERATOR', 'ADMIN']}>
                 <Suspense fallback={<PageLoader />}>
                     <LayoutModerator />
                 </Suspense>

@@ -1,8 +1,13 @@
 export type BookingStatus = 'completed' | 'active' | 'cancelled';
 
+export type FeedbackStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'HIDDEN';
+
 export interface Booking {
     id: string;
-    propertyId: string;
+    rentalPeriodId?: string;
+    roomId?: string;
+    propertyId?: string;
+    roomName?: string;
     propertyName: string;
     propertyImage: string;
     address: string;
@@ -12,12 +17,21 @@ export interface Booking {
     status: BookingStatus;
     hasReview: boolean;
     userRating?: number;
+    feedbackId?: string;
+    feedbackStatus?: FeedbackStatus;
+    moderatorNote?: string;
+    canReview?: boolean;
+    canReviewDisabled?: boolean;
 }
 
 export interface ReviewData {
     rating: number;
     comment: string;
-    images: File[];
+    images?: File[];
+    cleanlinessRating?: number;
+    locationRating?: number;
+    valueRating?: number;
+    landlordRating?: number;
 }
 
 export interface ReportData {
