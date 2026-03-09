@@ -109,3 +109,55 @@ export async function fetchAmenities(): Promise<Array<{ id: string; name: string
         return [];
     }
 }
+
+export interface RoomTenant {
+    id: string;
+    tenantId: string;
+    tenant: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone?: string;
+        avatarUrl?: string;
+    };
+    startDate: string;
+    endDate?: string;
+    actualPrice: number;
+    deposit: number;
+    status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'OVERDUE';
+    type: 'rental';
+}
+
+export interface RoomPreorder {
+    id: string;
+    userId: string;
+    user: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone?: string;
+        avatarUrl?: string;
+    };
+    depositAmount: number;
+    paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
+    status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
+    refundStatus?: string;
+    createdAt: string;
+    type: 'preorder';
+}
+
+export async function getRoomTenants(
+    roomPostId: string
+): Promise<{ rentals: RoomTenant[]; preorders: RoomPreorder[] }> {
+    try {
+        const response = await apiRequest<
+            ApiResponse<{
+                rentals: RoomTenant[];
+                preorders: RoomPreorder[];
+            }>
+        >(`/rooms/${roomPostId}/tenants`);
+        return response.data || { rentals: [], preorders: [] };
+    } catch {
+        return { rentals: [], preorders: [] };
+    }
+}

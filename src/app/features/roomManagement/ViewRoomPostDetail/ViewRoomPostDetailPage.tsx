@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { RoomStatus } from '@/lib/models/room.model';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
-import { getRoomPostById, deleteRoomPost } from '../shared/room-post-storage';
+import { getRoomPostById, deleteRoomPost, getRoomTenants, type RoomTenant, type RoomPreorder } from '../shared/room-post-storage';
 import {
     ROOM_POST_STATUS_OPTIONS,
     type ManagedRoomPostItem,
@@ -42,6 +42,12 @@ export function ViewRoomPostDetailPage() {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [currentTab, setCurrentTab] = useState<'details' | 'tenants'>('details');
+    const [tenantData, setTenantData] = useState<{ rentals: RoomTenant[]; preorders: RoomPreorder[] }>({
+        rentals: [],
+        preorders: [],
+    });
+    const [isLoadingTenants, setIsLoadingTenants] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -69,6 +75,19 @@ export function ViewRoomPostDetailPage() {
             active = false;
         };
     }, [rentalId, roomPostId]);
+
+    // Load tenants when tab changes to 'tenants'
+    useEffect(() => {
+        if (currentTab === 'tenants' && roomPostId && tenantData.rentals.length === 0 && tenantData.preorders.length === 0) {
+            const loadTenants = async () => {
+                setIsLoadingTenants(true);
+                const data = await getRoomTenants(roomPostId);
+                setTenantData(data);
+                setIsLoadingTenants(false);
+            };
+            void loadTenants();
+        }
+    }, [currentTab, roomPostId, tenantData]);
 
     const rentalLabel = useMemo(() => rentalTitle || rentalId, [rentalId, rentalTitle]);
 
@@ -239,58 +258,168 @@ export function ViewRoomPostDetailPage() {
                         </section>
                     ) : null}
 
-                    <section>
-                        <h3 className="mb-2 text-sm font-semibold text-slate-900">Room Post Information</h3>
-                        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Room post ID</dt>
-                                <dd className="font-medium text-slate-900">{roomPost.room_post_id}</dd>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Rental ID</dt>
-                                <dd className="font-medium text-slate-900">{roomPost.rental_id}</dd>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Price</dt>
-                                <dd className="font-medium text-slate-900">
-                                    {formatCurrency(roomPost.price)}
-                                </dd>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Area</dt>
-                                <dd className="font-medium text-slate-900">{roomPost.area} m2</dd>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Max occupants</dt>
-                                <dd className="font-medium text-slate-900">{roomPost.max_occupants}</dd>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Images</dt>
-                                <dd className="font-medium text-slate-900">{imageArray.length} photo(s)</dd>
-                            </div>
-                            {roomPost.amenities && roomPost.amenities.length > 0 && (
-                                <div className="md:col-span-2 rounded-xl bg-slate-50 px-4 py-3">
-                                    <dt className="text-xs text-slate-500">Amenities</dt>
-                                    <dd className="mt-2 flex flex-wrap gap-2">
-                                        {roomPost.amenities.map((amenity) => (
-                                            <span
-                                                key={amenity.id}
-                                                className="rounded-lg bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700"
-                                            >
-                                                {amenity.name}
-                                            </span>
-                                        ))}
+                    {/* Tabs Navigation */}
+                    <div className="border-b border-slate-200">
+                        <div className="flex gap-6">
+                            <button
+                                onClick={() => setCurrentTab('details')}
+                                className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                    currentTab === 'details'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                Chi tiết phòng
+                            </button>
+                            <button
+                                onClick={() => setCurrentTab('tenants')}
+                                className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${
+                                    currentTab === 'tenants'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                Người thuê ({tenantData.rentals.length + tenantData.preorders.length})
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Details Tab */}
+                    {currentTab === 'details' && (
+                        <section>
+                            <h3 className="mb-2 text-sm font-semibold text-slate-900">Room Post Information</h3>
+                            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                                    <dt className="text-xs text-slate-500">Room post ID</dt>
+                                    <dd className="font-medium text-slate-900">{roomPost.room_post_id}</dd>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                                    <dt className="text-xs text-slate-500">Rental ID</dt>
+                                    <dd className="font-medium text-slate-900">{roomPost.rental_id}</dd>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                                    <dt className="text-xs text-slate-500">Price</dt>
+                                    <dd className="font-medium text-slate-900">
+                                        {formatCurrency(roomPost.price)}
                                     </dd>
                                 </div>
+                                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                                    <dt className="text-xs text-slate-500">Area</dt>
+                                    <dd className="font-medium text-slate-900">{roomPost.area} m2</dd>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                                    <dt className="text-xs text-slate-500">Max occupants</dt>
+                                    <dd className="font-medium text-slate-900">{roomPost.max_occupants}</dd>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                                    <dt className="text-xs text-slate-500">Images</dt>
+                                    <dd className="font-medium text-slate-900">{imageArray.length} photo(s)</dd>
+                                </div>
+                                {roomPost.amenities && roomPost.amenities.length > 0 && (
+                                    <div className="md:col-span-2 rounded-xl bg-slate-50 px-4 py-3">
+                                        <dt className="text-xs text-slate-500">Amenities</dt>
+                                        <dd className="mt-2 flex flex-wrap gap-2">
+                                            {roomPost.amenities.map((amenity) => (
+                                                <span
+                                                    key={amenity.id}
+                                                    className="rounded-lg bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700"
+                                                >
+                                                    {amenity.name}
+                                                </span>
+                                            ))}
+                                        </dd>
+                                    </div>
+                                )}
+                                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                                    <dt className="text-xs text-slate-500">Created at</dt>
+                                    <dd className="font-medium text-slate-900">
+                                        {formatDateTime(roomPost.created_at)}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </section>
+                    )}
+
+                    {/* Tenants Tab */}
+                    {currentTab === 'tenants' && (
+                        <section>
+                            {isLoadingTenants ? (
+                                <div className="py-8 text-center text-slate-600">
+                                    <p>Đang tải dữ liệu...</p>
+                                </div>
+                            ) : tenantData.rentals.length === 0 && tenantData.preorders.length === 0 ? (
+                                <div className="py-8 text-center text-slate-600">
+                                    <p>Chưa có ai thuê phòng này</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Current Rentals */}
+                                    {tenantData.rentals.length > 0 && (
+                                        <div>
+                                            <h4 className="mb-3 font-semibold text-slate-900">Người đang/đã thuê ({tenantData.rentals.length})</h4>
+                                            <div className="space-y-3">
+                                                {tenantData.rentals.map((rental) => (
+                                                    <div key={rental.id} className="flex gap-4 rounded-xl border border-slate-200 p-4">
+                                                        <div className="flex-1">
+                                                            <h5 className="font-semibold text-slate-900">{rental.tenant.fullName}</h5>
+                                                            <p className="text-sm text-slate-600">{rental.tenant.email}</p>
+                                                            <p className="text-sm text-slate-600">{rental.tenant.phone}</p>
+                                                            <div className="mt-2 flex gap-4 text-sm text-slate-600">
+                                                                <span>Từ: {new Date(rental.startDate).toLocaleDateString('vi-VN')}</span>
+                                                                <span>Đến: {rental.endDate ? new Date(rental.endDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}</span>
+                                                            </div>
+                                                            <div className="mt-2 flex gap-2">
+                                                                <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+                                                                    Giá: {formatCurrency(rental.actualPrice)}
+                                                                </span>
+                                                                <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                                                                    rental.status === 'ACTIVE' 
+                                                                        ? 'bg-green-100 text-green-700' 
+                                                                        : 'bg-slate-100 text-slate-700'
+                                                                }`}>
+                                                                    {rental.status === 'ACTIVE' ? 'Đang thuê' : 'Đã kết thúc'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Pending Preorders */}
+                                    {tenantData.preorders.length > 0 && (
+                                        <div>
+                                            <h4 className="mb-3 font-semibold text-slate-900">Đơn đặt cọc ({tenantData.preorders.length})</h4>
+                                            <div className="space-y-3">
+                                                {tenantData.preorders.map((preorder) => (
+                                                    <div key={preorder.id} className="flex gap-4 rounded-xl border border-slate-200 p-4">
+                                                        <div className="flex-1">
+                                                            <h5 className="font-semibold text-slate-900">{preorder.user.fullName}</h5>
+                                                            <p className="text-sm text-slate-600">{preorder.user.email}</p>
+                                                            <p className="text-sm text-slate-600">{preorder.user.phone}</p>
+                                                            <div className="mt-2 flex gap-2">
+                                                                <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
+                                                                    Cọc: {formatCurrency(preorder.depositAmount)}
+                                                                </span>
+                                                                <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                                                                    preorder.paymentStatus === 'PAID'
+                                                                        ? 'bg-green-100 text-green-700'
+                                                                        : 'bg-yellow-100 text-yellow-700'
+                                                                }`}>
+                                                                    {preorder.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Created at</dt>
-                                <dd className="font-medium text-slate-900">
-                                    {formatDateTime(roomPost.created_at)}
-                                </dd>
-                            </div>
-                        </dl>
-                    </section>
+                        </section>
+                    )}
                 </div>
             </article>
         </section>
