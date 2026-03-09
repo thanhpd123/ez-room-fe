@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Star, Upload, AlertCircle } from 'lucide-react';
+import { X, Star, AlertCircle } from 'lucide-react';
 import { RATING_LABELS, PROFANITY_WORDS } from '../constants';
 import type { ReviewData } from '../types';
 
@@ -10,6 +10,10 @@ interface ReviewModalProps {
     propertyName: string;
     existingRating?: number;
     existingComment?: string;
+    existingCleanliness?: number;
+    existingLocation?: number;
+    existingValue?: number;
+    existingLandlord?: number;
     isEditMode?: boolean;
 }
 
@@ -20,40 +24,28 @@ export function ReviewModal({
     propertyName,
     existingRating,
     existingComment,
+    existingCleanliness,
+    existingLocation,
+    existingValue,
+    existingLandlord,
     isEditMode = false,
 }: ReviewModalProps) {
     const [rating, setRating] = React.useState(existingRating || 0);
     const [hoveredRating, setHoveredRating] = React.useState(0);
     const [comment, setComment] = React.useState(existingComment || '');
-    const [images, setImages] = React.useState<File[]>([]);
-    const [imagePreviews, setImagePreviews] = React.useState<string[]>([]);
+    const [cleanlinessRating, setCleanlinessRating] = React.useState(existingCleanliness || 0);
+    const [locationRating, setLocationRating] = React.useState(existingLocation || 0);
+    const [valueRating, setValueRating] = React.useState(existingValue || 0);
+    const [landlordRating, setLandlordRating] = React.useState(existingLandlord || 0);
     const [errors, setErrors] = React.useState<{
         rating?: string;
         comment?: string;
         profanity?: string;
     }>({});
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const checkProfanity = (text: string): boolean => {
         const lowerText = text.toLowerCase();
         return PROFANITY_WORDS.some((word) => lowerText.includes(word));
-    };
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (files.length + images.length > 5) {
-            alert('Bạn chỉ có thể tải lên tối đa 5 hình ảnh');
-            return;
-        }
-
-        const newPreviews = files.map((file) => URL.createObjectURL(file));
-        setImagePreviews((prev) => [...prev, ...newPreviews]);
-        setImages((prev) => [...prev, ...files]);
-    };
-
-    const removeImage = (index: number) => {
-        setImages((prev) => prev.filter((_, i) => i !== index));
-        setImagePreviews((prev) => prev.filter((_, i) => i !== index));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -67,8 +59,8 @@ export function ReviewModal({
 
         if (!comment.trim()) {
             newErrors.comment = 'Vui lòng nhập nhận xét của bạn';
-        } else if (comment.trim().length < 10) {
-            newErrors.comment = 'Nhận xét phải có ít nhất 10 ký tự';
+        } else if (comment.trim().length < 20) {
+            newErrors.comment = 'Nhận xét cần tối thiểu 20 ký tự';
         } else if (checkProfanity(comment)) {
             newErrors.profanity = 'Nhận xét chứa từ ngữ không phù hợp.';
         }
@@ -79,15 +71,24 @@ export function ReviewModal({
         }
 
         setErrors({});
-        onSubmit({ rating, comment, images });
+        onSubmit({
+            rating,
+            comment,
+            cleanlinessRating: cleanlinessRating || undefined,
+            locationRating: locationRating || undefined,
+            valueRating: valueRating || undefined,
+            landlordRating: landlordRating || undefined,
+        });
         handleClose();
     };
 
     const handleClose = () => {
         setRating(existingRating || 0);
         setComment(existingComment || '');
-        setImages([]);
-        setImagePreviews([]);
+        setCleanlinessRating(existingCleanliness || 0);
+        setLocationRating(existingLocation || 0);
+        setValueRating(existingValue || 0);
+        setLandlordRating(existingLandlord || 0);
         setErrors({});
         onClose();
     };
@@ -163,6 +164,37 @@ export function ReviewModal({
                         )}
                     </div>
 
+                    {/* Detail ratings (optional) */}
+                    <div className="space-y-3">
+                        <label className="text-sm text-foreground/80">Đánh giá chi tiết (tùy chọn)</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            {[
+                                { val: cleanlinessRating, set: setCleanlinessRating, label: 'Sạch sẽ' },
+                                { val: locationRating, set: setLocationRating, label: 'Vị trí' },
+                                { val: valueRating, set: setValueRating, label: 'Giá trị' },
+                                { val: landlordRating, set: setLandlordRating, label: 'Chủ trọ' },
+                            ].map(({ val, set, label }) => (
+                                <div key={label} className="flex items-center justify-between gap-2">
+                                    <span className="text-sm text-foreground/70">{label}</span>
+                                    <div className="flex gap-0.5">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <button
+                                                key={star}
+                                                type="button"
+                                                onClick={() => set(val === star ? 0 : star)}
+                                                className="p-0.5"
+                                            >
+                                                <Star
+                                                    className={`w-5 h-5 ${star <= val ? 'fill-accent text-accent' : 'text-muted'}`}
+                                                />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Comment */}
                     <div className="space-y-1.5">
                         <label htmlFor="comment" className="text-sm text-foreground/80">
@@ -194,58 +226,9 @@ export function ReviewModal({
                         </div>
                     </div>
 
-                    {/* Images */}
-                    <div className="space-y-2">
-                        <label className="text-sm text-foreground/80">Hình ảnh (tùy chọn)</label>
-
-                        {imagePreviews.length > 0 && (
-                            <div className="grid grid-cols-5 gap-2">
-                                {imagePreviews.map((preview, index) => (
-                                    <div key={index} className="relative aspect-square group">
-                                        <img
-                                            src={preview}
-                                            alt=""
-                                            className="w-full h-full object-cover rounded-md"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => removeImage(index)}
-                                            className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {imagePreviews.length < 5 && (
-                            <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="w-full px-4 py-5 border-2 border-dashed border-border rounded-lg hover:border-primary/50 hover:bg-primary/5 flex flex-col items-center gap-1 text-sm"
-                            >
-                                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                    <Upload className="w-5 h-5 text-primary" />
-                                </div>
-                                <span>Tải lên hình ảnh</span>
-                                <span className="text-xs text-foreground/50">Tối đa 5 ảnh</span>
-                            </button>
-                        )}
-
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleImageUpload}
-                            className="hidden"
-                        />
-                    </div>
-
                     {/* Info */}
                     <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs text-foreground/70">
-                        💡 Đánh giá sẽ được hiển thị công khai để giúp người thuê khác.
+                        💡 Đánh giá sẽ được phê duyệt bởi ezroom.
                     </div>
 
                     {/* Actions */}

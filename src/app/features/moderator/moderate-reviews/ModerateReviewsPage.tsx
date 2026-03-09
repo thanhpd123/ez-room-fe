@@ -1,31 +1,39 @@
-import { useEffect, useMemo, useState } from 'react';
-import { listModeratedReviews, moderateReview } from '../shared/moderator-storage';
-import type { ModeratedReview, ReviewModerationAction, ReviewModerationStatus } from '../shared/types';
+import { useCallback, useEffect, useState } from 'react';
+import {
+    getReviewDetail,
+    listModeratedReviews,
+    moderateReviewStatus,
+    type FeedbackStatusEnum,
+    type ModeratorReviewDetail,
+    type ModeratorReviewItem,
+} from '../shared/moderator-storage';
 
-const statusBadgeClass: Record<ReviewModerationStatus, string> = {
-    flagged: 'bg-amber-100 text-amber-700',
-    approved: 'bg-emerald-100 text-emerald-700',
-    hidden: 'bg-slate-200 text-slate-700',
-    deleted: 'bg-rose-100 text-rose-700',
+const TAB_ALL = 'all';
+const TABS: { value: string; label: string; status?: FeedbackStatusEnum }[] = [
+    { value: TAB_ALL, label: 'Tất cả' },
+    { value: 'PENDING', label: 'Chờ duyệt', status: 'PENDING' },
+    { value: 'APPROVED', label: 'Đã duyệt', status: 'APPROVED' },
+    { value: 'REJECTED', label: 'Đã từ chối', status: 'REJECTED' },
+    { value: 'HIDDEN', label: 'Đã ẩn', status: 'HIDDEN' },
+];
+
+const STATUS_BADGE: Record<FeedbackStatusEnum, string> = {
+    PENDING: 'bg-amber-100 text-amber-700',
+    APPROVED: 'bg-emerald-100 text-emerald-700',
+    REJECTED: 'bg-rose-100 text-rose-700',
+    HIDDEN: 'bg-slate-200 text-slate-700',
 };
 
-const statusLabel: Record<ReviewModerationStatus, string> = {
-    flagged: 'Flagged',
-    approved: 'Approved',
-    hidden: 'Hidden',
-    deleted: 'Deleted',
+const STATUS_LABEL: Record<FeedbackStatusEnum, string> = {
+    PENDING: 'Chờ duyệt',
+    APPROVED: 'Đã duyệt',
+    REJECTED: 'Đã từ chối',
+    HIDDEN: 'Đã ẩn',
 };
 
-const actionLabel: Record<ReviewModerationAction, string> = {
-    approve: 'Approve',
-    hide: 'Hide review',
-    delete: 'Delete review',
-    warn_user: 'Warn user',
-};
-
-function formatDateTime(dateString?: string) {
+function formatDateTime(dateString?: string | null) {
     if (!dateString) return '--';
-    return new Date(dateString).toLocaleString('en-GB', {
+    return new Date(dateString).toLocaleString('vi-VN', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -34,117 +42,205 @@ function formatDateTime(dateString?: string) {
     });
 }
 
+function formatDate(dateString?: string | null) {
+    if (!dateString) return '--';
+    return new Date(dateString).toLocaleDateString('vi-VN');
+}
+
 export function ModerateReviewsPage() {
-    const [items, setItems] = useState<ModeratedReview[]>([]);
+    const [items, setItems] = useState<ModeratorReviewItem[]>([]);
+    const [pagination, setPagination] = useState({ page: 1, limit: 100, total: 0, totalPages: 0 });
     const [isLoading, setIsLoading] = useState(true);
-    const [statusFilter, setStatusFilter] = useState<'all' | ReviewModerationStatus>('flagged');
-    const [selectedId, setSelectedId] = useState('');
-    const [note, setNote] = useState('');
+    const [activeTab, setActiveTab] = useState<string>('PENDING');
+    const [selectedId, setSelectedId] = useState<string>('');
+    const [detail, setDetail] = useState<ModeratorReviewDetail | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [moderatorNote, setModeratorNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const loadData = async () => {
+    const statusFilter = activeTab === TAB_ALL ? undefined : (activeTab as FeedbackStatusEnum);
+
+    const loadList = useCallback(async () => {
         setIsLoading(true);
-        const data = await listModeratedReviews();
-        setItems(data);
-        setSelectedId((current) => current || data[0]?.review_id || '');
-        setIsLoading(false);
-    };
+        setError(null);
+        try {
+            const res = await listModeratedReviews({
+                status: statusFilter,
+                limit: 100,
+            });
+            setItems(res.items);
+            setPagination(res.pagination);
+            if (res.items.length > 0 && !res.items.some((i) => i.id === selectedId)) {
+                setSelectedId(res.items[0].id);
+            } else if (res.items.length === 0) {
+                setSelectedId('');
+                setDetail(null);
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Lỗi tải danh sách');
+            setItems([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [statusFilter, selectedId]);
 
     useEffect(() => {
-        void loadData();
-    }, []);
-
-    const filteredItems = useMemo(() => {
-        if (statusFilter === 'all') return items;
-        return items.filter((item) => item.status === statusFilter);
-    }, [items, statusFilter]);
+        void loadList();
+    }, [loadList]);
 
     useEffect(() => {
-        if (filteredItems.length === 0) {
-            setSelectedId('');
+        if (!selectedId) {
+            setDetail(null);
             return;
         }
-        const exists = filteredItems.some((item) => item.review_id === selectedId);
-        if (!exists) {
-            setSelectedId(filteredItems[0].review_id);
-        }
-    }, [filteredItems, selectedId]);
-
-    const selectedItem = filteredItems.find((item) => item.review_id === selectedId) ?? null;
-
-    const onAction = async (action: ReviewModerationAction) => {
-        if (!selectedItem) return;
-        setIsSubmitting(true);
-        await moderateReview({
-            review_id: selectedItem.review_id,
-            action,
-            moderator_id: 'moderator-demo',
-            note,
+        let cancelled = false;
+        setDetailLoading(true);
+        getReviewDetail(selectedId).then((d) => {
+            if (!cancelled) {
+                setDetail(d ?? null);
+            }
+            setDetailLoading(false);
         });
-        setNote('');
-        await loadData();
-        setIsSubmitting(false);
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedId]);
+
+    const selectedItem = items.find((i) => i.id === selectedId) ?? null;
+    const canApprove = selectedItem?.status === 'PENDING';
+    const canReject = selectedItem?.status === 'PENDING';
+    const canHide = selectedItem?.status === 'APPROVED';
+    const alreadyProcessed = selectedItem?.status !== 'PENDING' && selectedItem?.status !== undefined;
+
+    const handleApprove = async () => {
+        if (!selectedId || !canApprove) return;
+        setError(null);
+        setIsSubmitting(true);
+        try {
+            await moderateReviewStatus(selectedId, 'APPROVED', moderatorNote);
+            setModeratorNote('');
+            await loadList();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Duyệt thất bại');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleReject = async () => {
+        if (!selectedId || !canReject) return;
+        const note = moderatorNote.trim();
+        if (note.length < 10) {
+            setError('Vui lòng nhập lý do từ chối (tối thiểu 10 ký tự)');
+            return;
+        }
+        setError(null);
+        setIsSubmitting(true);
+        try {
+            await moderateReviewStatus(selectedId, 'REJECTED', note);
+            setModeratorNote('');
+            await loadList();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Từ chối thất bại');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleHide = async () => {
+        if (!selectedId || !canHide) return;
+        const note = moderatorNote.trim();
+        if (note.length < 10) {
+            setError('Vui lòng nhập lý do ẩn (tối thiểu 10 ký tự)');
+            return;
+        }
+        setError(null);
+        setIsSubmitting(true);
+        try {
+            await moderateReviewStatus(selectedId, 'HIDDEN', note);
+            setModeratorNote('');
+            await loadList();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Ẩn thất bại');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
         <section className="mx-auto w-full max-w-7xl py-6">
             <header className="mb-6">
-                <h1 className="text-2xl font-semibold text-slate-900">Moderate Reviews</h1>
+                <h1 className="text-2xl font-semibold text-slate-900">Quản lý đánh giá</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                    Inspect flagged or recent reviews and apply moderation decisions.
+                    Duyệt, từ chối hoặc ẩn đánh giá phòng từ tenant.
                 </p>
             </header>
 
-            <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Filter by review status</label>
-                <select
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as 'all' | ReviewModerationStatus)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400 md:w-72"
-                >
-                    <option value="all">All status</option>
-                    <option value="flagged">Flagged</option>
-                    <option value="approved">Approved</option>
-                    <option value="hidden">Hidden</option>
-                    <option value="deleted">Deleted</option>
-                </select>
+            <div className="mb-4 flex flex-wrap gap-2">
+                {TABS.map((tab) => (
+                    <button
+                        key={tab.value}
+                        type="button"
+                        onClick={() => setActiveTab(tab.value)}
+                        className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                            activeTab === tab.value
+                                ? 'bg-slate-900 text-white'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
+            {error && (
+                <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {error}
+                </div>
+            )}
+
             {isLoading ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
-                    Loading reviews...
+                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">
+                    Đang tải danh sách...
                 </div>
             ) : (
                 <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-2">
-                        {filteredItems.length === 0 ? (
-                            <p className="p-4 text-sm text-slate-600">No review found for current filter.</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white">
+                        {items.length === 0 ? (
+                            <div className="p-8 text-center text-slate-600">
+                                Không có đánh giá nào trong tab này.
+                            </div>
                         ) : (
                             <ul className="divide-y divide-slate-100">
-                                {filteredItems.map((item) => (
-                                    <li key={item.review_id}>
+                                {items.map((item) => (
+                                    <li key={item.id}>
                                         <button
                                             type="button"
-                                            onClick={() => setSelectedId(item.review_id)}
+                                            onClick={() => setSelectedId(item.id)}
                                             className={`w-full px-4 py-3 text-left transition ${
-                                                selectedId === item.review_id ? 'bg-slate-50' : 'hover:bg-slate-50'
+                                                selectedId === item.id ? 'bg-slate-50' : 'hover:bg-slate-50'
                                             }`}
                                         >
-                                            <div className="flex items-center justify-between gap-2">
-                                                <p className="font-medium text-slate-900">{item.rental_title}</p>
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-medium text-slate-900 truncate">
+                                                        {item.room_name || item.target_id || 'Phòng'}
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-slate-600 line-clamp-2">
+                                                        {item.content || '(Không có nhận xét)'}
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-slate-500">
+                                                        {item.reviewer_name || item.reviewer_email || item.reviewer_id} •{' '}
+                                                        {formatDateTime(item.created_at)}
+                                                    </p>
+                                                </div>
                                                 <span
-                                                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClass[item.status]}`}
+                                                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE[item.status]}`}
                                                 >
-                                                    {statusLabel[item.status]}
+                                                    {STATUS_LABEL[item.status]}
                                                 </span>
                                             </div>
-                                            <p className="mt-1 text-sm text-slate-600 line-clamp-2">
-                                                {item.content}
-                                            </p>
-                                            <p className="mt-1 text-xs text-slate-500">
-                                                Reviewer: {item.reviewer_id} | Created:{' '}
-                                                {formatDateTime(item.created_at)}
-                                            </p>
                                         </button>
                                     </li>
                                 ))}
@@ -154,88 +250,164 @@ export function ModerateReviewsPage() {
 
                     <div className="rounded-2xl border border-slate-200 bg-white p-4">
                         {!selectedItem ? (
-                            <p className="text-sm text-slate-600">Select a review to inspect details.</p>
+                            <p className="py-8 text-center text-slate-600">Chọn một đánh giá để xem chi tiết.</p>
+                        ) : detailLoading ? (
+                            <div className="py-8 text-center text-slate-600">Đang tải chi tiết...</div>
                         ) : (
                             <div className="space-y-4">
-                                <div>
-                                    <h2 className="text-lg font-semibold text-slate-900">{selectedItem.rental_title}</h2>
-                                    <p className="mt-1 text-sm text-slate-600">{selectedItem.content}</p>
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold text-slate-900">
+                                        {detail?.room?.roomName || selectedItem.room_name || 'Phòng'}
+                                    </h2>
+                                    <span
+                                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE[selectedItem.status]}`}
+                                    >
+                                        {STATUS_LABEL[selectedItem.status]}
+                                    </span>
                                 </div>
 
-                                <dl className="grid grid-cols-2 gap-2 text-sm text-slate-700">
-                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                        <dt className="text-xs text-slate-500">Reviewer</dt>
-                                        <dd className="font-medium">{selectedItem.reviewer_id}</dd>
-                                    </div>
-                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                        <dt className="text-xs text-slate-500">Rating</dt>
-                                        <dd className="font-medium">{selectedItem.rating}/5</dd>
-                                    </div>
-                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                        <dt className="text-xs text-slate-500">Flag reason</dt>
-                                        <dd className="font-medium">{selectedItem.flag_reason}</dd>
-                                    </div>
-                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                        <dt className="text-xs text-slate-500">Warning count</dt>
-                                        <dd className="font-medium">{selectedItem.warning_count}</dd>
-                                    </div>
-                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                        <dt className="text-xs text-slate-500">Status</dt>
-                                        <dd className="font-medium">{statusLabel[selectedItem.status]}</dd>
-                                    </div>
-                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                                        <dt className="text-xs text-slate-500">Moderated at</dt>
-                                        <dd className="font-medium">{formatDateTime(selectedItem.moderated_at)}</dd>
-                                    </div>
-                                </dl>
-
-                                <div>
-                                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                                        Moderator note
-                                    </label>
-                                    <textarea
-                                        value={note}
-                                        onChange={(event) => setNote(event.target.value)}
-                                        rows={3}
-                                        placeholder="Optional moderation note"
-                                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                                {detail?.room?.images?.[0] && (
+                                    <img
+                                        src={detail.room.images[0]}
+                                        alt="Phòng"
+                                        className="h-40 w-full rounded-xl object-cover"
                                     />
+                                )}
+
+                                <div>
+                                    <h3 className="text-sm font-medium text-slate-700">Thông tin tenant</h3>
+                                    <div className="mt-2 flex items-center gap-3">
+                                        {detail?.tenant?.avatarUrl ? (
+                                            <img
+                                                src={detail.tenant.avatarUrl}
+                                                alt=""
+                                                className="h-10 w-10 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-sm font-medium">
+                                                {(detail?.tenant?.fullName || '?')[0]}
+                                            </div>
+                                        )}
+                                        <div>
+                                            <p className="font-medium text-slate-900">
+                                                {detail?.tenant?.fullName || selectedItem.reviewer_name || '--'}
+                                            </p>
+                                            <p className="text-sm text-slate-600">
+                                                {detail?.tenant?.email || selectedItem.reviewer_email || '--'}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                        type="button"
-                                        disabled={isSubmitting}
-                                        onClick={() => onAction('approve')}
-                                        className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-70"
-                                    >
-                                        {actionLabel.approve}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={isSubmitting}
-                                        onClick={() => onAction('hide')}
-                                        className="rounded-xl bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-70"
-                                    >
-                                        {actionLabel.hide}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={isSubmitting}
-                                        onClick={() => onAction('delete')}
-                                        className="rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-70"
-                                    >
-                                        {actionLabel.delete}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={isSubmitting}
-                                        onClick={() => onAction('warn_user')}
-                                        className="rounded-xl bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-70"
-                                    >
-                                        {actionLabel.warn_user}
-                                    </button>
+                                {detail?.contract && (
+                                    <div>
+                                        <h3 className="text-sm font-medium text-slate-700">Thông tin hợp đồng</h3>
+                                        <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                                            <div>
+                                                <dt className="text-slate-500">Ngày bắt đầu</dt>
+                                                <dd className="font-medium">{formatDate(detail.contract.startDate)}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-slate-500">Ngày kết thúc</dt>
+                                                <dd className="font-medium">{formatDate(detail.contract.endDate)}</dd>
+                                            </div>
+                                        </dl>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <h3 className="text-sm font-medium text-slate-700">Nội dung đánh giá</h3>
+                                    <div className="mt-2 space-y-2">
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-amber-500">★</span>
+                                            <span className="font-medium">{detail?.rating ?? selectedItem.rating}/5</span>
+                                        </div>
+                                        {detail && (detail.cleanlinessRating ?? detail.locationRating ?? detail.valueRating ?? detail.landlordRating) && (
+                                            <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+                                                {detail.cleanlinessRating != null && (
+                                                    <span>Sạch sẽ: {detail.cleanlinessRating}/5</span>
+                                                )}
+                                                {detail.locationRating != null && (
+                                                    <span>Vị trí: {detail.locationRating}/5</span>
+                                                )}
+                                                {detail.valueRating != null && (
+                                                    <span>Giá trị: {detail.valueRating}/5</span>
+                                                )}
+                                                {detail.landlordRating != null && (
+                                                    <span>Chủ trọ: {detail.landlordRating}/5</span>
+                                                )}
+                                            </div>
+                                        )}
+                                        <p className="text-sm text-slate-700">{detail?.comment || selectedItem.content || '(Không có nhận xét)'}</p>
+                                    </div>
                                 </div>
+
+                                {detail?.moderator_note && (
+                                    <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                                        <dt className="text-slate-600">Ghi chú moderator</dt>
+                                        <dd className="mt-1 text-slate-800">{detail.moderator_note}</dd>
+                                    </div>
+                                )}
+
+                                {(canApprove || canReject || canHide) && (
+                                    <>
+                                        <div>
+                                            <label className="mb-1 block text-sm font-medium text-slate-700">
+                                                Ghi chú {canReject || canHide ? '(bắt buộc khi từ chối/ẩn)' : '(không bắt buộc)'}
+                                            </label>
+                                            <textarea
+                                                value={moderatorNote}
+                                                onChange={(e) => setModeratorNote(e.target.value)}
+                                                rows={3}
+                                                placeholder={
+                                                    canReject || canHide
+                                                        ? 'Nhập lý do (tối thiểu 10 ký tự)'
+                                                        : 'Ghi chú tùy chọn'
+                                                }
+                                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                                            />
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {canApprove && (
+                                                <button
+                                                    type="button"
+                                                    disabled={isSubmitting}
+                                                    onClick={handleApprove}
+                                                    className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-70"
+                                                >
+                                                    Duyệt
+                                                </button>
+                                            )}
+                                            {canReject && (
+                                                <button
+                                                    type="button"
+                                                    disabled={isSubmitting}
+                                                    onClick={handleReject}
+                                                    className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-70"
+                                                >
+                                                    Từ chối
+                                                </button>
+                                            )}
+                                            {canHide && (
+                                                <button
+                                                    type="button"
+                                                    disabled={isSubmitting}
+                                                    onClick={handleHide}
+                                                    className="rounded-xl bg-slate-600 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-70"
+                                                >
+                                                    Ẩn
+                                                </button>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+
+                                {alreadyProcessed && (
+                                    <p className="text-sm text-slate-500">
+                                        Đã xử lý bởi {detail?.moderator_name || 'moderator'} lúc{' '}
+                                        {formatDateTime(detail?.reviewed_at || selectedItem.reviewed_at)}
+                                    </p>
+                                )}
                             </div>
                         )}
                     </div>

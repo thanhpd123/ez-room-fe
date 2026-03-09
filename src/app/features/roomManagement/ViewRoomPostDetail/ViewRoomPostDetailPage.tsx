@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { RoomStatus } from '@/lib/models/room.model';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
 import { getRoomPostById, deleteRoomPost, getRoomTenants, type RoomTenant, type RoomPreorder } from '../shared/room-post-storage';
+import { CreateContractModal } from '../CreateContractModal';
 import {
     ROOM_POST_STATUS_OPTIONS,
     type ManagedRoomPostItem,
@@ -43,6 +44,7 @@ export function ViewRoomPostDetailPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [currentTab, setCurrentTab] = useState<'details' | 'tenants'>('details');
+    const [showCreateContract, setShowCreateContract] = useState(false);
     const [tenantData, setTenantData] = useState<{ rentals: RoomTenant[]; preorders: RoomPreorder[] }>({
         rentals: [],
         preorders: [],
@@ -90,6 +92,18 @@ export function ViewRoomPostDetailPage() {
     }, [currentTab, roomPostId, tenantData]);
 
     const rentalLabel = useMemo(() => rentalTitle || rentalId, [rentalId, rentalTitle]);
+
+    const refetchRoomAndTenants = useCallback(async () => {
+        if (!rentalId || !roomPostId) return;
+        const [rental, post, tenants] = await Promise.all([
+            getManagedRentalById(rentalId),
+            getRoomPostById(rentalId, roomPostId),
+            getRoomTenants(roomPostId),
+        ]);
+        setRentalTitle(rental?.title ?? '');
+        setRoomPost(post);
+        setTenantData(tenants);
+    }, [rentalId, roomPostId]);
 
     const getImageArray = () => {
         if (!roomPost) return [];
@@ -139,6 +153,15 @@ export function ViewRoomPostDetailPage() {
                     ← Quay lại danh sách phòng
                 </button>
                 <div className="flex gap-2">
+                    {roomPost.status === 'AVAILABLE' && (
+                        <button
+                            type="button"
+                            onClick={() => setShowCreateContract(true)}
+                            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                        >
+                            📄 Tạo hợp đồng thuê
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts/${roomPostId}/edit`)}
@@ -195,6 +218,17 @@ export function ViewRoomPostDetailPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showCreateContract && (
+                <CreateContractModal
+                    isOpen={showCreateContract}
+                    onClose={() => setShowCreateContract(false)}
+                    roomId={roomPostId}
+                    roomTitle={roomPost.title || roomPost.room_post_id}
+                    listedPrice={roomPost.price}
+                    onSuccess={refetchRoomAndTenants}
+                />
             )}
 
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
