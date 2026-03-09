@@ -741,6 +741,13 @@ export async function getRentalsForModeration(query?: {
         owner: { id: string; fullName: string; avatarUrl: string | null } | null;
         location: { id: string; address: string; district: string | null; city: string | null } | null;
         images: string[];
+        documents?: Array<{
+            id: string;
+            documentType: string;
+            imageUrl: string;
+            status: string;
+            note?: string | null;
+        }>;
     }>;
     pagination: { page: number; limit: number; total: number; totalPages: number };
 }> {
@@ -770,6 +777,44 @@ export async function updateRentalStatusRequest(
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Cập nhật trạng thái thất bại');
+    return data;
+}
+
+/**
+ * PUT /rentals/:rentalId – landlord update their rental.
+ */
+export async function updateRentalRequest(
+    rentalId: string,
+    payload: {
+        title?: string;
+        description?: string;
+        address?: string;
+        district?: string;
+        city?: string;
+        images?: string[];
+        status?: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN';
+    }
+): Promise<{ success: boolean; message: string; data: Record<string, unknown> }> {
+    const res = await authFetch(`/rentals/${rentalId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Cập nhật bài đăng thất bại');
+    return data;
+}
+
+/**
+ * DELETE /rentals/:rentalId – landlord delete their rental.
+ */
+export async function deleteRentalRequest(
+    rentalId: string
+): Promise<{ success: boolean; message: string; data: { id: string; title: string } }> {
+    const res = await authFetch(`/rentals/${rentalId}`, {
+        method: 'DELETE',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Xóa bài đăng thất bại');
     return data;
 }
 
@@ -1118,3 +1163,83 @@ export async function getLandlordProfileRequest(userId: string): Promise<Landlor
     return json;
 }
 
+// ============ REPORT / VIOLATION ============
+// Align với report_status_enum và report_target_type_enum trong Prisma schema
+
+export type ReportTargetTypeEnum = 'USER' | 'ROOM' | 'BOOKING' | 'REVIEW';
+export type ReportStatusEnum = 'PENDING' | 'APPROVED' | 'REJECTED' | 'DISMISSED';
+
+export interface ReportItem {
+    id: string;
+    reporterId: string;
+    targetType: ReportTargetTypeEnum;
+    targetId: string;
+    reason: string;
+    description: string | null;
+    status: ReportStatusEnum;
+    reviewedBy: string | null;
+    moderatorNote: string | null;
+    reviewedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    reporter?: { id: string; fullName: string; email: string; phone: string | null; avatarUrl: string | null };
+    targetUser?: { id: string; fullName: string; email: string; phone: string | null; avatarUrl: string | null } | null;
+    moderator?: { id: string; fullName: string } | null;
+}
+
+/**
+ * POST /reports – submit a violation report (any logged-in user).
+ */
+export async function createReportRequest(body: {
+    targetType: 'USER' | 'ROOM' | 'BOOKING' | 'REVIEW';
+    targetId: string;
+    reason: string;
+    description?: string;
+}): Promise<{ success: boolean; message: string; data: ReportItem }> {
+    const res = await authFetch('/reports', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi báo cáo thất bại');
+    return data;
+}
+
+/**
+ * GET /reports – list reports (moderator/admin).
+ */
+export async function getReportsRequest(params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+}): Promise<{
+    success: boolean;
+    data: ReportItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.status) search.set('status', params.status);
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    const qs = search.toString();
+    const res = await authFetch(`/reports${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách báo cáo');
+    return data;
+}
+
+/**
+ * PATCH /reports/:id – handle/resolve a report (moderator/admin).
+ */
+export async function handleReportRequest(
+    reportId: string,
+    body: { status: Exclude<ReportStatusEnum, 'PENDING'>; moderatorNote?: string }
+): Promise<{ success: boolean; message: string; data: ReportItem }> {
+    const res = await authFetch(`/reports/${encodeURIComponent(reportId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Xử lý báo cáo thất bại');
+    return data;
+}

@@ -8,6 +8,7 @@ import {
     HomeOutlined,
     EnvironmentOutlined,
     AppstoreOutlined,
+    WalletOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     LogoutOutlined,
@@ -31,6 +32,7 @@ const menuItems: MenuItem[] = [
     getItem('Dashboard', '/admin', <DashboardOutlined />),
     getItem('Quản lý Users', '/admin/users', <UserOutlined />),
     getItem('Quản lý Bài đăng', '/admin/rentals', <HomeOutlined />),
+    getItem('Quản lý Ví', '/admin/wallets', <WalletOutlined />),
     getItem('Quản lý Địa điểm', '/admin/locations', <EnvironmentOutlined />),
     getItem('Quản lý Tiện ích', '/admin/amenities', <AppstoreOutlined />),
 ];
@@ -85,11 +87,13 @@ export function AdminLayout() {
             ? '/admin/users'
             : location.pathname.startsWith('/admin/rentals')
                 ? '/admin/rentals'
-                : location.pathname.startsWith('/admin/locations')
-                    ? '/admin/locations'
-                    : location.pathname.startsWith('/admin/amenities')
-                        ? '/admin/amenities'
-                        : '/admin';
+                : location.pathname.startsWith('/admin/wallets')
+                    ? '/admin/wallets'
+                    : location.pathname.startsWith('/admin/locations')
+                        ? '/admin/locations'
+                        : location.pathname.startsWith('/admin/amenities')
+                            ? '/admin/amenities'
+                            : '/admin';
 
     return (
         <Layout style={{ minHeight: '100vh' }}>

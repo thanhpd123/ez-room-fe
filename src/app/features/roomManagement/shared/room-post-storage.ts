@@ -13,12 +13,12 @@ async function apiRequest<T>(
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
     };
-    
+
     const res = await fetch(getApiUrl(endpoint), {
         ...options,
         headers,
     });
-    
+
     const data = await res.json();
     if (!res.ok) {
         throw new Error(data?.message || 'API request failed');
@@ -59,14 +59,41 @@ export async function createRoomPost(payload: CreateManagedRoomPostInput): Promi
     return response.data;
 }
 
-export async function updateRoomPostModerationStatus(
+export async function updateRoomPost(
     roomPostId: string,
-    moderationStatus: ManagedRoomPostItem['moderation_status']
+    payload: Partial<CreateManagedRoomPostInput>
 ): Promise<ManagedRoomPostItem | null> {
     try {
         const response = await apiRequest<ApiResponse<ManagedRoomPostItem>>(`/rooms/${roomPostId}`, {
             method: 'PUT',
-            body: JSON.stringify({ moderation_status: moderationStatus }),
+            body: JSON.stringify(payload),
+        });
+        return response.data || null;
+    } catch {
+        return null;
+    }
+}
+
+export async function deleteRoomPost(roomPostId: string): Promise<boolean> {
+    try {
+        await apiRequest<ApiResponse<{ id: string }>>(`/rooms/${roomPostId}`, {
+            method: 'DELETE',
+        });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function moderateRoomPostApi(
+    roomPostId: string,
+    decision: 'approved' | 'rejected',
+    note?: string
+): Promise<ManagedRoomPostItem | null> {
+    try {
+        const response = await apiRequest<ApiResponse<ManagedRoomPostItem>>(`/rooms/${roomPostId}/moderate`, {
+            method: 'PUT',
+            body: JSON.stringify({ decision, note }),
         });
         return response.data || null;
     } catch {

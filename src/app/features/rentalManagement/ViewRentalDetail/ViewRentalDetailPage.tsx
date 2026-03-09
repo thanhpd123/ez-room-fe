@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getRentalByIdRequest } from '@/lib/api';
+import { getRentalByIdRequest, deleteRentalRequest } from '@/lib/api';
 import { findOldAddress, type OldAddressInfo } from '@/app/constants/v1-v2-mapping';
 import { RENTAL_STATUS_OPTIONS } from '../shared/types';
 
@@ -49,6 +49,9 @@ export function ViewRentalDetailPage() {
     const [rental, setRental] = useState<RentalDetail | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [oldAddress, setOldAddress] = useState<OldAddressInfo | null>(null);
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -153,35 +156,101 @@ export function ViewRentalDetailPage() {
                 >
                     ← Quay lại
                 </button>
-                <button
-                    type="button"
-                    onClick={() => navigate('/rental-management/rentals/create')}
-                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                >
-                    Tạo bài đăng mới
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/rental-management/rentals/${rentalId}/edit`)}
+                        className="rounded-xl border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                    >
+                        ✏️ Sửa
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="rounded-xl border border-rose-500 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
+                    >
+                        🗑️ Xóa
+                    </button>
+                </div>
             </div>
 
+            {/* Delete Confirmation Dialog */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6">
+                        <h3 className="text-lg font-semibold text-slate-900">Xác nhận xóa</h3>
+                        <p className="mt-2 text-sm text-slate-600">
+                            Bạn có chắc muốn xóa bài đăng <strong>"{rental?.title}"</strong>? 
+                            Hành động này không thể hoàn tác.
+                        </p>
+                        <div className="mt-4 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteConfirm(false)}
+                                disabled={isDeleting}
+                                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    setIsDeleting(true);
+                                    try {
+                                        await deleteRentalRequest(rentalId);
+                                        navigate('/rental-management/rentals');
+                                    } catch (err) {
+                                        alert(err instanceof Error ? err.message : 'Xóa thất bại');
+                                    } finally {
+                                        setIsDeleting(false);
+                                        setShowDeleteConfirm(false);
+                                    }
+                                }}
+                                disabled={isDeleting}
+                                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
+                            >
+                                {isDeleting ? 'Đang xóa...' : 'Xóa'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                {/* Hero image or gallery */}
+                            {/* Hero image or gallery */}
                 {rental.images && rental.images.length > 0 ? (
                     <div>
                         <img
-                            src={rental.images[0]}
+                            src={rental.images[selectedImageIndex]}
                             alt={rental.title}
                             className="h-64 w-full object-cover sm:h-80"
                         />
                         {rental.images.length > 1 && (
                             <div className="flex gap-2 overflow-x-auto p-3 bg-slate-50">
                                 {rental.images.map((url, i) => (
-                                    <img
+                                    <button
                                         key={url}
-                                        src={url}
-                                        alt={`Ảnh ${i + 1}`}
-                                        className="h-20 w-20 flex-shrink-0 rounded-lg object-cover border border-slate-200"
-                                    />
+                                        type="button"
+                                        onClick={() => setSelectedImageIndex(i)}
+                                        className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${
+                                            selectedImageIndex === i
+                                                ? 'border-slate-900'
+                                                : 'border-slate-200 hover:border-slate-400'
+                                        }`}
+                                    >
+                                        <img
+                                            src={url}
+                                            alt={`Ảnh ${i + 1}`}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    </button>
                                 ))}
                             </div>
+                        )}
+                        {rental.images.length > 1 && (
+                            <p className="text-center text-xs text-slate-500 pb-2">
+                                {selectedImageIndex + 1} / {rental.images.length}
+                            </p>
                         )}
                     </div>
                 ) : (
@@ -205,7 +274,7 @@ export function ViewRentalDetailPage() {
                         {oldAddress && (
                             <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
                                 <p className="text-xs text-blue-900">
-                                    <strong>📋 Cập nhật địa chỉ hành chính:</strong><br/>
+                                    <strong> Cập nhật địa chỉ hành chính:</strong><br/>
                                     Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br/>
                                     Bây giờ: <strong>{fullAddress}</strong>
                                 </p>

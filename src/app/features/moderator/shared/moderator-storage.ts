@@ -1,5 +1,4 @@
-import { getRentalsForModeration as getRentalsForModerationApi, updateRentalStatusRequest } from '@/lib/api';
-import { listManagedRoomPosts, updateRoomPostModerationStatus } from '@/app/features/roomManagement/shared/room-post-storage';
+import { authFetch } from '@/lib/api';
 import type {
     HandleReportInput,
     ModerateRentalInput,
@@ -13,6 +12,8 @@ import type {
     RoomPostModerationItem,
     ViolationReport,
 } from './types';
+
+type ReportStatusEnum = 'PENDING' | 'APPROVED' | 'REJECTED' | 'DISMISSED';
 
 const STORAGE_KEY = 'ezroom:moderator:state';
 
@@ -182,7 +183,9 @@ function toReviewStatus(action: ModerateReviewInput['action']): ReviewModeration
 
 export async function listRentalModerationItems() {
     try {
-        const response = await getRentalsForModerationApi();
+        const res = await authFetch('/moderator/rentals/moderation');
+        const response = await res.json();
+        if (!res.ok) throw new Error(response?.message || 'Lấy danh sách duyệt thất bại');
         const state = readState();
 
         const result: RentalModerationItem[] = response.data.map((rental) => {
@@ -202,6 +205,7 @@ export async function listRentalModerationItems() {
                 last_moderated_at: decision?.moderated_at,
                 last_note: decision?.note,
                 images: rental.images,
+                documents: rental.documents ?? [],
                 owner_email: (rental.owner as Record<string, unknown>)?.email as string | undefined,
                 owner_phone: (rental.owner as Record<string, unknown>)?.phone as string | undefined,
                 rooms_count: (rental as Record<string, unknown>).roomsCount as number | undefined,
@@ -238,12 +242,11 @@ export async function moderateRental(input: ModerateRentalInput) {
 
     writeState(state);
 
-    // Call real backend API to update rental status
     try {
-        await updateRentalStatusRequest(
-            input.rental_id,
-            input.decision === 'approved' ? 'AVAILABLE' : 'HIDDEN'
-        );
+        await authFetch(`/moderator/rentals/${input.rental_id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: input.decision === 'approved' ? 'AVAILABLE' : 'HIDDEN' }),
+        });
     } catch (err) {
         console.error('Failed to update rental status via API:', err);
     }
@@ -251,28 +254,88 @@ export async function moderateRental(input: ModerateRentalInput) {
 
 export async function listRoomPostModerationItems() {
     await wait();
+
+    interface RoomApiItem {
+        room_post_id: string;
+        rental_id: string;
+        title: string;
+        price: number;
+        area: number;
+        max_occupants: number;
+        status: string;
+        created_at: string;
+        images?: string[];
+        amenities?: Array<{ id: string; name: string }>;
+        description?: string;
+    }
+    interface RentalApiItem {
+        id: string;
+        title: string;
+        owner?: { fullName?: string; email?: string; phone?: string };
+    }
+
+    const fetchRooms = async (): Promise<RoomApiItem[]> => {
+        const res = await authFetch('/moderator/rooms');
+        const json = await res.json();
+        return json.data || [];
+    };
+    const fetchRentals = async (): Promise<{ data: RentalApiItem[] }> => {
+        const res = await authFetch('/moderator/rentals/moderation');
+        const json = await res.json();
+        return { data: json.data || [] };
+    };
+
     const [posts, rentalsResponse] = await Promise.all([
-        listManagedRoomPosts(),
-        getRentalsForModerationApi().catch(() => ({ data: [] })),
+        fetchRooms(),
+        fetchRentals().catch(() => ({ data: [] as RentalApiItem[] })),
     ]);
-    const rentalMap = new Map(rentalsResponse.data.map((item) => [item.id, item.title]));
+
+    interface RentalInfo {
+        title: string;
+        owner_name?: string;
+        owner_email?: string;
+        owner_phone?: string;
+    }
+    const rentalMap = new Map<string, RentalInfo>();
+    for (const r of rentalsResponse.data) {
+        rentalMap.set(r.id, {
+            title: r.title,
+            owner_name: r.owner?.fullName ?? undefined,
+            owner_email: r.owner?.email ?? undefined,
+            owner_phone: r.owner?.phone ?? undefined,
+        });
+    }
+
     const state = readState();
+
+    const deriveStatus = (roomStatus: string): ModerationDecision => {
+        if (roomStatus === 'PENDING') return 'pending_review';
+        if (roomStatus === 'MAINTENANCE') return 'rejected';
+        return 'approved';
+    };
 
     const result: RoomPostModerationItem[] = posts.map((post) => {
         const decision = state.room_post_decisions[post.room_post_id];
+        const rentalInfo = rentalMap.get(post.rental_id);
         return {
             room_post_id: post.room_post_id,
             rental_id: post.rental_id,
-            rental_title: rentalMap.get(post.rental_id) ?? post.rental_id,
+            rental_title: rentalInfo?.title ?? post.rental_id,
             title: post.title,
             price: post.price,
             area: post.area,
             max_occupants: post.max_occupants,
             created_at: post.created_at,
             listing_status: post.status,
-            moderation_status: decision?.decision ?? post.moderation_status,
+            moderation_status: decision?.decision ?? deriveStatus(post.status),
             last_moderated_at: decision?.moderated_at,
             last_note: decision?.note,
+            images: post.images,
+            amenities: post.amenities,
+            description: post.description,
+            owner_name: rentalInfo?.owner_name,
+            owner_email: rentalInfo?.owner_email,
+            owner_phone: rentalInfo?.owner_phone,
         };
     });
 
@@ -301,53 +364,170 @@ export async function moderateRoomPost(input: ModerateRoomPostInput) {
     });
 
     writeState(state);
-    await updateRoomPostModerationStatus(input.room_post_id, input.decision);
+    try {
+        await authFetch(`/moderator/rooms/${input.room_post_id}/moderate`, {
+            method: 'PUT',
+            body: JSON.stringify({ decision: input.decision, note: input.note }),
+        });
+    } catch (err) {
+        console.error('Failed to moderate room post via API:', err);
+    }
 }
 
-export async function listViolationReports() {
-    await wait();
-    const state = readState();
-    return [...state.reports].sort((a, b) => {
-        if (a.status === b.status) {
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+export async function listViolationReports(): Promise<ViolationReport[]> {
+    try {
+        const res = await authFetch('/moderator/reports?limit=100');
+        const response = await res.json();
+        if (!res.ok) throw new Error(response?.message || 'Lỗi tải danh sách báo cáo');
+        interface BackendReport {
+            id: string;
+            reporterId: string;
+            targetType: string;
+            targetId: string;
+            reason: string;
+            description: string | null;
+            status: ReportStatusEnum;
+            reviewedAt: string | null;
+            createdAt: string;
+            reporter?: { fullName: string; email: string; phone: string | null };
+            targetUser?: { fullName: string; email: string; phone: string | null } | null;
         }
-        if (a.status === 'open') return -1;
-        if (b.status === 'open') return 1;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+
+        return (response.data || []).map((r: BackendReport) => {
+            let status: ViolationReport['status'] = 'open';
+            if (r.status === 'APPROVED' || r.status === 'REJECTED') status = 'resolved';
+            else if (r.status === 'DISMISSED') status = 'dismissed';
+
+            let target_type: ViolationReport['target_type'] = 'user';
+            if (r.targetType === 'ROOM') target_type = 'room_post';
+            else if (r.targetType === 'REVIEW') target_type = 'review';
+            else if (r.targetType === 'BOOKING') target_type = 'rental';
+
+            let action_taken: ViolationReport['action_taken'] | undefined;
+            if (r.status === 'APPROVED') action_taken = 'warning';
+            else if (r.status === 'DISMISSED') action_taken = 'dismiss_report';
+            else if (r.status === 'REJECTED') action_taken = 'remove_content';
+
+            return {
+                report_id: r.id,
+                reporter_id: r.reporter?.fullName ?? r.reporterId,
+                reporter_email: r.reporter?.email,
+                reporter_phone: r.reporter?.phone ?? undefined,
+                target_user_id: r.targetUser?.fullName ?? r.targetId,
+                target_user_name: r.targetUser?.fullName,
+                target_user_email: r.targetUser?.email,
+                target_user_phone: r.targetUser?.phone ?? undefined,
+                target_type,
+                target_id: r.targetId,
+                category: r.reason as ViolationReport['category'],
+                details: r.description ?? '',
+                status,
+                action_taken,
+                created_at: r.createdAt,
+                resolved_at: r.reviewedAt ?? undefined,
+            } satisfies ViolationReport;
+        }).sort((a, b) => {
+            if (a.status === b.status) {
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            }
+            if (a.status === 'open') return -1;
+            if (b.status === 'open') return 1;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+    } catch (err) {
+        console.error('Failed to fetch reports from API, falling back to local:', err);
+        await wait();
+        const state = readState();
+        return [...state.reports].sort((a, b) => {
+            if (a.status === b.status) {
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            }
+            if (a.status === 'open') return -1;
+            if (b.status === 'open') return 1;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+    }
 }
 
 export async function handleViolationReport(input: HandleReportInput) {
-    await wait();
-    const state = readState();
-    const resolvedAt = new Date().toISOString();
-    const status = input.action === 'dismiss_report' ? 'dismissed' : 'resolved';
+    // Map frontend action -> report_status_enum (BE)
+    let backendStatus: Exclude<ReportStatusEnum, 'PENDING'>;
+    if (input.action === 'dismiss_report') {
+        backendStatus = 'DISMISSED';
+    } else if (input.action === 'remove_content' || input.action === 'restrict_content') {
+        backendStatus = 'REJECTED';
+    } else {
+        backendStatus = 'APPROVED';
+    }
 
-    state.reports = state.reports.map((report) =>
-        report.report_id === input.report_id
-            ? {
-                ...report,
-                status,
-                action_taken: input.action,
-                resolved_at: resolvedAt,
-            }
-            : report
-    );
+    try {
+        const res = await authFetch(`/moderator/reports/${encodeURIComponent(input.report_id)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                status: backendStatus,
+                moderatorNote: input.note?.trim() || undefined,
+            }),
+        });
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData?.message || 'Xử lý báo cáo thất bại');
+        }
+    } catch (err) {
+        console.error('Failed to handle report via API, falling back to local:', err);
+        // Fallback to local storage if API fails
+        await wait();
+        const state = readState();
+        const resolvedAt = new Date().toISOString();
+        const status = input.action === 'dismiss_report' ? 'dismissed' : 'resolved';
 
-    state.history.unshift({
-        history_id: createHistoryId(),
-        target_type: 'report',
-        target_id: input.report_id,
-        action: input.action,
-        note: input.note?.trim() || undefined,
-        moderator_id: input.moderator_id,
-        created_at: resolvedAt,
-    });
+        state.reports = state.reports.map((report) =>
+            report.report_id === input.report_id
+                ? {
+                    ...report,
+                    status,
+                    action_taken: input.action,
+                    resolved_at: resolvedAt,
+                }
+                : report
+        );
 
-    writeState(state);
+        state.history.unshift({
+            history_id: createHistoryId(),
+            target_type: 'report',
+            target_id: input.report_id,
+            action: input.action,
+            note: input.note?.trim() || undefined,
+            moderator_id: input.moderator_id,
+            created_at: resolvedAt,
+        });
+
+        writeState(state);
+    }
 }
 
 export async function listModeratedReviews() {
+    try {
+        const res = await authFetch('/moderator/reviews?limit=100');
+        const json = await res.json();
+        if (res.ok && json.data && json.data.length > 0) {
+            const state = readState();
+            return (json.data as Array<Record<string, unknown>>).map((r): ModeratedReview => ({
+                review_id: r.review_id as string,
+                reviewer_id: (r.reviewer_name as string) ?? (r.reviewer_id as string),
+                rental_id: r.target_id as string,
+                rental_title: (r.rental_title as string) ?? '',
+                rating: (r.rating as number) ?? 0,
+                content: (r.content as string) ?? '',
+                flag_reason: 'Routine quality check',
+                status: state.reviews.find((sr) => sr.review_id === r.review_id)?.status ?? 'flagged',
+                warning_count: state.reviews.find((sr) => sr.review_id === r.review_id)?.warning_count ?? 0,
+                created_at: (r.created_at as string) ?? new Date().toISOString(),
+                moderated_at: state.reviews.find((sr) => sr.review_id === r.review_id)?.moderated_at,
+            })).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        }
+    } catch (err) {
+        console.error('Failed to fetch reviews from API, falling back to local:', err);
+    }
     await wait();
     const state = readState();
     return [...state.reviews].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -381,6 +561,16 @@ export async function moderateReview(input: ModerateReviewInput) {
     });
 
     writeState(state);
+
+    if (input.action === 'delete') {
+        try {
+            await authFetch(`/moderator/reviews/${encodeURIComponent(input.review_id)}`, {
+                method: 'DELETE',
+            });
+        } catch (err) {
+            console.error('Failed to delete review via API:', err);
+        }
+    }
 }
 
 export async function listModerationHistory() {

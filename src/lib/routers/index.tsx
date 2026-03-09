@@ -9,6 +9,7 @@ import { LoginPage, ForgotPasswordPage, ResetPasswordPage, CompleteSignupPage, O
 import { RegisterPage } from '@/app/features/common';
 import { ProfilePage } from '@/app/features/profile';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
+import { PageLoader } from '@/app/components/PageLoader';
 
 /* Lazy-loaded chunks – admin/moderator/rental-mgmt only loaded when visited */
 const BookingHistoryPage = lazy(() => import('@/app/features/booking-history').then((m) => ({ default: m.BookingHistoryPage })));
@@ -20,30 +21,26 @@ const ViewRentalDetailPage = lazy(() => import('@/app/features/rentalManagement/
 const CreateRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.CreateRoomPostPage })));
 const ViewListRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewListRoomPostPage })));
 const ViewRoomPostDetailPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewRoomPostDetailPage })));
+const EditRentalPage = lazy(() => import('@/app/features/rentalManagement/EditRental/EditRentalPage').then((m) => ({ default: m.EditRentalPage })));
+const EditRoomPostPage = lazy(() => import('@/app/features/roomManagement/EditRoomPost/EditRoomPostPage').then((m) => ({ default: m.EditRoomPostPage })));
 const HandleReportsPage = lazy(() => import('@/app/features/moderator/handle-reports').then((m) => ({ default: m.HandleReportsPage })));
 const ModerateRentalListPage = lazy(() => import('@/app/features/moderator/moderate-rental').then((m) => ({ default: m.ModerateRentalListPage })));
 const ModerateReviewsPage = lazy(() => import('@/app/features/moderator/moderate-reviews').then((m) => ({ default: m.ModerateReviewsPage })));
 const ModerateRoomPostListPage = lazy(() => import('@/app/features/moderator/moderateRoomPost').then((m) => ({ default: m.ModerateRoomPostListPage })));
 const ModeratorDashboardPage = lazy(() => import('@/app/features/moderator').then((m) => ({ default: m.ModeratorDashboardPage })));
+const TenantLandlordListPage = lazy(() => import('@/app/features/moderator/tenant-landlord').then((m) => ({ default: m.TenantLandlordListPage })));
 const AdminLayout = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLayout })));
 const AdminDashboardPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminDashboardPage })));
 const AdminUsersPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminUsersPage })));
 const AdminRentalsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminRentalsPage })));
 const AdminAmenitiesPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminAmenitiesPage })));
 const AdminLocationsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLocationsPage })));
+const AdminWalletsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminWalletsPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
 const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
 const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) => ({ default: m.FindRoommatePage })));
 const ChatPage = lazy(() => import('@/app/features/chat').then((m) => ({ default: m.ChatPage })));
 const WalletPage = lazy(() => import('@/app/features/wallet').then((m) => ({ default: m.WalletPage })));
-
-function PageLoader() {
-    return (
-        <div className="min-h-[200px] flex items-center justify-center">
-            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
-        </div>
-    );
-}
 
 export const router = createBrowserRouter([
     {
@@ -168,9 +165,11 @@ export const router = createBrowserRouter([
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><ViewListRentalPage /></Suspense> },
             { path: 'rentals/create', element: <Suspense fallback={<PageLoader />}><CreateRentalPage /></Suspense> },
             { path: 'rentals/:rentalId', element: <Suspense fallback={<PageLoader />}><ViewRentalDetailPage /></Suspense> },
+            { path: 'rentals/:rentalId/edit', element: <Suspense fallback={<PageLoader />}><EditRentalPage /></Suspense> },
             { path: 'rentals/:rentalId/room-posts', element: <Suspense fallback={<PageLoader />}><ViewListRoomPostPage /></Suspense> },
             { path: 'rentals/:rentalId/room-posts/create', element: <Suspense fallback={<PageLoader />}><CreateRoomPostPage /></Suspense> },
             { path: 'rentals/:rentalId/room-posts/:roomPostId', element: <Suspense fallback={<PageLoader />}><ViewRoomPostDetailPage /></Suspense> },
+            { path: 'rentals/:rentalId/room-posts/:roomPostId/edit', element: <Suspense fallback={<PageLoader />}><EditRoomPostPage /></Suspense> },
         ],
     },
     {
@@ -204,6 +203,7 @@ export const router = createBrowserRouter([
             { path: 'room-posts', element: <Suspense fallback={<PageLoader />}><ModerateRoomPostListPage /></Suspense> },
             { path: 'reports', element: <Suspense fallback={<PageLoader />}><HandleReportsPage /></Suspense> },
             { path: 'reviews', element: <Suspense fallback={<PageLoader />}><ModerateReviewsPage /></Suspense> },
+            { path: 'users', element: <Suspense fallback={<PageLoader />}><TenantLandlordListPage /></Suspense> },
         ],
     },
     {
@@ -221,6 +221,7 @@ export const router = createBrowserRouter([
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><AdminRentalsPage /></Suspense> },
             { path: 'amenities', element: <Suspense fallback={<PageLoader />}><AdminAmenitiesPage /></Suspense> },
             { path: 'locations', element: <Suspense fallback={<PageLoader />}><AdminLocationsPage /></Suspense> },
+            { path: 'wallets', element: <Suspense fallback={<PageLoader />}><AdminWalletsPage /></Suspense> },
         ],
     },
 ]);

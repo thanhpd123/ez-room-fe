@@ -9,9 +9,12 @@ import {
     PhoneOutlined,
     MoreOutlined,
     WarningOutlined,
+    LoadingOutlined,
 } from '@ant-design/icons';
+import { createReportRequest } from '@/lib/api';
 
 interface LandlordProfileHeaderProps {
+    landlordId: string;
     user: {
         fullName: string;
         avatarUrl: string | null;
@@ -48,14 +51,13 @@ function getSatisfactionLabel(avg: number): string {
     return 'Rất không hài lòng';
 }
 
-export function LandlordProfileHeader({ user, stats }: LandlordProfileHeaderProps) {
+export function LandlordProfileHeader({ landlordId, user, stats }: LandlordProfileHeaderProps) {
     const joinDuration = getJoinDuration(user.createdAt);
     const [reportModalOpen, setReportModalOpen] = useState(false);
     const [reportStep, setReportStep] = useState<1 | 2>(1);
     const [selectedReason, setSelectedReason] = useState('');
     const [reportDesc, setReportDesc] = useState('');
-    const [reportPhone, setReportPhone] = useState('');
-    const [reportEmail, setReportEmail] = useState('');
+    const [isSubmittingReport, setIsSubmittingReport] = useState(false);
     const [messageApi, contextHolder] = message.useMessage();
 
     const VIOLATION_OPTIONS = [
@@ -69,8 +71,6 @@ export function LandlordProfileHeader({ user, stats }: LandlordProfileHeaderProp
         setReportStep(1);
         setSelectedReason('');
         setReportDesc('');
-        setReportPhone('');
-        setReportEmail('');
     };
 
     const handleSelectReason = (reason: string) => {
@@ -78,24 +78,30 @@ export function LandlordProfileHeader({ user, stats }: LandlordProfileHeaderProp
         setReportStep(2);
     };
 
-    const handleSubmitReport = () => {
+    const handleSubmitReport = async () => {
         if (!reportDesc.trim()) {
             messageApi.warning('Vui lòng mô tả dấu hiệu sai phạm');
             return;
         }
-        if (!reportPhone.trim()) {
-            messageApi.warning('Vui lòng nhập số điện thoại');
-            return;
-        }
-        if (!reportEmail.trim()) {
-            messageApi.warning('Vui lòng nhập email');
-            return;
-        }
-        setReportModalOpen(false);
-        resetReport();
-        messageApi.success('Đã gửi báo cáo vi phạm. Cảm ơn bạn!');
-    };
 
+        setIsSubmittingReport(true);
+        try {
+            await createReportRequest({
+                targetType: 'USER',
+                targetId: landlordId,
+                reason: selectedReason,
+                description: reportDesc.trim(),
+            });
+            setReportModalOpen(false);
+            resetReport();
+            messageApi.success('Đã gửi báo cáo vi phạm. Cảm ơn bạn!');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Gửi báo cáo thất bại';
+            messageApi.error(msg);
+        } finally {
+            setIsSubmittingReport(false);
+        }
+    };
 
     return (
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -267,45 +273,41 @@ export function LandlordProfileHeader({ user, stats }: LandlordProfileHeaderProp
                         ))}
                     </div>
                 ) : (
-                    /* Step 2: Description + contact form */
+                    /* Step 2: Description form */
                     <div className="space-y-4">
+                        {/* Selected reason badge */}
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Lý do:</span>
+                            <span className="text-xs font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                                {selectedReason}
+                            </span>
+                        </div>
+
                         {/* Description */}
                         <div>
                             <textarea
-                                placeholder="Mô tả dấu hiệu sai phạm *"
+                                placeholder="Mô tả chi tiết dấu hiệu sai phạm *"
                                 value={reportDesc}
                                 onChange={(e) => setReportDesc(e.target.value)}
-                                rows={3}
+                                rows={4}
                                 className="w-full px-4 py-3 rounded-lg border border-border bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none transition-colors"
                             />
                         </div>
 
-                        {/* Contact info */}
-                        <p className="text-xs text-muted-foreground">
-                            Thông tin để EZROOM liên lạc với bạn khi cần thiết
-                        </p>
-                        <input
-                            type="tel"
-                            placeholder="Điện thoại của bạn *"
-                            value={reportPhone}
-                            onChange={(e) => setReportPhone(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg border border-border bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                        />
-                        <input
-                            type="email"
-                            placeholder="Email của bạn *"
-                            value={reportEmail}
-                            onChange={(e) => setReportEmail(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg border border-border bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                        />
+                        {/* Privacy note */}
+                        <div className="bg-muted/50 border border-border rounded-lg p-3 text-xs text-muted-foreground">
+                            🔒 Thông tin của bạn được bảo mật, chủ nhà sẽ không biết ai đã báo cáo.
+                        </div>
 
                         {/* Submit button */}
                         <button
                             type="button"
                             onClick={handleSubmitReport}
-                            className="w-full py-3 rounded-lg bg-amber-400 hover:bg-amber-500 text-foreground font-semibold text-sm transition-colors shadow-sm"
+                            disabled={isSubmittingReport}
+                            className="w-full py-3 rounded-lg bg-amber-400 hover:bg-amber-500 disabled:opacity-60 disabled:cursor-not-allowed text-foreground font-semibold text-sm transition-colors shadow-sm flex items-center justify-center gap-2"
                         >
-                            Báo cáo vi phạm
+                            {isSubmittingReport && <LoadingOutlined />}
+                            {isSubmittingReport ? 'Đang gửi...' : 'Báo cáo vi phạm'}
                         </button>
                     </div>
                 )}
