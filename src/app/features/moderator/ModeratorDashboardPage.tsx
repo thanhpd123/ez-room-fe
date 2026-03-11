@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getModeratorOverview, listModerationHistory } from './shared/moderator-storage';
+import {
+    getModeratorOverview,
+    listModerationHistory,
+    listModerationQueue,
+} from './shared/moderator-storage';
 import type { ModerationHistoryRecord } from './shared/types';
 
 interface OverviewState {
+    openQueueCount: number;
     pendingRentalCount: number;
     pendingRoomPostCount: number;
     openReportCount: number;
@@ -11,6 +16,7 @@ interface OverviewState {
 }
 
 const initialOverview: OverviewState = {
+    openQueueCount: 0,
     pendingRentalCount: 0,
     pendingRoomPostCount: 0,
     openReportCount: 0,
@@ -18,6 +24,11 @@ const initialOverview: OverviewState = {
 };
 
 const quickLinks = [
+    {
+        title: 'Moderation Queue',
+        path: '/moderator/queue',
+        key: 'openQueueCount' as const,
+    },
     {
         title: 'Moderate Rental List',
         path: '/moderator/rentals',
@@ -54,20 +65,33 @@ export function ModeratorDashboardPage() {
     const [overview, setOverview] = useState<OverviewState>(initialOverview);
     const [history, setHistory] = useState<ModerationHistoryRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         let active = true;
 
         const load = async () => {
             setIsLoading(true);
-            const [overviewData, historyData] = await Promise.all([
-                getModeratorOverview(),
-                listModerationHistory(),
-            ]);
-            if (!active) return;
-            setOverview(overviewData);
-            setHistory(historyData.slice(0, 8));
-            setIsLoading(false);
+            setError(null);
+            try {
+                const [overviewData, queueResult, historyData] = await Promise.all([
+                    getModeratorOverview(),
+                    listModerationQueue({ status: 'OPEN', limit: 1 }).catch(() => ({ pagination: { total: 0 } })),
+                    listModerationHistory(),
+                ]);
+                if (!active) return;
+                setOverview({
+                    ...overviewData,
+                    openQueueCount: queueResult.pagination?.total ?? 0,
+                });
+                setHistory(historyData.slice(0, 8));
+            } catch (err) {
+                if (!active) return;
+                setError(err instanceof Error ? err.message : 'Không thể tải dữ liệu');
+                setHistory([]);
+            } finally {
+                if (active) setIsLoading(false);
+            }
         };
 
         void load();
@@ -100,6 +124,10 @@ export function ModeratorDashboardPage() {
                     </Link>
                 ))}
             </div>
+
+            {error && (
+                <p className="mb-4 text-sm text-amber-600">Could not load history: {error}</p>
+            )}
 
             <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <h2 className="text-lg font-semibold text-slate-900">Recent Moderation History</h2>
