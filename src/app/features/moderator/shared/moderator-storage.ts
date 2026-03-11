@@ -666,10 +666,241 @@ export async function moderateReview(input: ModerateReviewInput) {
     await moderateReviewStatus(input.review_id, status, input.note);
 }
 
-export async function listModerationHistory() {
-    await wait();
-    const state = readState();
-    return [...state.history].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+export async function listModeratorLogs(params?: {
+    page?: number;
+    limit?: number;
+    targetType?: string;
+    action?: string;
+    moderatorId?: string;
+}): Promise<{
+    data: ModerationHistoryRecord[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.targetType) searchParams.set('targetType', params.targetType);
+    if (params?.action) searchParams.set('action', params.action);
+    if (params?.moderatorId) searchParams.set('moderatorId', params.moderatorId);
+
+    const res = await authFetch(`/moderator/logs?${searchParams.toString()}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.message || 'Lỗi tải lịch sử moderation');
+
+    const rawItems = (json.data || []) as Array<{
+        id: string;
+        moderator_id: string;
+        target_type: string;
+        target_id: string;
+        action: string;
+        previous_status?: string;
+        new_status?: string;
+        note?: string | null;
+        created_at: string;
+        users?: { id: string; fullName: string } | null;
+    }>;
+
+    const targetTypeMap: Record<string, ModerationHistoryRecord['target_type']> = {
+        RENTAL: 'rental',
+        ROOM: 'room_post',
+        REPORT: 'report',
+        FEEDBACK: 'review',
+        USER: 'user',
+    };
+
+    const data: ModerationHistoryRecord[] = rawItems.map((item) => ({
+        history_id: item.id,
+        target_type: targetTypeMap[item.target_type] ?? (item.target_type?.toLowerCase() as ModerationHistoryRecord['target_type']),
+        target_id: item.target_id,
+        action: item.action,
+        note: item.note ?? undefined,
+        moderator_id: item.users?.fullName ?? item.moderator_id,
+        created_at: item.created_at,
+    }));
+
+    return {
+        data,
+        pagination: json.pagination ?? { page: 1, limit: 20, total: data.length, totalPages: 1 },
+    };
+}
+
+export async function listModerationHistory(): Promise<ModerationHistoryRecord[]> {
+    try {
+        const result = await listModeratorLogs({ page: 1, limit: 50 });
+        return result.data;
+    } catch {
+        const state = readState();
+        return [...state.history].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+    }
+}
+
+export interface ModerationQueueItem {
+    id: string;
+    target_type: string;
+    target_id: string;
+    category: string;
+    priority: string;
+    status: string;
+    created_at: string;
+    due_by: string | null;
+    assigned_to: string | null;
+    assigned_to_id: string | null;
+    assigned_at: string | null;
+}
+
+export async function listModerationQueue(params?: {
+    status?: string;
+    priority?: string;
+    category?: string;
+    assignedTo?: string;
+    page?: number;
+    limit?: number;
+}): Promise<{
+    data: ModerationQueueItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.priority) searchParams.set('priority', params.priority);
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.assignedTo) searchParams.set('assignedTo', params.assignedTo);
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+
+    const res = await authFetch(`/moderator/queue?${searchParams.toString()}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.message || 'Lỗi tải moderation queue');
+
+    const rawItems = (json.data || []) as Array<{
+        id: string;
+        target_type: string;
+        target_id: string;
+        category: string;
+        priority: string;
+        status: string;
+        created_at: string;
+        due_by: string | null;
+        assigned_to: string | null;
+        assigned_at: string | null;
+        users?: { id: string; fullName: string } | null;
+    }>;
+
+    const data: ModerationQueueItem[] = rawItems.map((item) => ({
+        id: item.id,
+        target_type: item.target_type,
+        target_id: item.target_id,
+        category: item.category,
+        priority: item.priority,
+        status: item.status,
+        created_at: item.created_at,
+        due_by: item.due_by ?? null,
+        assigned_to: item.users?.fullName ?? item.assigned_to ?? null,
+        assigned_to_id: item.users?.id ?? item.assigned_to ?? null,
+        assigned_at: item.assigned_at ?? null,
+    }));
+
+    return {
+        data,
+        pagination: json.pagination ?? { page: 1, limit: 20, total: data.length, totalPages: 1 },
+    };
+}
+
+export async function assignQueueItem(queueItemId: string, assignTo?: string): Promise<ModerationQueueItem> {
+    const res = await authFetch(`/moderator/queue/${encodeURIComponent(queueItemId)}/assign`, {
+        method: 'PATCH',
+        body: JSON.stringify(assignTo ? { assignTo } : {}),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.message || 'Nhận task thất bại');
+    const item = json.data as { users?: { id: string; fullName: string } | null };
+    return {
+        id: json.data.id,
+        target_type: json.data.target_type,
+        target_id: json.data.target_id,
+        category: json.data.category,
+        priority: json.data.priority,
+        status: json.data.status,
+        created_at: json.data.created_at,
+        due_by: json.data.due_by ?? null,
+        assigned_to: item.users?.fullName ?? json.data.assigned_to ?? null,
+        assigned_to_id: item.users?.id ?? json.data.assigned_to ?? null,
+        assigned_at: json.data.assigned_at ?? null,
+    };
+}
+
+export interface QueueActivityItem {
+    id: string;
+    moderator_id: string;
+    moderator_name: string;
+    action: 'CLAIM' | 'RELEASE';
+    queue_item_id: string;
+    queue_target_type: string;
+    queue_target_id: string;
+    queue_category: string;
+    previous_status: string;
+    new_status: string;
+    created_at: string;
+}
+
+export async function listQueueActivity(params?: {
+    page?: number;
+    limit?: number;
+    action?: 'CLAIM' | 'RELEASE';
+    moderatorId?: string;
+}): Promise<{
+    data: QueueActivityItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.action) searchParams.set('action', params.action);
+    if (params?.moderatorId) searchParams.set('moderatorId', params.moderatorId);
+
+    const res = await authFetch(`/moderator/queue/activity?${searchParams.toString()}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.message || 'Lỗi tải lịch sử thao tác queue');
+
+    const rawItems = (json.data || []) as Array<{
+        id: string;
+        moderator_id: string;
+        action: string;
+        target_id: string;
+        previous_status: string | null;
+        new_status: string | null;
+        metadata?: { queue_target_type?: string; queue_target_id?: string; queue_category?: string } | null;
+        created_at: string;
+        users?: { id: string; fullName: string; email?: string } | null;
+    }>;
+
+    const data: QueueActivityItem[] = rawItems.map((item) => ({
+        id: item.id,
+        moderator_id: item.moderator_id,
+        moderator_name: item.users?.fullName ?? item.moderator_id,
+        action: item.action as 'CLAIM' | 'RELEASE',
+        queue_item_id: item.target_id,
+        queue_target_type: item.metadata?.queue_target_type ?? '—',
+        queue_target_id: item.metadata?.queue_target_id ?? '—',
+        queue_category: item.metadata?.queue_category ?? '—',
+        previous_status: item.previous_status ?? '—',
+        new_status: item.new_status ?? '—',
+        created_at: item.created_at,
+    }));
+
+    return {
+        data,
+        pagination: json.pagination ?? { page: 1, limit: 20, total: data.length, totalPages: 1 },
+    };
+}
+
+export async function releaseQueueItem(queueItemId: string): Promise<void> {
+    const res = await authFetch(`/moderator/queue/${encodeURIComponent(queueItemId)}/release`, {
+        method: 'PATCH',
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.message || 'Trả task thất bại');
 }
 
 export async function getModeratorOverview() {

@@ -37,6 +37,7 @@ function useDesktop(breakpoint = 768) {
 }
 
 function toTitleFromPath(pathname: string) {
+    if (pathname.includes('/moderator/queue')) return 'Moderation Queue';
     if (pathname.includes('/moderator/rentals')) return 'Duyệt nhà cho thuê';
     if (pathname.includes('/moderator/room-posts')) return 'Duyệt bài đăng phòng';
     if (pathname.includes('/moderator/reports')) return 'Báo cáo vi phạm';
