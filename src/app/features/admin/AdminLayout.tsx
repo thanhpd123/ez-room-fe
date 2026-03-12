@@ -14,6 +14,7 @@ import {
     LogoutOutlined,
     SettingOutlined,
 } from '@ant-design/icons';
+import { useAuth } from '@/app/context/AuthContext';
 
 const { Header, Sider, Content } = Layout;
 
@@ -41,21 +42,17 @@ export function AdminLayout() {
     const [collapsed, setCollapsed] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, signOut } = useAuth();
     const {
         token: { colorBgContainer, borderRadiusLG },
     } = theme.useToken();
-
-    // Get current user from localStorage
-    const userStr = localStorage.getItem('user');
-    const user = userStr ? JSON.parse(userStr) : null;
 
     const handleMenuClick = (e: { key: string }) => {
         navigate(e.key);
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+    const handleLogout = async () => {
+        await signOut();
         navigate('/login');
     };
 
@@ -162,12 +159,12 @@ export function AdminLayout() {
                             }}
                         >
                             <Avatar
-                                src={user?.avatar_url}
-                                icon={!user?.avatar_url && <UserOutlined />}
+                                src={user?.avatarUrl}
+                                icon={!user?.avatarUrl && <UserOutlined />}
                                 style={{ backgroundColor: '#1677ff' }}
                             />
                             <span style={{ fontWeight: 500 }}>
-                                {user?.full_name || user?.email || 'Admin'}
+                                {user?.fullName || user?.email || 'Admin'}
                             </span>
                         </div>
                     </Dropdown>
