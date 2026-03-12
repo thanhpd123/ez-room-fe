@@ -109,3 +109,97 @@ export async function fetchAmenities(): Promise<Array<{ id: string; name: string
         return [];
     }
 }
+
+export interface RoomTenant {
+    id: string;
+    tenantId: string;
+    tenant: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone?: string;
+        avatarUrl?: string;
+    };
+    startDate: string;
+    endDate?: string;
+    actualPrice: number;
+    deposit: number;
+    status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'OVERDUE';
+    type: 'rental';
+}
+
+export interface RoomPreorder {
+    id: string;
+    userId: string;
+    user: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone?: string;
+        avatarUrl?: string;
+    };
+    depositAmount: number;
+    paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
+    status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
+    refundStatus?: string;
+    createdAt: string;
+    type: 'preorder';
+}
+
+export async function getRoomTenants(
+    roomPostId: string
+): Promise<{ rentals: RoomTenant[]; preorders: RoomPreorder[] }> {
+    try {
+        const response = await apiRequest<
+            ApiResponse<{
+                rentals: RoomTenant[];
+                preorders: RoomPreorder[];
+            }>
+        >(`/rooms/${roomPostId}/tenants`);
+        return response.data || { rentals: [], preorders: [] };
+    } catch {
+        return { rentals: [], preorders: [] };
+    }
+}
+
+export interface TenantSearchResult {
+    id: string;
+    fullName: string;
+    email: string;
+    phone: string | null;
+    avatarUrl: string | null;
+    gender: string | null;
+}
+
+export async function searchTenants(query: string): Promise<TenantSearchResult[]> {
+    const q = encodeURIComponent(query.trim());
+    if (!q || q.length < 2) return [];
+    try {
+        const response = await apiRequest<ApiResponse<TenantSearchResult[]>>(`/rooms/search-tenants?q=${q}`);
+        return response.data || [];
+    } catch {
+        return [];
+    }
+}
+
+export interface CreateContractInput {
+    tenantId: string;
+    startDate: string;
+    endDate?: string;
+    actualPrice: number;
+    deposit?: number;
+}
+
+export async function createRentalContract(roomId: string, input: CreateContractInput): Promise<{ id: string }> {
+    const response = await apiRequest<ApiResponse<{ id: string }>>(`/rooms/${roomId}/contracts`, {
+        method: 'POST',
+        body: JSON.stringify({
+            tenantId: input.tenantId,
+            startDate: input.startDate,
+            endDate: input.endDate || undefined,
+            actualPrice: input.actualPrice,
+            deposit: input.deposit ?? 0,
+        }),
+    });
+    return response.data;
+}

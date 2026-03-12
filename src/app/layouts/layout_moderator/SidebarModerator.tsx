@@ -6,6 +6,7 @@ import {
     Flag,
     MessageSquareText,
     Users,
+    ListTodo,
     ChevronLeft,
     ChevronRight,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ const defaultCollapsedWidth = 76;
 
 const items = [
     { label: 'Tổng quan', path: '/moderator', Icon: LayoutDashboard },
+    { label: 'Moderation Queue', path: '/moderator/queue', Icon: ListTodo },
     { label: 'Duyệt nhà cho thuê', path: '/moderator/rentals', Icon: Building2 },
     { label: 'Duyệt bài đăng phòng', path: '/moderator/room-posts', Icon: DoorOpen },
     { label: 'Báo cáo vi phạm', path: '/moderator/reports', Icon: Flag },

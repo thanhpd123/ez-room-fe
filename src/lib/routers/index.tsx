@@ -21,6 +21,7 @@ const ViewRentalDetailPage = lazy(() => import('@/app/features/rentalManagement/
 const CreateRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.CreateRoomPostPage })));
 const ViewListRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewListRoomPostPage })));
 const ViewRoomPostDetailPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewRoomPostDetailPage })));
+const RequestsPage = lazy(() => import('@/app/features/rentalManagement/requests').then((m) => ({ default: m.RequestsPage })));
 const EditRentalPage = lazy(() => import('@/app/features/rentalManagement/EditRental/EditRentalPage').then((m) => ({ default: m.EditRentalPage })));
 const EditRoomPostPage = lazy(() => import('@/app/features/roomManagement/EditRoomPost/EditRoomPostPage').then((m) => ({ default: m.EditRoomPostPage })));
 const HandleReportsPage = lazy(() => import('@/app/features/moderator/handle-reports').then((m) => ({ default: m.HandleReportsPage })));
@@ -28,6 +29,7 @@ const ModerateRentalListPage = lazy(() => import('@/app/features/moderator/moder
 const ModerateReviewsPage = lazy(() => import('@/app/features/moderator/moderate-reviews').then((m) => ({ default: m.ModerateReviewsPage })));
 const ModerateRoomPostListPage = lazy(() => import('@/app/features/moderator/moderateRoomPost').then((m) => ({ default: m.ModerateRoomPostListPage })));
 const ModeratorDashboardPage = lazy(() => import('@/app/features/moderator').then((m) => ({ default: m.ModeratorDashboardPage })));
+const ModerationQueuePage = lazy(() => import('@/app/features/moderator/moderation-queue').then((m) => ({ default: m.ModerationQueuePage })));
 const TenantLandlordListPage = lazy(() => import('@/app/features/moderator/tenant-landlord').then((m) => ({ default: m.TenantLandlordListPage })));
 const AdminLayout = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLayout })));
 const AdminDashboardPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminDashboardPage })));
@@ -170,6 +172,7 @@ export const router = createBrowserRouter([
             { path: 'rentals/:rentalId/room-posts/create', element: <Suspense fallback={<PageLoader />}><CreateRoomPostPage /></Suspense> },
             { path: 'rentals/:rentalId/room-posts/:roomPostId', element: <Suspense fallback={<PageLoader />}><ViewRoomPostDetailPage /></Suspense> },
             { path: 'rentals/:rentalId/room-posts/:roomPostId/edit', element: <Suspense fallback={<PageLoader />}><EditRoomPostPage /></Suspense> },
+            { path: 'requests', element: <Suspense fallback={<PageLoader />}><RequestsPage /></Suspense> },
         ],
     },
     {
@@ -191,7 +194,7 @@ export const router = createBrowserRouter([
     {
         path: '/moderator',
         element: (
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole={['MODERATOR', 'ADMIN']}>
                 <Suspense fallback={<PageLoader />}>
                     <LayoutModerator />
                 </Suspense>
@@ -199,6 +202,7 @@ export const router = createBrowserRouter([
         ),
         children: [
             { index: true, element: <Suspense fallback={<PageLoader />}><ModeratorDashboardPage /></Suspense> },
+            { path: 'queue', element: <Suspense fallback={<PageLoader />}><ModerationQueuePage /></Suspense> },
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><ModerateRentalListPage /></Suspense> },
             { path: 'room-posts', element: <Suspense fallback={<PageLoader />}><ModerateRoomPostListPage /></Suspense> },
             { path: 'reports', element: <Suspense fallback={<PageLoader />}><HandleReportsPage /></Suspense> },

@@ -2,9 +2,9 @@ export type ModerationDecision = 'pending_review' | 'approved' | 'rejected';
 
 export interface ModerationHistoryRecord {
     history_id: string;
-    target_type: 'rental' | 'room_post' | 'report' | 'review';
+    target_type: 'rental' | 'room_post' | 'report' | 'review' | 'user';
     target_id: string;
-    action: string;
+    action: string; // APPROVE | REJECT | HIDE | DISMISS | BAN | SUSPEND | UNSUSPEND hoặc approve_listing, reject_listing, etc.
     note?: string;
     moderator_id: string;
     created_at: string;
