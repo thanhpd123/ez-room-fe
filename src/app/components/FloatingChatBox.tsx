@@ -107,11 +107,17 @@ export function FloatingChatBox() {
     }, [chatBox?.isOpen, user, loadConversations]);
 
     useEffect(() => {
-        if (chatBox?.openWithUserId && chatBox.isOpen) {
+        if (chatBox?.openWithUserId && chatBox.isOpen && user) {
+            // Prevent opening chat with yourself
+            if (chatBox.openWithUserId === user.id) {
+                console.warn('Cannot open chat with yourself');
+                chatBox.openChatWith(null);
+                return;
+            }
             setSelectedPeerId(chatBox.openWithUserId);
             chatBox.openChatWith(null);
         }
-    }, [chatBox?.openWithUserId, chatBox?.isOpen]);
+    }, [chatBox?.openWithUserId, chatBox?.isOpen, user]);
 
     useEffect(() => {
         if (selectedPeerId) loadThread(selectedPeerId);
@@ -126,7 +132,9 @@ export function FloatingChatBox() {
         const id = setInterval(() => {
             getThreadRequest(selectedPeerId, { limit: 50 })
                 .then((r) => setMessages(r.data.messages || []))
-                .catch(() => {});
+                .catch((err) => {
+                    console.error('Error loading messages:', err);
+                });
         }, POLL_INTERVAL_MS);
         pollRef.current = id;
         return () => clearInterval(id);

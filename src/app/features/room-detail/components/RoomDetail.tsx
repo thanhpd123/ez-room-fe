@@ -60,6 +60,11 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
       navigate('/login');
       return;
     }
+    // Prevent landlord from chatting with themselves
+    if (room.landlord.id === user.id) {
+      alert('Bạn không thể nhắn tin với chính mình');
+      return;
+    }
     if (chatBox && room.landlord.id) {
       chatBox.openChatWith(room.landlord.id);
     }
