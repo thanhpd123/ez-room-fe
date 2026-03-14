@@ -49,7 +49,6 @@ function formatDate(dateString?: string | null) {
 
 export function ModerateReviewsPage() {
     const [items, setItems] = useState<ModeratorReviewItem[]>([]);
-    const [pagination, setPagination] = useState({ page: 1, limit: 100, total: 0, totalPages: 0 });
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<string>('PENDING');
     const [selectedId, setSelectedId] = useState<string>('');
@@ -70,7 +69,6 @@ export function ModerateReviewsPage() {
                 limit: 100,
             });
             setItems(res.items);
-            setPagination(res.pagination);
             if (res.items.length > 0 && !res.items.some((i) => i.id === selectedId)) {
                 setSelectedId(res.items[0].id);
             } else if (res.items.length === 0) {
@@ -183,11 +181,10 @@ export function ModerateReviewsPage() {
                         key={tab.value}
                         type="button"
                         onClick={() => setActiveTab(tab.value)}
-                        className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-                            activeTab === tab.value
+                        className={`rounded-xl px-4 py-2 text-sm font-medium transition ${activeTab === tab.value
                                 ? 'bg-slate-900 text-white'
                                 : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
-                        }`}
+                            }`}
                     >
                         {tab.label}
                     </button>
@@ -218,9 +215,8 @@ export function ModerateReviewsPage() {
                                         <button
                                             type="button"
                                             onClick={() => setSelectedId(item.id)}
-                                            className={`w-full px-4 py-3 text-left transition ${
-                                                selectedId === item.id ? 'bg-slate-50' : 'hover:bg-slate-50'
-                                            }`}
+                                            className={`w-full px-4 py-3 text-left transition ${selectedId === item.id ? 'bg-slate-50' : 'hover:bg-slate-50'
+                                                }`}
                                         >
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0 flex-1">

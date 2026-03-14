@@ -40,8 +40,6 @@ export function BookingHistoryPage() {
         status: FeedbackStatus;
         moderatorNote?: string | null;
     } | null>(null);
-    const [submitLoading, setSubmitLoading] = React.useState(false);
-
     const fetchBookings = React.useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -95,7 +93,7 @@ export function BookingHistoryPage() {
         }
     };
 
-    const handleReport = (propertyId: string, propertyName: string) => {
+    const handleReport = (_propertyId: string, propertyName: string) => {
         setSelectedBooking({
             id: '',
             propertyName,
@@ -116,7 +114,6 @@ export function BookingHistoryPage() {
 
     const handleReviewSubmit = async (data: ReviewData) => {
         if (!selectedBooking?.rentalPeriodId || !selectedBooking?.roomId) return;
-        setSubmitLoading(true);
         try {
             await createFeedbackRequest({
                 rentalPeriodId: selectedBooking.rentalPeriodId,
@@ -133,8 +130,6 @@ export function BookingHistoryPage() {
             fetchBookings();
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Gửi đánh giá thất bại');
-        } finally {
-            setSubmitLoading(false);
         }
     };
 
