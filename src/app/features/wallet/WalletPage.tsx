@@ -42,6 +42,7 @@ export function WalletPage() {
     const [actionType, setActionType] = useState<ActionType>('DEPOSIT');
     const [amountText, setAmountText] = useState('');
     const [description, setDescription] = useState('');
+    const [redirectingToPayOS, setRedirectingToPayOS] = useState(false);
 
     const amount = useMemo(() => Number(amountText), [amountText]);
 
@@ -79,7 +80,17 @@ export function WalletPage() {
             };
             if (actionType === 'DEPOSIT') {
                 const res = await depositWalletRequest(body);
-                setMessage(res.message || 'Nạp tiền thành công');
+                const checkoutUrl = res?.data?.payment?.checkoutUrl;
+                if (!checkoutUrl) {
+                    throw new Error('Không nhận được link thanh toán PayOS cho nạp ví');
+                }
+
+                setMessage('Đang chuyển tới PayOS để nạp ví...');
+                setRedirectingToPayOS(true);
+                window.setTimeout(() => {
+                    window.location.href = checkoutUrl;
+                }, 500);
+                return;
             } else {
                 const res = await withdrawWalletRequest(body);
                 setMessage(res.message || 'Rút tiền thành công');
@@ -101,9 +112,15 @@ export function WalletPage() {
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-foreground">Ví tiền</h1>
                     <p className="text-muted-foreground text-sm mt-1">
-                        Quản lý số dư và lịch sử giao dịch (mô phỏng, chưa kết nối tiền thật).
+                        Quản lý số dư và lịch sử giao dịch.
                     </p>
                 </div>
+
+                {redirectingToPayOS && (
+                    <div className="mb-4 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-primary">
+                        Đang chuyển tới PayOS...
+                    </div>
+                )}
 
                 <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-sm mb-6">
                     {loading ? (

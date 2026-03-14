@@ -15,6 +15,9 @@ import {
     Row,
     Col,
     Select,
+    Modal,
+    message,
+    Badge,
 } from 'antd';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import {
@@ -31,6 +34,8 @@ import {
     getWallets,
     getWalletTransactions,
     getWalletStats,
+    approveWalletWithdrawal,
+    rejectWalletWithdrawal,
     type WalletInfo,
     type WalletTransaction,
     type WalletStats,
@@ -96,6 +101,10 @@ export function AdminWalletsPage() {
     });
     const [txTypeFilter, setTxTypeFilter] = useState<string | undefined>();
     const [txStatusFilter, setTxStatusFilter] = useState<string | undefined>();
+    const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+    const [rejectModalOpen, setRejectModalOpen] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+    const [selectedRejectTx, setSelectedRejectTx] = useState<WalletTransaction | null>(null);
 
     // Load stats once
     useEffect(() => {
@@ -164,9 +173,71 @@ export function AdminWalletsPage() {
             type: txTypeFilter,
             status: txStatusFilter,
         });
+        setSelectedWallet(result.wallet);
         setTransactions(result.transactions);
         setTxPagination(result.pagination);
         setTxLoading(false);
+    };
+
+    const refreshWalletData = async () => {
+        await Promise.all([
+            loadTransactions(txPagination.page || 1),
+            loadWallets(pagination.page || 1),
+        ]);
+        const latestStats = await getWalletStats();
+        setStats(latestStats);
+    };
+
+    const handleApproveWithdrawal = async (tx: WalletTransaction) => {
+        setActionLoadingId(tx.id);
+        const result = await approveWalletWithdrawal(tx.id);
+        if (result.success) {
+            message.success(result.message);
+            await refreshWalletData();
+        } else {
+            message.error(result.message);
+        }
+        setActionLoadingId(null);
+    };
+
+    const openRejectModal = (tx: WalletTransaction) => {
+        setSelectedRejectTx(tx);
+        setRejectReason('');
+        setRejectModalOpen(true);
+    };
+
+    const handleRejectWithdrawal = async () => {
+        if (!selectedRejectTx) return;
+        setActionLoadingId(selectedRejectTx.id);
+        const result = await rejectWalletWithdrawal(selectedRejectTx.id, rejectReason);
+        if (result.success) {
+            message.success(result.message);
+            setRejectModalOpen(false);
+            setSelectedRejectTx(null);
+            setRejectReason('');
+            await refreshWalletData();
+        } else {
+            message.error(result.message);
+        }
+        setActionLoadingId(null);
+    };
+
+    const applyPendingWithdrawPreset = () => {
+        setTxTypeFilter('WITHDRAW');
+        setTxStatusFilter('PENDING');
+    };
+
+    const clearTransactionFilters = () => {
+        setTxTypeFilter(undefined);
+        setTxStatusFilter(undefined);
+    };
+
+    const handleQuickViewPendingWithdrawals = () => {
+        if (!drawerOpen || !selectedWallet) {
+            message.info('Mở giao dịch của một ví rồi bấm lại để lọc các yêu cầu rút tiền chờ duyệt.');
+            return;
+        }
+        applyPendingWithdrawPreset();
     };
 
     // Reload transactions when filters change
@@ -305,13 +376,63 @@ export function AdminWalletsPage() {
             width: 160,
             render: (date) => formatDate(date),
         },
+        {
+            title: 'Hành động',
+            key: 'actions',
+            width: 220,
+            render: (_, record) => {
+                const isPendingWithdraw =
+                    record.transaction_type === 'WITHDRAW' && record.status === 'PENDING';
+
+                if (!isPendingWithdraw) {
+                    return <Text type="secondary">-</Text>;
+                }
+
+                return (
+                    <Space>
+                        <Button
+                            type="primary"
+                            size="small"
+                            loading={actionLoadingId === record.id}
+                            onClick={() => handleApproveWithdrawal(record)}
+                        >
+                            Duyệt
+                        </Button>
+                        <Button
+                            danger
+                            size="small"
+                            loading={actionLoadingId === record.id}
+                            onClick={() => openRejectModal(record)}
+                        >
+                            Từ chối
+                        </Button>
+                    </Space>
+                );
+            },
+        },
     ];
 
     return (
         <div>
             <Title level={2}>
                 <WalletOutlined style={{ marginRight: 8 }} />
-                Quản lý Ví (Chỉ xem)
+                Quản lý Ví
+                {stats && (
+                    <Button
+                        type="text"
+                        style={{ marginLeft: 8, paddingInline: 8 }}
+                        onClick={handleQuickViewPendingWithdrawals}
+                        title="Bấm để lọc nhanh các yêu cầu rút tiền chờ duyệt trong drawer giao dịch"
+                    >
+                        <Space size={6}>
+                            <span>Chờ duyệt</span>
+                            <Badge
+                                count={stats.pendingWithdrawRequests}
+                                style={{ backgroundColor: stats.pendingWithdrawRequests > 0 ? '#faad14' : '#d9d9d9' }}
+                            />
+                        </Space>
+                    </Button>
+                )}
             </Title>
 
             <div style={{
@@ -322,8 +443,8 @@ export function AdminWalletsPage() {
                 borderRadius: 6,
             }}>
                 <Text>
-                    Trang này chỉ cho phép <strong>xem</strong> thông tin ví và lịch sử giao dịch.
-                    Admin không thể thay đổi số dư hoặc giao dịch.
+                    Admin có thể theo dõi ví và duyệt/từ chối các yêu cầu rút tiền đang chờ xử lý.
+                    Số dư chỉ thay đổi khi yêu cầu được duyệt thành công.
                 </Text>
             </div>
 
@@ -467,6 +588,12 @@ export function AdminWalletsPage() {
 
                         {/* Transaction filters */}
                         <Space wrap style={{ marginBottom: 16 }}>
+                            <Button onClick={applyPendingWithdrawPreset}>
+                                Chờ duyệt rút tiền
+                            </Button>
+                            <Button onClick={clearTransactionFilters}>
+                                Tất cả giao dịch
+                            </Button>
                             <Select
                                 placeholder="Lọc theo loại"
                                 value={txTypeFilter}
@@ -518,6 +645,33 @@ export function AdminWalletsPage() {
                     </>
                 )}
             </Drawer>
+
+            <Modal
+                title="Từ chối yêu cầu rút tiền"
+                open={rejectModalOpen}
+                onCancel={() => {
+                    setRejectModalOpen(false);
+                    setSelectedRejectTx(null);
+                    setRejectReason('');
+                }}
+                onOk={handleRejectWithdrawal}
+                confirmLoading={Boolean(selectedRejectTx && actionLoadingId === selectedRejectTx.id)}
+                okText="Xác nhận từ chối"
+                cancelText="Hủy"
+            >
+                <Text type="secondary">
+                    Bạn có thể nhập lý do để thông báo cho người dùng (không bắt buộc).
+                </Text>
+                <Input.TextArea
+                    rows={4}
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Ví dụ: Thông tin tài khoản nhận tiền chưa hợp lệ"
+                    maxLength={300}
+                    style={{ marginTop: 12 }}
+                    showCount
+                />
+            </Modal>
         </div>
     );
 }
