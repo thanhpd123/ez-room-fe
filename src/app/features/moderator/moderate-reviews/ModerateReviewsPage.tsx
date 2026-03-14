@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     getReviewDetail,
     listModeratedReviews,
@@ -59,6 +59,9 @@ export function ModerateReviewsPage() {
     const [error, setError] = useState<string | null>(null);
 
     const statusFilter = activeTab === TAB_ALL ? undefined : (activeTab as FeedbackStatusEnum);
+    const selectedIdRef = useRef(selectedId);
+    selectedIdRef.current = selectedId;
+    const detailCache = useRef<Record<string, ModeratorReviewDetail | null>>({});
 
     const loadList = useCallback(async () => {
         setIsLoading(true);
@@ -66,10 +69,11 @@ export function ModerateReviewsPage() {
         try {
             const res = await listModeratedReviews({
                 status: statusFilter,
-                limit: 100,
+                limit: 50,
             });
             setItems(res.items);
-            if (res.items.length > 0 && !res.items.some((i) => i.id === selectedId)) {
+            const currentSelected = selectedIdRef.current;
+            if (res.items.length > 0 && !res.items.some((i) => i.id === currentSelected)) {
                 setSelectedId(res.items[0].id);
             } else if (res.items.length === 0) {
                 setSelectedId('');
@@ -81,28 +85,50 @@ export function ModerateReviewsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [statusFilter, selectedId]);
+    }, [statusFilter]);
 
     useEffect(() => {
         void loadList();
     }, [loadList]);
 
     useEffect(() => {
+        detailCache.current = {};
+    }, [statusFilter]);
+
+    useEffect(() => {
         if (!selectedId) {
             setDetail(null);
+            return;
+        }
+        const cached = detailCache.current[selectedId];
+        if (cached !== undefined) {
+            setDetail(cached);
             return;
         }
         let cancelled = false;
         setDetailLoading(true);
         getReviewDetail(selectedId).then((d) => {
             if (!cancelled) {
-                setDetail(d ?? null);
+                const value = d ?? null;
+                detailCache.current[selectedId] = value;
+                setDetail(value);
             }
             setDetailLoading(false);
         });
         return () => {
             cancelled = true;
         };
+    }, [selectedId]);
+
+    const invalidateDetailCache = useCallback((id: string) => {
+        delete detailCache.current[id];
+    }, []);
+
+    const refreshDetailForSelection = useCallback(async () => {
+        if (!selectedId) return;
+        const d = await getReviewDetail(selectedId);
+        detailCache.current[selectedId] = d ?? null;
+        setDetail(d ?? null);
     }, [selectedId]);
 
     const selectedItem = items.find((i) => i.id === selectedId) ?? null;
@@ -118,7 +144,8 @@ export function ModerateReviewsPage() {
         try {
             await moderateReviewStatus(selectedId, 'APPROVED', moderatorNote);
             setModeratorNote('');
-            await loadList();
+            invalidateDetailCache(selectedId);
+            await Promise.all([loadList(), refreshDetailForSelection()]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Duyệt thất bại');
         } finally {
@@ -138,7 +165,8 @@ export function ModerateReviewsPage() {
         try {
             await moderateReviewStatus(selectedId, 'REJECTED', note);
             setModeratorNote('');
-            await loadList();
+            invalidateDetailCache(selectedId);
+            await Promise.all([loadList(), refreshDetailForSelection()]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Từ chối thất bại');
         } finally {
@@ -158,7 +186,8 @@ export function ModerateReviewsPage() {
         try {
             await moderateReviewStatus(selectedId, 'HIDDEN', note);
             setModeratorNote('');
-            await loadList();
+            invalidateDetailCache(selectedId);
+            await Promise.all([loadList(), refreshDetailForSelection()]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Ẩn thất bại');
         } finally {
@@ -180,7 +209,12 @@ export function ModerateReviewsPage() {
                     <button
                         key={tab.value}
                         type="button"
-                        onClick={() => setActiveTab(tab.value)}
+                        onClick={() => {
+                            if (tab.value !== activeTab) {
+                                setIsLoading(true);
+                                setActiveTab(tab.value);
+                            }
+                        }}
                         className={`rounded-xl px-4 py-2 text-sm font-medium transition ${activeTab === tab.value
                                 ? 'bg-slate-900 text-white'
                                 : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
@@ -206,7 +240,7 @@ export function ModerateReviewsPage() {
                     <div className="rounded-2xl border border-slate-200 bg-white">
                         {items.length === 0 ? (
                             <div className="p-8 text-center text-slate-600">
-                                Không có đánh giá nào trong tab này.
+                                Is loading...
                             </div>
                         ) : (
                             <ul className="divide-y divide-slate-100">
