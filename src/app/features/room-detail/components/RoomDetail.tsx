@@ -20,6 +20,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useFavorites } from '@/app/context/FavoritesContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { useChatBox } from '@/app/context/ChatBoxContext';
+import { RoomReviews } from './RoomReviews';
 
 export interface RoomDetailData {
   id: string;
@@ -233,6 +234,9 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                 })}
               </div>
             </div>
+
+            {/* Reviews */}
+            <RoomReviews roomId={room.id} />
           </div>
 
           {/* Sidebar */}
