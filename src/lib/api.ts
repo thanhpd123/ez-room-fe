@@ -374,7 +374,18 @@ export async function depositWalletRequest(body: {
 }): Promise<{
     success: boolean;
     message: string;
-    data: { wallet: WalletSummary; transaction: WalletTransactionItem };
+    data: {
+        wallet: WalletSummary;
+        transaction: WalletTransactionItem;
+        payment?: {
+            provider: 'PAYOS';
+            orderCode: string;
+            checkoutUrl: string | null;
+            qrCode: string | null;
+            paymentLinkId: string | null;
+            status: string;
+        };
+    };
 }> {
     const res = await authFetch('/wallet/deposit', {
         method: 'POST',
@@ -399,6 +410,89 @@ export async function withdrawWalletRequest(body: {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Rút tiền thất bại');
+    return data;
+}
+
+/** Preorder / đặt cọc phòng (PayOS) */
+export interface MyPreorderItem {
+    id: string;
+    userId: string;
+    roomId: string;
+    status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
+    paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
+    depositAmount: number;
+    refundStatus: 'NOT_APPLICABLE' | 'ELIGIBLE' | 'REFUNDED' | 'NOT_REFUNDABLE';
+    createdAt: string;
+    cancelReason: string | null;
+    room: {
+        id: string;
+        room_name: string | null;
+        price: number;
+    } | null;
+    rental: {
+        id: string;
+        title: string;
+    } | null;
+}
+
+export interface CreatePreorderDepositPaymentRequest {
+    roomId: string;
+    depositAmount: number;
+    buyerName?: string;
+    buyerEmail?: string;
+    buyerPhone?: string;
+}
+
+export interface CreatePreorderDepositPaymentResponse {
+    success: boolean;
+    message: string;
+    data: {
+        preorderId: string;
+        roomId: string;
+        depositAmount: number;
+        payment: {
+            provider: 'PAYOS';
+            orderCode: string;
+            checkoutUrl: string | null;
+            qrCode: string | null;
+            paymentLinkId: string | null;
+            status: string;
+        };
+    };
+}
+
+export async function createPreorderDepositPaymentRequest(
+    body: CreatePreorderDepositPaymentRequest
+): Promise<CreatePreorderDepositPaymentResponse> {
+    const res = await authFetch('/preorders/deposit/pay', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể tạo thanh toán đặt cọc');
+    return data;
+}
+
+export async function getMyPreordersRequest(params?: {
+    page?: number;
+    limit?: number;
+    status?: MyPreorderItem['status'] | 'ALL';
+    paymentStatus?: MyPreorderItem['paymentStatus'] | 'ALL';
+}): Promise<{
+    success: boolean;
+    data: MyPreorderItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    if (params?.status) search.set('status', params.status);
+    if (params?.paymentStatus) search.set('paymentStatus', params.paymentStatus);
+
+    const qs = search.toString();
+    const res = await authFetch(`/preorders/mine${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách đặt cọc');
     return data;
 }
 

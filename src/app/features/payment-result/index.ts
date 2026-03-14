@@ -1,0 +1,1 @@
+export { PayOSResultPage } from './PayOSResultPage';
