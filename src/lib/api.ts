@@ -1065,6 +1065,46 @@ export async function getRoomByIdRequest(roomId: string): Promise<{
 }
 
 /**
+ * GET /feedback/room/:roomId – get reviews for a room (public, no auth).
+ */
+export async function getRoomReviewsRequest(
+    roomId: string,
+    options: { page?: number; limit?: number } = {}
+): Promise<{
+    success: boolean;
+    reviews: Array<{
+        id: string;
+        rating: number;
+        cleanlinessRating?: number;
+        locationRating?: number;
+        valueRating?: number;
+        landlordRating?: number;
+        comment: string;
+        createdAt: string;
+        author: {
+            id: string;
+            name: string;
+            avatar?: string;
+        };
+        landlordReply?: string;
+        repliedAt?: string;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+}> {
+    const params = new URLSearchParams();
+    if (options.page) params.append('page', String(options.page));
+    if (options.limit) params.append('limit', String(options.limit));
+    
+    const res = await fetch(getApiUrl(`/feedback/room/${roomId}?${params}`));
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Không thể tải đánh giá');
+    return json;
+}
+
+/**
  * GET /auth/me – current user from backend (verifies token end-to-end).
  */
 export async function fetchAuthMe(): Promise<{
