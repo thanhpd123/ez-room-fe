@@ -413,6 +413,17 @@ export async function withdrawWalletRequest(body: {
     return data;
 }
 
+export async function verifyWalletDepositRequest(orderCode: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { confirmed?: boolean; alreadyConfirmed?: boolean; wallet: WalletSummary | null; payosStatus?: string };
+}> {
+    const res = await authFetch(`/wallet/verify-deposit?orderCode=${encodeURIComponent(orderCode)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Xác minh thất bại');
+    return data;
+}
+
 /** Preorder / đặt cọc phòng (PayOS) */
 export interface MyPreorderItem {
     id: string;

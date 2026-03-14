@@ -14,7 +14,6 @@ import {
     Sparkles,
     MapPin,
     Banknote,
-    Users,
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { ImageUpload } from '@/app/components/ImageUpload';
@@ -110,7 +109,7 @@ function PreferredDistrictsField({
                         <option key={p.code} value={p.name}>{p.name}</option>
                     ))}
                 </select>
-                        {wardList.length > 0 && (
+                {wardList.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                         {wardList.map((w: WardItem) => (
                             <label key={w.code} className="flex items-center gap-2 cursor-pointer">
@@ -418,11 +417,10 @@ export function ProfilePage() {
                             </p>
                             <div className="mt-3">
                                 <span
-                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                                        user?.role === 'LANDLORD'
+                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${user?.role === 'LANDLORD'
                                             ? 'bg-accent/15 text-accent'
                                             : 'bg-primary/15 text-primary'
-                                    }`}
+                                        }`}
                                 >
                                     {user?.role === 'LANDLORD' ? 'Chủ nhà / Cho thuê' : 'Người thuê phòng'}
                                 </span>
@@ -438,11 +436,10 @@ export function ProfilePage() {
                             key={t.id}
                             type="button"
                             onClick={() => setTab(t.id)}
-                            className={`flex items-center gap-2 px-4 py-2.5 sm:px-5 rounded-xl font-medium text-xs sm:text-sm transition-all shrink-0 min-h-[44px] touch-manipulation ${
-                                tab === t.id
+                            className={`flex items-center gap-2 px-4 py-2.5 sm:px-5 rounded-xl font-medium text-xs sm:text-sm transition-all shrink-0 min-h-11 touch-manipulation ${tab === t.id
                                     ? 'bg-primary text-primary-foreground shadow-sm'
                                     : 'bg-muted text-foreground hover:bg-muted/80'
-                            }`}
+                                }`}
                         >
                             <t.icon className="w-4 h-4" strokeWidth={2} />
                             {t.label}

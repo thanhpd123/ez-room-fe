@@ -71,7 +71,7 @@ export function CreateRentalPage() {
         if (!form.city.trim()) nextErrors.city = 'Thành phố là bắt buộc.';
         if (!form.district.trim()) nextErrors.district = 'Phường/xã là bắt buộc.';
         if (!form.address.trim()) nextErrors.address = 'Địa chỉ là bắt buộc.';
-        
+
         // Validation giấy tờ bắt buộc
         if (documents.cccd.length < 2) {
             nextErrors.cccd = 'Cần upload đủ 2 ảnh CCCD (mặt trước + mặt sau).';
@@ -82,7 +82,7 @@ export function CreateRentalPage() {
         if (documents.gpkd.length < 1) {
             nextErrors.gpkd = 'Giấy phép kinh doanh là bắt buộc.';
         }
-        
+
         if (!Number.isFinite(availableRoomNumber) || availableRoomNumber < 0) {
             nextErrors.available_room = 'Số phòng phải là số nguyên dương.';
         }
@@ -91,7 +91,7 @@ export function CreateRentalPage() {
         return Object.keys(nextErrors).length === 0;
     };
 
-    const { provinces, getWardsFor, loading: locationsLoading } = useProvinces();
+    const { getWardsFor, loading: locationsLoading } = useProvinces();
     const wardOptions = form.city ? getWardsFor(form.city) : [];
 
     // Auto-detect old address when district/city changes
@@ -160,8 +160,8 @@ export function CreateRentalPage() {
                 {oldAddress && (
                     <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
                         <p className="text-sm text-blue-900">
-                            <strong> Cập nhật địa chỉ hành chính:</strong><br/>
-                            Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br/>
+                            <strong> Cập nhật địa chỉ hành chính:</strong><br />
+                            Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br />
                             Bây giờ: <strong>{form.district}, {form.city}</strong>
                         </p>
                     </div>
