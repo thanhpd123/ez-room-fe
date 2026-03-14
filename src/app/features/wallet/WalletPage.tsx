@@ -5,6 +5,7 @@ import {
     depositWalletRequest,
     getMyWalletRequest,
     getMyWalletTransactionsRequest,
+    verifyWalletDepositRequest,
     withdrawWalletRequest,
     type WalletSummary,
     type WalletTransactionItem,
@@ -42,6 +43,8 @@ export function WalletPage() {
     const [actionType, setActionType] = useState<ActionType>('DEPOSIT');
     const [amountText, setAmountText] = useState('');
     const [description, setDescription] = useState('');
+    const [redirectingToPayOS, setRedirectingToPayOS] = useState(false);
+    const [verifyingPayOS, setVerifyingPayOS] = useState(false);
 
     const amount = useMemo(() => Number(amountText), [amountText]);
 
@@ -59,6 +62,49 @@ export function WalletPage() {
         loadWallet()
             .catch((e) => setError(e instanceof Error ? e.message : 'Không tải được ví'))
             .finally(() => setLoading(false));
+    }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const source = (params.get('source') || '').toLowerCase();
+        const type = (params.get('type') || '').toLowerCase();
+        const orderCode = params.get('orderCode') || params.get('ordercode') || '';
+
+        if (source !== 'payos') return;
+
+        if (type === 'cancel') {
+            setMessage('Bạn đã hủy giao dịch nạp tiền.');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+        }
+
+        if (!orderCode) {
+            setError('Không nhận được mã giao dịch PayOS để xác minh nạp ví.');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+        }
+
+        setVerifyingPayOS(true);
+        setError(null);
+        verifyWalletDepositRequest(orderCode)
+            .then(async (res) => {
+                const confirmed = Boolean(res.data?.confirmed || res.data?.alreadyConfirmed);
+                if (!confirmed) {
+                    const payosStatus = res.data?.payosStatus || 'PENDING';
+                    setMessage(`Giao dịch đang ${payosStatus}. Vui lòng kiểm tra lại sau.`);
+                    return;
+                }
+
+                setMessage('Nạp tiền thành công. Số dư ví đã được cập nhật.');
+                await loadWallet();
+            })
+            .catch((e) => {
+                setError(e instanceof Error ? e.message : 'Không thể xác minh giao dịch nạp ví');
+            })
+            .finally(() => {
+                setVerifyingPayOS(false);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            });
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -79,7 +125,17 @@ export function WalletPage() {
             };
             if (actionType === 'DEPOSIT') {
                 const res = await depositWalletRequest(body);
-                setMessage(res.message || 'Nạp tiền thành công');
+                const checkoutUrl = res?.data?.payment?.checkoutUrl;
+                if (!checkoutUrl) {
+                    throw new Error('Không nhận được link thanh toán PayOS cho nạp ví');
+                }
+
+                setMessage('Đang chuyển tới PayOS để nạp ví...');
+                setRedirectingToPayOS(true);
+                window.setTimeout(() => {
+                    window.location.href = checkoutUrl;
+                }, 500);
+                return;
             } else {
                 const res = await withdrawWalletRequest(body);
                 setMessage(res.message || 'Rút tiền thành công');
@@ -101,9 +157,21 @@ export function WalletPage() {
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-foreground">Ví tiền</h1>
                     <p className="text-muted-foreground text-sm mt-1">
-                        Quản lý số dư và lịch sử giao dịch (mô phỏng, chưa kết nối tiền thật).
+                        Quản lý số dư và lịch sử giao dịch.
                     </p>
                 </div>
+
+                {redirectingToPayOS && (
+                    <div className="mb-4 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-primary">
+                        Đang chuyển tới PayOS...
+                    </div>
+                )}
+
+                {verifyingPayOS && (
+                    <div className="mb-4 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-primary">
+                        Đang xác minh giao dịch nạp ví từ PayOS...
+                    </div>
+                )}
 
                 <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-sm mb-6">
                     {loading ? (

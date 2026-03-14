@@ -181,6 +181,7 @@ export interface WalletStats {
     totalBalance: number;
     avgBalance: number;
     maxBalance: number;
+    pendingWithdrawRequests: number;
     transactionsByType: Array<{
         type: string;
         count: number;
@@ -532,7 +533,7 @@ export async function getUserDetail(userId: string): Promise<UserDetail | null> 
     }
 }
 
-// ==================== Wallets API (READ-ONLY) ====================
+// ==================== Wallets API ====================
 
 export interface GetWalletsParams {
     page?: number;
@@ -605,8 +606,47 @@ export async function getWalletStats(): Promise<WalletStats> {
             totalBalance: 0,
             avgBalance: 0,
             maxBalance: 0,
+            pendingWithdrawRequests: 0,
             transactionsByType: [],
             transactionsByStatus: [],
+        };
+    }
+}
+
+export async function approveWalletWithdrawal(transactionId: string): Promise<{ success: boolean; message: string }> {
+    try {
+        const res = await axios.patch(
+            getApiUrl(`/admin/wallets/withdrawals/${transactionId}/approve`),
+            {},
+            { headers: getAuthHeader() }
+        );
+        return { success: true, message: res.data.message || 'Đã duyệt yêu cầu rút tiền' };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi duyệt yêu cầu rút tiền',
+        };
+    }
+}
+
+export async function rejectWalletWithdrawal(
+    transactionId: string,
+    reason?: string
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const payload = reason?.trim() ? { reason: reason.trim() } : {};
+        const res = await axios.patch(
+            getApiUrl(`/admin/wallets/withdrawals/${transactionId}/reject`),
+            payload,
+            { headers: getAuthHeader() }
+        );
+        return { success: true, message: res.data.message || 'Đã từ chối yêu cầu rút tiền' };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi từ chối yêu cầu rút tiền',
         };
     }
 }
