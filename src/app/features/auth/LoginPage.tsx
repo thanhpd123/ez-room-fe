@@ -66,11 +66,11 @@ export function LoginPage() {
                     </div>
 
                     {success && (
-                        <Alert message={success} type="success" showIcon className="mb-5 rounded-xl" />
+                        <Alert title={success} type="success" showIcon className="mb-5 rounded-xl" />
                     )}
 
                     {error && (
-                        <Alert message={error} type="error" showIcon className="mb-5 rounded-xl" role="alert" />
+                        <Alert title={error} type="error" showIcon className="mb-5 rounded-xl" role="alert" />
                     )}
 
                     <Form
