@@ -10,7 +10,7 @@ import { RegisterPage } from '@/app/features/common';
 import { ProfilePage } from '@/app/features/profile';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 import { PageLoader } from '@/app/components/PageLoader';
-import { PayOSResultPage } from '@/app/features/payment-result';
+import { PayOSResultPage, WalletPaymentResultPage } from '@/app/features/payment-result';
 
 /* Lazy-loaded chunks – admin/moderator/rental-mgmt only loaded when visited */
 const BookingHistoryPage = lazy(() => import('@/app/features/booking-history').then((m) => ({ default: m.BookingHistoryPage })));
@@ -195,6 +195,14 @@ export const router = createBrowserRouter([
     {
         path: '/payment/payos-result',
         element: <PayOSResultPage />,
+    },
+    {
+        path: '/payment-success',
+        element: <WalletPaymentResultPage />,
+    },
+    {
+        path: '/payment-cancel',
+        element: <WalletPaymentResultPage isCancel />,
     },
     {
         path: '/moderator',

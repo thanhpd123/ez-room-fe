@@ -5,6 +5,7 @@ import {
     depositWalletRequest,
     getMyWalletRequest,
     getMyWalletTransactionsRequest,
+    verifyWalletDepositRequest,
     withdrawWalletRequest,
     type WalletSummary,
     type WalletTransactionItem,
@@ -43,6 +44,7 @@ export function WalletPage() {
     const [amountText, setAmountText] = useState('');
     const [description, setDescription] = useState('');
     const [redirectingToPayOS, setRedirectingToPayOS] = useState(false);
+    const [verifyingPayOS, setVerifyingPayOS] = useState(false);
 
     const amount = useMemo(() => Number(amountText), [amountText]);
 
@@ -60,6 +62,49 @@ export function WalletPage() {
         loadWallet()
             .catch((e) => setError(e instanceof Error ? e.message : 'Không tải được ví'))
             .finally(() => setLoading(false));
+    }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const source = (params.get('source') || '').toLowerCase();
+        const type = (params.get('type') || '').toLowerCase();
+        const orderCode = params.get('orderCode') || params.get('ordercode') || '';
+
+        if (source !== 'payos') return;
+
+        if (type === 'cancel') {
+            setMessage('Bạn đã hủy giao dịch nạp tiền.');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+        }
+
+        if (!orderCode) {
+            setError('Không nhận được mã giao dịch PayOS để xác minh nạp ví.');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+        }
+
+        setVerifyingPayOS(true);
+        setError(null);
+        verifyWalletDepositRequest(orderCode)
+            .then(async (res) => {
+                const confirmed = Boolean(res.data?.confirmed || res.data?.alreadyConfirmed);
+                if (!confirmed) {
+                    const payosStatus = res.data?.payosStatus || 'PENDING';
+                    setMessage(`Giao dịch đang ${payosStatus}. Vui lòng kiểm tra lại sau.`);
+                    return;
+                }
+
+                setMessage('Nạp tiền thành công. Số dư ví đã được cập nhật.');
+                await loadWallet();
+            })
+            .catch((e) => {
+                setError(e instanceof Error ? e.message : 'Không thể xác minh giao dịch nạp ví');
+            })
+            .finally(() => {
+                setVerifyingPayOS(false);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            });
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -119,6 +164,12 @@ export function WalletPage() {
                 {redirectingToPayOS && (
                     <div className="mb-4 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-primary">
                         Đang chuyển tới PayOS...
+                    </div>
+                )}
+
+                {verifyingPayOS && (
+                    <div className="mb-4 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-primary">
+                        Đang xác minh giao dịch nạp ví từ PayOS...
                     </div>
                 )}
 
