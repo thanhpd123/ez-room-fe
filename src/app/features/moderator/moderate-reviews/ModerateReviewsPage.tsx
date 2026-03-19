@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/app/context/AuthContext';
 import {
+    checkQueueStatus,
     getReviewDetail,
     listModeratedReviews,
     moderateReviewStatus,
     type FeedbackStatusEnum,
     type ModeratorReviewDetail,
     type ModeratorReviewItem,
+    type QueueLockStatus,
 } from '../shared/moderator-storage';
 
 const TAB_ALL = 'all';
@@ -48,15 +52,21 @@ function formatDate(dateString?: string | null) {
 }
 
 export function ModerateReviewsPage() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const highlightId = searchParams.get('highlight');
+    const highlightApplied = useRef(false);
+
     const [items, setItems] = useState<ModeratorReviewItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<string>('PENDING');
-    const [selectedId, setSelectedId] = useState<string>('');
+    const [activeTab, setActiveTab] = useState<string>(highlightId ? TAB_ALL : 'PENDING');
+    const [selectedId, setSelectedId] = useState<string>(highlightId ?? '');
     const [detail, setDetail] = useState<ModeratorReviewDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [moderatorNote, setModeratorNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [queueLock, setQueueLock] = useState<QueueLockStatus>({ hasQueue: false });
+    const { user } = useAuth();
 
     const statusFilter = activeTab === TAB_ALL ? undefined : (activeTab as FeedbackStatusEnum);
     const selectedIdRef = useRef(selectedId);
@@ -91,6 +101,18 @@ export function ModerateReviewsPage() {
         void loadList();
     }, [loadList]);
 
+    // Auto-select highlighted item from queue navigation
+    useEffect(() => {
+        if (highlightId && !highlightApplied.current && items.length > 0) {
+            const exists = items.some((item) => item.id === highlightId);
+            if (exists) {
+                setSelectedId(highlightId);
+            }
+            highlightApplied.current = true;
+            setSearchParams({}, { replace: true });
+        }
+    }, [items, highlightId, setSearchParams]);
+
     useEffect(() => {
         detailCache.current = {};
     }, [statusFilter]);
@@ -120,6 +142,12 @@ export function ModerateReviewsPage() {
         };
     }, [selectedId]);
 
+    // Check queue lock status when selection changes
+    useEffect(() => {
+        if (!selectedId) { setQueueLock({ hasQueue: false }); return; }
+        checkQueueStatus('FEEDBACK', selectedId).then(setQueueLock);
+    }, [selectedId]);
+
     const invalidateDetailCache = useCallback((id: string) => {
         delete detailCache.current[id];
     }, []);
@@ -132,9 +160,12 @@ export function ModerateReviewsPage() {
     }, [selectedId]);
 
     const selectedItem = items.find((i) => i.id === selectedId) ?? null;
-    const canApprove = selectedItem?.status === 'PENDING';
-    const canReject = selectedItem?.status === 'PENDING';
-    const canHide = selectedItem?.status === 'APPROVED';
+
+    const isLocked = queueLock.hasQueue && (queueLock.status === 'OPEN' || (queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id));
+
+    const canApprove = selectedItem?.status === 'PENDING' && !isLocked;
+    const canReject = selectedItem?.status === 'PENDING' && !isLocked;
+    const canHide = selectedItem?.status === 'APPROVED' && !isLocked;
     const alreadyProcessed = selectedItem?.status !== 'PENDING' && selectedItem?.status !== undefined;
 
     const handleApprove = async () => {
@@ -379,8 +410,18 @@ export function ModerateReviewsPage() {
                                     </div>
                                 )}
 
-                                {(canApprove || canReject || canHide) && (
+                                {(canApprove || canReject || canHide || (selectedItem?.status === 'PENDING' && isLocked) || (selectedItem?.status === 'APPROVED' && isLocked)) && (
                                     <>
+                                        {queueLock.hasQueue && queueLock.status === 'OPEN' && (
+                                            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                                ⚠ Bạn cần nhận task từ <strong>Moderation Queue</strong> trước khi xử lý mục này.
+                                            </div>
+                                        )}
+                                        {queueLock.hasQueue && queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id && (
+                                            <div className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                                                🔒 Task này đang được <strong>{queueLock.assignedToName || 'moderator khác'}</strong> xử lý.
+                                            </div>
+                                        )}
                                         <div>
                                             <label className="mb-1 block text-sm font-medium text-slate-700">
                                                 Ghi chú {canReject || canHide ? '(bắt buộc khi từ chối/ẩn)' : '(không bắt buộc)'}

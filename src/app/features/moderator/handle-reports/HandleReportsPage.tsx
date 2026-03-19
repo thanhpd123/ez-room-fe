@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { handleViolationReport, listViolationReports } from '../shared/moderator-storage';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/app/context/AuthContext';
+import { checkQueueStatus, handleViolationReport, listViolationReports, type QueueLockStatus } from '../shared/moderator-storage';
 import type { ReportAction, ReportStatus, ViolationReport } from '../shared/types';
 
 const statusBadgeClass: Record<ReportStatus, string> = {
@@ -34,12 +36,18 @@ function formatDateTime(dateString?: string) {
 }
 
 export function HandleReportsPage() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const highlightId = searchParams.get('highlight');
+    const highlightApplied = useRef(false);
+
     const [reports, setReports] = useState<ViolationReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<'all' | ReportStatus>('open');
-    const [selectedId, setSelectedId] = useState('');
+    const [selectedId, setSelectedId] = useState(highlightId ?? '');
     const [note, setNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [queueLock, setQueueLock] = useState<QueueLockStatus>({ hasQueue: false });
+    const { user } = useAuth();
 
     const loadData = async () => {
         setIsLoading(true);
@@ -52,6 +60,19 @@ export function HandleReportsPage() {
     useEffect(() => {
         void loadData();
     }, []);
+
+    // Auto-select highlighted item from queue navigation
+    useEffect(() => {
+        if (highlightId && !highlightApplied.current && reports.length > 0) {
+            const exists = reports.some((item) => item.report_id === highlightId);
+            if (exists) {
+                setSelectedId(highlightId);
+                setStatusFilter('all');
+            }
+            highlightApplied.current = true;
+            setSearchParams({}, { replace: true });
+        }
+    }, [reports, highlightId, setSearchParams]);
 
     const filteredReports = useMemo(() => {
         if (statusFilter === 'all') return reports;
@@ -72,18 +93,30 @@ export function HandleReportsPage() {
     const selectedReport = filteredReports.find((item) => item.report_id === selectedId) ?? null;
     const isReportOpen = selectedReport?.status === 'open';
 
+    // Check queue lock status when selection changes
+    useEffect(() => {
+        if (!selectedId) { setQueueLock({ hasQueue: false }); return; }
+        checkQueueStatus('REPORT', selectedId).then(setQueueLock);
+    }, [selectedId]);
+
     const onHandleReport = async () => {
         if (!selectedReport || !isReportOpen) return;
         setIsSubmitting(true);
-        await handleViolationReport({
-            report_id: selectedReport.report_id,
-            action: 'dismiss_report',
-            note,
-            moderator_id: 'moderator-demo',
-        });
-        setNote('');
-        await loadData();
-        setIsSubmitting(false);
+        try {
+            await handleViolationReport({
+                report_id: selectedReport.report_id,
+                action: 'dismiss_report',
+                note,
+                moderator_id: 'moderator-demo',
+            });
+            setNote('');
+            await loadData();
+            setQueueLock({ hasQueue: false });
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Thao tác thất bại');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -201,6 +234,17 @@ export function HandleReportsPage() {
                                     </div>
                                 ) : null}
 
+                                {queueLock.hasQueue && queueLock.status === 'OPEN' && (
+                                    <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                        ⚠ Bạn cần nhận task từ <strong>Moderation Queue</strong> trước khi xử lý mục này.
+                                    </div>
+                                )}
+                                {queueLock.hasQueue && queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id && (
+                                    <div className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                                        🔒 Task này đang được <strong>{queueLock.assignedToName || 'moderator khác'}</strong> xử lý.
+                                    </div>
+                                )}
+
                                 <div>
                                     <label className="mb-1.5 block text-sm font-medium text-slate-700">
                                         Moderator note
@@ -217,7 +261,7 @@ export function HandleReportsPage() {
 
                                 <button
                                     type="button"
-                                    disabled={!isReportOpen || isSubmitting}
+                                    disabled={!isReportOpen || isSubmitting || (queueLock.hasQueue && (queueLock.status === 'OPEN' || (queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id)))}
                                     onClick={onHandleReport}
                                     className="w-full rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-70"
                                 >

@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { listRoomPostModerationItems, moderateRoomPost } from '../shared/moderator-storage';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/app/context/AuthContext';
+import { checkQueueStatus, listRoomPostModerationItems, moderateRoomPost, type QueueLockStatus } from '../shared/moderator-storage';
 import type { ModerationDecision, RoomPostModerationItem } from '../shared/types';
 
 const moderationBadgeClass: Record<ModerationDecision, string> = {
@@ -47,14 +49,20 @@ const DEFAULT_THUMB =
     'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80';
 
 export function ModerateRoomPostListPage() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const highlightId = searchParams.get('highlight');
+    const highlightApplied = useRef(false);
+
     const [items, setItems] = useState<RoomPostModerationItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [keyword, setKeyword] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | ModerationDecision>('all');
-    const [selectedId, setSelectedId] = useState('');
+    const [selectedId, setSelectedId] = useState(highlightId ?? '');
     const [note, setNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeImageIdx, setActiveImageIdx] = useState(0);
+    const [queueLock, setQueueLock] = useState<QueueLockStatus>({ hasQueue: false });
+    const { user } = useAuth();
 
     const loadData = async () => {
         setIsLoading(true);
@@ -67,6 +75,19 @@ export function ModerateRoomPostListPage() {
     useEffect(() => {
         void loadData();
     }, []);
+
+    // Auto-select highlighted item from queue navigation
+    useEffect(() => {
+        if (highlightId && !highlightApplied.current && items.length > 0) {
+            const exists = items.some((item) => item.room_post_id === highlightId);
+            if (exists) {
+                setSelectedId(highlightId);
+                setStatusFilter('all');
+            }
+            highlightApplied.current = true;
+            setSearchParams({}, { replace: true });
+        }
+    }, [items, highlightId, setSearchParams]);
 
     const filteredItems = useMemo(() => {
         const normalized = keyword.trim().toLowerCase();
@@ -97,18 +118,30 @@ export function ModerateRoomPostListPage() {
         setActiveImageIdx(0);
     }, [selectedId]);
 
+    // Check queue lock status when selection changes
+    useEffect(() => {
+        if (!selectedId) { setQueueLock({ hasQueue: false }); return; }
+        checkQueueStatus('ROOM', selectedId).then(setQueueLock);
+    }, [selectedId]);
+
     const handleDecision = async (decision: 'approved' | 'rejected') => {
         if (!selectedItem) return;
         setIsSubmitting(true);
-        await moderateRoomPost({
-            room_post_id: selectedItem.room_post_id,
-            decision,
-            moderator_id: 'moderator-demo',
-            note,
-        });
-        setNote('');
-        await loadData();
-        setIsSubmitting(false);
+        try {
+            await moderateRoomPost({
+                room_post_id: selectedItem.room_post_id,
+                decision,
+                moderator_id: 'moderator-demo',
+                note,
+            });
+            setNote('');
+            await loadData();
+            setQueueLock({ hasQueue: false });
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Thao tác thất bại');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const selectedImages = selectedItem?.images ?? [];
@@ -385,6 +418,17 @@ export function ModerateRoomPostListPage() {
                                     {/* ── Moderator action ── */}
                                     <section className="border-t border-slate-200 pt-4">
                                         <h3 className="mb-2 text-sm font-semibold text-slate-900">Hành động</h3>
+
+                                        {queueLock.hasQueue && queueLock.status === 'OPEN' && (
+                                            <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                                ⚠ Bạn cần nhận task từ <strong>Moderation Queue</strong> trước khi xử lý mục này.
+                                            </div>
+                                        )}
+                                        {queueLock.hasQueue && queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id && (
+                                            <div className="mb-3 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                                                🔒 Task này đang được <strong>{queueLock.assignedToName || 'moderator khác'}</strong> xử lý.
+                                            </div>
+                                        )}
                                         <div className="space-y-3">
                                             <div>
                                                 <label className="mb-1.5 block text-sm text-slate-700">
@@ -402,7 +446,7 @@ export function ModerateRoomPostListPage() {
                                             <div className="flex gap-2">
                                                 <button
                                                     type="button"
-                                                    disabled={isSubmitting}
+                                                    disabled={isSubmitting || (queueLock.hasQueue && (queueLock.status === 'OPEN' || (queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id)))}
                                                     onClick={() => handleDecision('approved')}
                                                     className="flex-1 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-70 transition"
                                                 >
@@ -410,7 +454,7 @@ export function ModerateRoomPostListPage() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    disabled={isSubmitting}
+                                                    disabled={isSubmitting || (queueLock.hasQueue && (queueLock.status === 'OPEN' || (queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id)))}
                                                     onClick={() => handleDecision('rejected')}
                                                     className="flex-1 rounded-xl bg-rose-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-70 transition"
                                                 >
