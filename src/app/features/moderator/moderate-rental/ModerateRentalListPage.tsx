@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { listRentalModerationItems, moderateRental } from '../shared/moderator-storage';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/app/context/AuthContext';
+import { checkQueueStatus, listRentalModerationItems, moderateRental, type QueueLockStatus } from '../shared/moderator-storage';
 import type { ModerationDecision, RentalDocument, RentalModerationItem } from '../shared/types';
 
 const moderationBadgeClass: Record<ModerationDecision, string> = {
@@ -70,15 +72,21 @@ const DEFAULT_THUMB =
     'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=800&q=80';
 
 export function ModerateRentalListPage() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const highlightId = searchParams.get('highlight');
+    const highlightApplied = useRef(false);
+
     const [items, setItems] = useState<RentalModerationItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [keyword, setKeyword] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | ModerationDecision>('all');
-    const [selectedId, setSelectedId] = useState<string>('');
+    const [selectedId, setSelectedId] = useState<string>(highlightId ?? '');
     const [note, setNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeImageIdx, setActiveImageIdx] = useState(0);
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+    const [queueLock, setQueueLock] = useState<QueueLockStatus>({ hasQueue: false });
+    const { user } = useAuth();
 
     const loadData = async () => {
         setIsLoading(true);
@@ -91,6 +99,19 @@ export function ModerateRentalListPage() {
     useEffect(() => {
         void loadData();
     }, []);
+
+    // Auto-select highlighted item from queue navigation
+    useEffect(() => {
+        if (highlightId && !highlightApplied.current && items.length > 0) {
+            const exists = items.some((item) => item.rental_id === highlightId);
+            if (exists) {
+                setSelectedId(highlightId);
+                setStatusFilter('all');
+            }
+            highlightApplied.current = true;
+            setSearchParams({}, { replace: true });
+        }
+    }, [items, highlightId, setSearchParams]);
 
     const filteredItems = useMemo(() => {
         const normalized = keyword.trim().toLowerCase();
@@ -124,18 +145,30 @@ export function ModerateRentalListPage() {
         setActiveImageIdx(0);
     }, [selectedId]);
 
+    // Check queue lock status when selection changes
+    useEffect(() => {
+        if (!selectedId) { setQueueLock({ hasQueue: false }); return; }
+        checkQueueStatus('RENTAL', selectedId).then(setQueueLock);
+    }, [selectedId]);
+
     const handleDecision = async (decision: 'approved' | 'rejected') => {
         if (!selectedItem) return;
         setIsSubmitting(true);
-        await moderateRental({
-            rental_id: selectedItem.rental_id,
-            decision,
-            moderator_id: 'moderator-demo',
-            note,
-        });
-        setNote('');
-        await loadData();
-        setIsSubmitting(false);
+        try {
+            await moderateRental({
+                rental_id: selectedItem.rental_id,
+                decision,
+                moderator_id: 'moderator-demo',
+                note,
+            });
+            setNote('');
+            await loadData();
+            setQueueLock({ hasQueue: false });
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Thao tác thất bại');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const selectedImages = selectedItem?.images ?? [];
@@ -471,6 +504,17 @@ export function ModerateRentalListPage() {
                                     {/* ── Moderator action ── */}
                                     <section className="border-t border-slate-200 pt-4">
                                         <h3 className="mb-2 text-sm font-semibold text-slate-900">Hành động</h3>
+
+                                        {queueLock.hasQueue && queueLock.status === 'OPEN' && (
+                                            <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                                ⚠ Bạn cần nhận task từ <strong>Moderation Queue</strong> trước khi xử lý mục này.
+                                            </div>
+                                        )}
+                                        {queueLock.hasQueue && queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id && (
+                                            <div className="mb-3 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                                                🔒 Task này đang được <strong>{queueLock.assignedToName || 'moderator khác'}</strong> xử lý.
+                                            </div>
+                                        )}
                                         <div className="space-y-3">
                                             <div>
                                                 <label className="mb-1.5 block text-sm text-slate-700">
@@ -488,7 +532,7 @@ export function ModerateRentalListPage() {
                                             <div className="flex gap-2">
                                                 <button
                                                     type="button"
-                                                    disabled={isSubmitting}
+                                                    disabled={isSubmitting || (queueLock.hasQueue && (queueLock.status === 'OPEN' || (queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id)))}
                                                     onClick={() => handleDecision('approved')}
                                                     className="flex-1 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-70 transition"
                                                 >
@@ -496,7 +540,7 @@ export function ModerateRentalListPage() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    disabled={isSubmitting}
+                                                    disabled={isSubmitting || (queueLock.hasQueue && (queueLock.status === 'OPEN' || (queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id)))}
                                                     onClick={() => handleDecision('rejected')}
                                                     className="flex-1 rounded-xl bg-rose-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-70 transition"
                                                 >

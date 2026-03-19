@@ -55,17 +55,18 @@ function formatDateTime(dateString: string) {
 }
 
 function getNavigatePath(item: ModerationQueueItem): string {
+    const hl = `?highlight=${encodeURIComponent(item.target_id)}`;
     switch (item.target_type) {
         case 'RENTAL':
-            return '/moderator/rentals';
+            return `/moderator/rentals${hl}`;
         case 'ROOM':
-            return '/moderator/room-posts';
+            return `/moderator/room-posts${hl}`;
         case 'REPORT':
-            return '/moderator/reports';
+            return `/moderator/reports${hl}`;
         case 'FEEDBACK':
-            return '/moderator/reviews';
+            return `/moderator/reviews${hl}`;
         case 'USER':
-            return '/moderator/users';
+            return `/moderator/users${hl}`;
         default:
             return '/moderator';
     }
@@ -314,7 +315,7 @@ export function ModerationQueuePage() {
                                     Ngày tạo
                                 </th>
                                 <th className="px-4 py-3 text-left font-medium text-slate-700">
-                                    Hạn
+                                    Ngày Resolve
                                 </th>
                                 <th className="px-4 py-3 text-left font-medium text-slate-700">
                                     Thao tác
@@ -388,8 +389,8 @@ export function ModerationQueuePage() {
                                         {formatDateTime(item.created_at)}
                                     </td>
                                     <td className="px-4 py-3 text-slate-600">
-                                        {item.due_by
-                                            ? formatDateTime(item.due_by)
+                                        {item.resolved_at
+                                            ? formatDateTime(item.resolved_at)
                                             : '—'}
                                     </td>
                                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
