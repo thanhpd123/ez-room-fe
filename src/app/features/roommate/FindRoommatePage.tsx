@@ -4,6 +4,7 @@ import { Header } from '@/app/features/home/components';
 import { useAuth } from '@/app/context/AuthContext';
 import { useChatBox } from '@/app/context/ChatBoxContext';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+import { RoommateProfileModal } from './RoommateProfileModal';
 import {
     Users,
     UserPlus,
@@ -13,6 +14,7 @@ import {
     Sparkles,
     Heart,
     MessageCircle,
+    Eye,
 } from 'lucide-react';
 import {
     getRoommateSuggestionsRequest,
@@ -65,6 +67,7 @@ export function FindRoommatePage() {
     const [sendingId, setSendingId] = useState<string | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+    const [viewingProfile, setViewingProfile] = useState<{ userId: string; matchScore?: number } | null>(null);
 
     const hasGender = user?.gender && String(user.gender).trim() && String(user.gender).toLowerCase() !== 'không tiết lộ';
 
@@ -196,17 +199,30 @@ export function FindRoommatePage() {
                                             className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                                         >
                                             <div className="p-5 flex gap-4">
-                                                <div className="shrink-0">
+                                                <button
+                                                    type="button"
+                                                    className="shrink-0 group relative"
+                                                    onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                    title="Xem hồ sơ"
+                                                >
                                                     <ImageWithFallback
                                                         src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
                                                         alt={item.user.fullName}
-                                                        className="w-16 h-16 rounded-full object-cover border-2 border-border"
+                                                        className="w-16 h-16 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors"
                                                     />
-                                                </div>
+                                                    <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Eye className="w-5 h-5 text-white" />
+                                                    </span>
+                                                </button>
                                                 <div className="min-w-0 flex-1">
-                                                    <h3 className="font-semibold text-foreground truncate">
+                                                    <button
+                                                        type="button"
+                                                        className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-left"
+                                                        onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                        title="Xem hồ sơ"
+                                                    >
                                                         {item.user.fullName}
-                                                    </h3>
+                                                    </button>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                                                             {item.matchScore}% phù hợp
@@ -215,12 +231,20 @@ export function FindRoommatePage() {
                                                     <LifestyleTags item={item} />
                                                 </div>
                                             </div>
-                                            <div className="px-5 pb-5">
+                                            <div className="px-5 pb-5 flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                    className="flex-1 py-2.5 rounded-xl font-medium border border-border hover:bg-muted flex items-center justify-center gap-2 transition-colors"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    Xem hồ sơ
+                                                </button>
                                                 <button
                                                     type="button"
                                                     disabled={!!sendingId}
                                                     onClick={() => handleSendRequest(item.user.id)}
-                                                    className="w-full py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
+                                                    className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
                                                 >
                                                     {sendingId === item.user.id ? (
                                                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -259,7 +283,12 @@ export function FindRoommatePage() {
                                                         key={m.id}
                                                         className="flex items-center justify-between gap-4 p-4 bg-card rounded-2xl border border-border"
                                                     >
-                                                        <div className="flex items-center gap-3 min-w-0">
+                                                        <button
+                                                            type="button"
+                                                            className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+                                                            onClick={() => m.otherUser?.id && setViewingProfile({ userId: m.otherUser.id })}
+                                                            title="Xem hồ sơ"
+                                                        >
                                                             <ImageWithFallback
                                                                 src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
                                                                 alt={m.otherUser?.fullName || ''}
@@ -268,7 +297,7 @@ export function FindRoommatePage() {
                                                             <span className="font-medium text-foreground truncate">
                                                                 {m.otherUser?.fullName || '—'}
                                                             </span>
-                                                        </div>
+                                                        </button>
                                                         <div className="flex gap-2 shrink-0">
                                                             <button
                                                                 type="button"
@@ -304,14 +333,21 @@ export function FindRoommatePage() {
                                                         key={m.id}
                                                         className="flex items-center gap-3 p-4 bg-card rounded-2xl border border-border"
                                                     >
-                                                        <ImageWithFallback
-                                                            src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
-                                                            alt={m.otherUser?.fullName || ''}
-                                                            className="w-12 h-12 rounded-full object-cover shrink-0"
-                                                        />
-                                                        <span className="font-medium text-foreground truncate">
-                                                            {m.otherUser?.fullName || '—'}
-                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+                                                            onClick={() => m.otherUser?.id && setViewingProfile({ userId: m.otherUser.id })}
+                                                            title="Xem hồ sơ"
+                                                        >
+                                                            <ImageWithFallback
+                                                                src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
+                                                                alt={m.otherUser?.fullName || ''}
+                                                                className="w-12 h-12 rounded-full object-cover shrink-0"
+                                                            />
+                                                            <span className="font-medium text-foreground truncate">
+                                                                {m.otherUser?.fullName || '—'}
+                                                            </span>
+                                                        </button>
                                                         <span className="text-sm text-muted-foreground ml-auto">Đang chờ phản hồi</span>
                                                     </div>
                                                 ))}
@@ -328,14 +364,21 @@ export function FindRoommatePage() {
                                                         key={m.id}
                                                         className="flex items-center gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/20"
                                                     >
-                                                        <ImageWithFallback
-                                                            src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
-                                                            alt={m.otherUser?.fullName || ''}
-                                                            className="w-12 h-12 rounded-full object-cover shrink-0"
-                                                        />
-                                                        <span className="font-medium text-foreground truncate flex-1 min-w-0">
-                                                            {m.otherUser?.fullName || '—'}
-                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity"
+                                                            onClick={() => m.otherUser?.id && setViewingProfile({ userId: m.otherUser.id })}
+                                                            title="Xem hồ sơ"
+                                                        >
+                                                            <ImageWithFallback
+                                                                src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
+                                                                alt={m.otherUser?.fullName || ''}
+                                                                className="w-12 h-12 rounded-full object-cover shrink-0"
+                                                            />
+                                                            <span className="font-medium text-foreground truncate flex-1 min-w-0">
+                                                                {m.otherUser?.fullName || '—'}
+                                                            </span>
+                                                        </button>
                                                         <span className="text-sm text-primary font-medium flex items-center gap-1 shrink-0">
                                                             <Check className="w-4 h-4" /> Đã chấp nhận
                                                         </span>
@@ -364,6 +407,12 @@ export function FindRoommatePage() {
                             )}
                     </section>
                 </>
+
+                <RoommateProfileModal
+                    userId={viewingProfile?.userId ?? null}
+                    matchScore={viewingProfile?.matchScore}
+                    onClose={() => setViewingProfile(null)}
+                />
             </main>
         </div>
     );

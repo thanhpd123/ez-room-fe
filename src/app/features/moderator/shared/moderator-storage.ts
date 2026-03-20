@@ -834,7 +834,7 @@ export interface QueueActivityItem {
     id: string;
     moderator_id: string;
     moderator_name: string;
-    action: 'CLAIM' | 'RELEASE';
+    action: 'CLAIM' | 'RELEASE' | 'RESOLVE';
     queue_item_id: string;
     queue_target_type: string;
     queue_target_id: string;
@@ -847,8 +847,10 @@ export interface QueueActivityItem {
 export async function listQueueActivity(params?: {
     page?: number;
     limit?: number;
-    action?: 'CLAIM' | 'RELEASE';
+    action?: 'CLAIM' | 'RELEASE' | 'RESOLVE';
     moderatorId?: string;
+    dateFrom?: string;
+    dateTo?: string;
 }): Promise<{
     data: QueueActivityItem[];
     pagination: { page: number; limit: number; total: number; totalPages: number };
@@ -858,6 +860,8 @@ export async function listQueueActivity(params?: {
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.action) searchParams.set('action', params.action);
     if (params?.moderatorId) searchParams.set('moderatorId', params.moderatorId);
+    if (params?.dateFrom) searchParams.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) searchParams.set('dateTo', params.dateTo);
 
     const res = await authFetch(`/moderator/queue/activity?${searchParams.toString()}`);
     const json = await res.json();
@@ -879,7 +883,7 @@ export async function listQueueActivity(params?: {
         id: item.id,
         moderator_id: item.moderator_id,
         moderator_name: item.users?.fullName ?? item.moderator_id,
-        action: item.action as 'CLAIM' | 'RELEASE',
+        action: item.action as 'CLAIM' | 'RELEASE' | 'RESOLVE',
         queue_item_id: item.target_id,
         queue_target_type: item.metadata?.queue_target_type ?? '—',
         queue_target_id: item.metadata?.queue_target_id ?? '—',
@@ -893,6 +897,23 @@ export async function listQueueActivity(params?: {
         data,
         pagination: json.pagination ?? { page: 1, limit: 20, total: data.length, totalPages: 1 },
     };
+}
+
+export interface ModeratorListItem {
+    id: string;
+    fullName: string;
+    email: string;
+}
+
+export async function listModerators(): Promise<ModeratorListItem[]> {
+    try {
+        const res = await authFetch('/moderator/moderators');
+        const json = await res.json();
+        if (!res.ok) return [];
+        return (json.data || []) as ModeratorListItem[];
+    } catch {
+        return [];
+    }
 }
 
 export async function releaseQueueItem(queueItemId: string): Promise<void> {

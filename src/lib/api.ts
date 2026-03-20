@@ -654,6 +654,58 @@ export async function updateRoommateMatchStatusRequest(
     return data;
 }
 
+export interface RoommatePublicProfile {
+    user: {
+        id: string;
+        fullName: string;
+        avatarUrl: string | null;
+        gender: string | null;
+        memberSince: string | null;
+    };
+    lifestyle: {
+        smoking: boolean | null;
+        drinking: boolean | null;
+        pets_allowed: boolean | null;
+        sleep_schedule: string | null;
+        work_from_home: boolean | null;
+        personalityType: string | null;
+        social_level: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
+        cooking_frequency: string | null;
+        wake_time: string | null;
+        bedtime: string | null;
+        occupation_type: string | null;
+        temperature_preference: string | null;
+        quiet_hours_preference: string | null;
+        interests: string[];
+        languages: string[];
+        preferred_lease_months: number | null;
+    } | null;
+    preference: {
+        preferred_districts: string[];
+        room_type: string | null;
+        budget_min: number | null;
+        budget_max: number | null;
+        preferred_amenities: string[];
+        must_have_amenities: string[];
+        preferred_lease_months: number | null;
+        pet_friendly: boolean | null;
+        transport_nearby: boolean | null;
+    } | null;
+}
+
+export async function getRoommateProfileRequest(userId: string): Promise<{
+    success: boolean;
+    data: RoommatePublicProfile;
+}> {
+    const res = await authFetch(`/roommate/profile/${encodeURIComponent(userId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải hồ sơ');
+    return data;
+}
+
 /** Chat / messages */
 
 export interface ConversationItem {
