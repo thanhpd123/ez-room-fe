@@ -19,6 +19,7 @@ const LayoutRentalManagements = lazy(() => import('@/app/layouts/layout_rentalMa
 const CreateRentalPage = lazy(() => import('@/app/features/rentalManagement/create_Rental').then((m) => ({ default: m.CreateRentalPage })));
 const ViewListRentalPage = lazy(() => import('@/app/features/rentalManagement/ViewListRental').then((m) => ({ default: m.ViewListRentalPage })));
 const ViewRentalDetailPage = lazy(() => import('@/app/features/rentalManagement/ViewRentalDetail').then((m) => ({ default: m.ViewRentalDetailPage })));
+const LandlordDashboardPage = lazy(() => import('@/app/features/rentalManagement').then((m) => ({ default: m.LandlordDashboardPage })));
 const CreateRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.CreateRoomPostPage })));
 const ViewListRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewListRoomPostPage })));
 const ViewRoomPostDetailPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewRoomPostDetailPage })));
@@ -165,7 +166,8 @@ export const router = createBrowserRouter([
             </ProtectedRoute>
         ),
         children: [
-            { index: true, element: <Navigate to="rentals" replace /> },
+            { index: true, element: <Navigate to="dashboard" replace /> },
+            { path: 'dashboard', element: <Suspense fallback={<PageLoader />}><LandlordDashboardPage /></Suspense> },
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><ViewListRentalPage /></Suspense> },
             { path: 'rentals/create', element: <Suspense fallback={<PageLoader />}><CreateRentalPage /></Suspense> },
             { path: 'rentals/:rentalId', element: <Suspense fallback={<PageLoader />}><ViewRentalDetailPage /></Suspense> },
