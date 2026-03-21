@@ -133,9 +133,14 @@ export function RoommateProfileModal({ userId, matchScore, onClose }: RoommatePr
                 onClick={onClose}
             />
 
-            {/* Drawer */}
+            {/* Centered modal */}
             <div
-                className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-background border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
+                className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                onClick={onClose}
+            >
+            <div
+                className="relative w-full max-w-lg bg-background border border-border shadow-2xl rounded-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 fade-in duration-200"
+                onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
@@ -286,6 +291,7 @@ export function RoommateProfileModal({ userId, matchScore, onClose }: RoommatePr
                         </div>
                     )}
                 </div>
+            </div>
             </div>
         </>
     );

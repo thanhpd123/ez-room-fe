@@ -599,7 +599,7 @@ export interface RoommateSuggestionItem {
         social_level: string | null;
         interests: string[];
     } | null;
-    preference: { preferred_districts: string[]; room_type: string | null } | null;
+    preference: { preferred_districts: string[]; room_type: string | null; budget_min: number | null; budget_max: number | null; preferredLocation: string | null } | null;
     matchScore: number;
 }
 
