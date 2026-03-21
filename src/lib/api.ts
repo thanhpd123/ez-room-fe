@@ -448,7 +448,9 @@ export interface MyPreorderItem {
 
 export interface CreatePreorderDepositPaymentRequest {
     roomId: string;
-    depositAmount: number;
+    depositMonths?: number;
+    depositPercent?: number;
+    depositAmount?: number;
     buyerName?: string;
     buyerEmail?: string;
     buyerPhone?: string;
@@ -461,6 +463,8 @@ export interface CreatePreorderDepositPaymentResponse {
         preorderId: string;
         roomId: string;
         depositAmount: number;
+        depositPercent?: number;
+        depositMonths?: number;
         payment: {
             provider: 'PAYOS';
             orderCode: string;
@@ -1097,7 +1101,7 @@ export async function getRoomReviewsRequest(
     const params = new URLSearchParams();
     if (options.page) params.append('page', String(options.page));
     if (options.limit) params.append('limit', String(options.limit));
-    
+
     const res = await fetch(getApiUrl(`/feedback/room/${roomId}?${params}`));
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || json?.error || 'Không thể tải đánh giá');
