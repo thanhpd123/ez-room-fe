@@ -61,7 +61,7 @@ export async function createRoomPost(payload: CreateManagedRoomPostInput): Promi
 
 export async function updateRoomPost(
     roomPostId: string,
-    payload: Partial<CreateManagedRoomPostInput>
+    payload: Partial<CreateManagedRoomPostInput> & { resubmit?: boolean }
 ): Promise<ManagedRoomPostItem | null> {
     try {
         const response = await apiRequest<ApiResponse<ManagedRoomPostItem>>(`/rooms/${roomPostId}`, {
