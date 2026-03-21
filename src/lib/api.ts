@@ -1450,3 +1450,48 @@ export async function handleReportRequest(
     if (!res.ok) throw new Error(data?.message || 'Xử lý báo cáo thất bại');
     return data;
 }
+
+/** Landlord Dashboard */
+
+export interface LandlordDashboardStats {
+    rentals: {
+        total: number;
+        byStatus: {
+            AVAILABLE: number;
+            UNAVAILABLE: number;
+            HIDDEN: number;
+            PENDING: number;
+            SUSPEND: number;
+            VIOLATE: number;
+        };
+    };
+    rooms: {
+        total: number;
+    };
+    wallet: {
+        balance: number;
+    };
+    feedback: {
+        total: number;
+        averageRating: number;
+    };
+    preorders: {
+        total: number;
+        byStatus: {
+            PENDING: number;
+            CONFIRMED: number;
+            CANCELLED: number;
+            EXPIRED: number;
+        };
+    };
+}
+
+export async function getLandlordDashboardStatsRequest(): Promise<{
+    success: boolean;
+    data: LandlordDashboardStats;
+}> {
+    const res = await authFetch('/rentals/dashboard');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải dashboard');
+    return data;
+}
