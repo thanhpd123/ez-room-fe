@@ -948,6 +948,30 @@ export async function updateRentalStatusRequest(
 }
 
 /**
+ * GET /rentals/rejection-info – landlord fetches rejection info for a target.
+ */
+export async function getRejectionInfoRequest(
+    targetType: 'RENTAL' | 'ROOM',
+    targetId: string
+): Promise<{
+    success: boolean;
+    data: {
+        hasRejection: boolean;
+        reason?: string | null;
+        moderatorName?: string | null;
+        rejectedAt?: string;
+        previousStatus?: string;
+        newStatus?: string;
+    };
+}> {
+    const params = new URLSearchParams({ targetType, targetId });
+    const res = await authFetch(`/rentals/rejection-info?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi lấy thông tin từ chối');
+    return data;
+}
+
+/**
  * PUT /rentals/:rentalId – landlord update their rental.
  */
 export async function updateRentalRequest(
@@ -960,6 +984,7 @@ export async function updateRentalRequest(
         city?: string;
         images?: string[];
         status?: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN';
+        resubmit?: boolean;
     }
 ): Promise<{ success: boolean; message: string; data: Record<string, unknown> }> {
     const res = await authFetch(`/rentals/${rentalId}`, {
