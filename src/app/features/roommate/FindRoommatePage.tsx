@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/app/features/home/components';
 import { useAuth } from '@/app/context/AuthContext';
@@ -15,6 +15,12 @@ import {
     Heart,
     MessageCircle,
     Eye,
+    Search,
+    SlidersHorizontal,
+    RotateCcw,
+    MapPin,
+    Banknote,
+    Home,
 } from 'lucide-react';
 import {
     getRoommateSuggestionsRequest,
@@ -69,7 +75,56 @@ export function FindRoommatePage() {
     const [message, setMessage] = useState<string | null>(null);
     const [viewingProfile, setViewingProfile] = useState<{ userId: string; matchScore?: number } | null>(null);
 
+    // Filter state
+    const [filterArea, setFilterArea] = useState('');
+    const [filterBudgetMax, setFilterBudgetMax] = useState<number | ''>('');
+    const [filterRoomType, setFilterRoomType] = useState('');
+    const [filterGender, setFilterGender] = useState('');
+    const [showFilters, setShowFilters] = useState(true);
+
     const hasGender = user?.gender && String(user.gender).trim() && String(user.gender).toLowerCase() !== 'không tiết lộ';
+
+    const hasActiveFilter = !!filterArea || filterBudgetMax !== '' || !!filterRoomType || !!filterGender;
+
+    const resetFilters = () => {
+        setFilterArea('');
+        setFilterBudgetMax('');
+        setFilterRoomType('');
+        setFilterGender('');
+    };
+
+    const filteredSuggestions = useMemo(() => {
+        if (!hasActiveFilter) return suggestions;
+        return suggestions.filter((item) => {
+            // Area filter
+            if (filterArea) {
+                const q = filterArea.toLowerCase();
+                const districts = item.preference?.preferred_districts ?? [];
+                const location = item.preference?.preferredLocation ?? '';
+                const areaMatch =
+                    districts.some((d) => d.toLowerCase().includes(q)) ||
+                    location.toLowerCase().includes(q);
+                if (!areaMatch) return false;
+            }
+            // Budget filter
+            if (filterBudgetMax !== '') {
+                const candidateBudgetMax = item.preference?.budget_max;
+                if (candidateBudgetMax != null && candidateBudgetMax > Number(filterBudgetMax)) {
+                    return false;
+                }
+            }
+            // Room type filter
+            if (filterRoomType) {
+                if (item.preference?.room_type !== filterRoomType) return false;
+            }
+            // Gender filter
+            if (filterGender) {
+                const g = (item.user.gender ?? '').toLowerCase();
+                if (g !== filterGender.toLowerCase()) return false;
+            }
+            return true;
+        });
+    }, [suggestions, filterArea, filterBudgetMax, filterRoomType, filterGender, hasActiveFilter]);
 
     const loadSuggestions = () => {
         setLoadingSuggestions(true);
@@ -163,15 +218,122 @@ export function FindRoommatePage() {
                 <>
                     {/* Suggestions */}
                     <section className="mb-12">
-                            <h2 className="font-heading text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-                                <Sparkles className="w-5 h-5 text-accent" />
-                                Gợi ý roommate
-                            </h2>
-                            <p className="text-muted-foreground text-sm mb-6">
+                            <div className="flex items-center justify-between mb-1">
+                                <h2 className="font-heading text-xl font-semibold text-foreground flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-accent" />
+                                    Gợi ý roommate
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFilters((v) => !v)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                        showFilters
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-muted text-foreground hover:bg-muted/80'
+                                    }`}
+                                >
+                                    <SlidersHorizontal className="w-4 h-4" />
+                                    Bộ lọc
+                                    {hasActiveFilter && (
+                                        <span className="w-2 h-2 rounded-full bg-accent inline-block" />
+                                    )}
+                                </button>
+                            </div>
+                            <p className="text-muted-foreground text-sm mb-4">
                                 {hasGender
                                     ? 'Ưu tiên người cùng giới và có phong cách sống phù hợp với bạn'
                                     : 'Tenant phù hợp được sắp xếp theo điểm match cao đến thấp'}
                             </p>
+
+                            {/* Filter bar */}
+                            {showFilters && (
+                                <div className="mb-6 p-4 bg-card rounded-2xl border border-border shadow-sm">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                        {/* Area */}
+                                        <div>
+                                            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                                                <MapPin className="w-3.5 h-3.5" />
+                                                Khu vực
+                                            </label>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                                <input
+                                                    type="text"
+                                                    value={filterArea}
+                                                    onChange={(e) => setFilterArea(e.target.value)}
+                                                    placeholder="VD: Quận 1, Bình Thạnh..."
+                                                    className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                        {/* Budget max */}
+                                        <div>
+                                            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                                                <Banknote className="w-3.5 h-3.5" />
+                                                Ngân sách tối đa (VNĐ)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={filterBudgetMax}
+                                                onChange={(e) => setFilterBudgetMax(e.target.value === '' ? '' : Number(e.target.value))}
+                                                placeholder="VD: 5000000"
+                                                min={0}
+                                                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            />
+                                        </div>
+                                        {/* Room type */}
+                                        <div>
+                                            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                                                <Home className="w-3.5 h-3.5" />
+                                                Loại phòng
+                                            </label>
+                                            <select
+                                                value={filterRoomType}
+                                                onChange={(e) => setFilterRoomType(e.target.value)}
+                                                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            >
+                                                <option value="">Tất cả</option>
+                                                <option value="PRIVATE">Phòng riêng</option>
+                                                <option value="SHARED">Ở ghép</option>
+                                                <option value="STUDIO">Studio</option>
+                                                <option value="APARTMENT">Căn hộ</option>
+                                            </select>
+                                        </div>
+                                        {/* Gender */}
+                                        <div>
+                                            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                                                <Users className="w-3.5 h-3.5" />
+                                                Giới tính
+                                            </label>
+                                            <select
+                                                value={filterGender}
+                                                onChange={(e) => setFilterGender(e.target.value)}
+                                                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            >
+                                                <option value="">Tất cả</option>
+                                                <option value="Nam">Nam</option>
+                                                <option value="Nữ">Nữ</option>
+                                                <option value="Khác">Khác</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    {hasActiveFilter && (
+                                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                                            <p className="text-sm text-muted-foreground">
+                                                Tìm thấy <span className="font-semibold text-foreground">{filteredSuggestions.length}</span> roommate phù hợp
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={resetFilters}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                            >
+                                                <RotateCcw className="w-3.5 h-3.5" />
+                                                Xóa bộ lọc
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             {loadingSuggestions ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {[1, 2, 3].map((i) => (
@@ -187,13 +349,15 @@ export function FindRoommatePage() {
                                         </div>
                                     ))}
                                 </div>
-                            ) : suggestions.length === 0 ? (
+                            ) : filteredSuggestions.length === 0 ? (
                                 <div className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-12 text-center text-muted-foreground">
-                                    Chưa có gợi ý phù hợp. Hãy cập nhật Phong cách sống và Sở thích tìm phòng trong Hồ sơ để nhận gợi ý tốt hơn.
+                                    {hasActiveFilter
+                                        ? 'Không tìm thấy roommate phù hợp với bộ lọc. Thử thay đổi tiêu chí lọc.'
+                                        : 'Chưa có gợi ý phù hợp. Hãy cập nhật Phong cách sống và Sở thích tìm phòng trong Hồ sơ để nhận gợi ý tốt hơn.'}
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                                    {suggestions.map((item) => (
+                                    {filteredSuggestions.map((item) => (
                                         <div
                                             key={item.user.id}
                                             className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
