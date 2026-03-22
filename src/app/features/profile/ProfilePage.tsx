@@ -58,6 +58,76 @@ const ROOM_TYPE_OPTIONS = [
     { value: 'APARTMENT', label: 'Căn hộ' },
 ];
 
+const SLEEP_SCHEDULE_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Sớm (trước 22h)', label: 'Sớm (trước 22h)' },
+    { value: 'Bình thường (22h-0h)', label: 'Bình thường (22h-0h)' },
+    { value: 'Khuya (sau 0h)', label: 'Khuya (sau 0h)' },
+];
+
+const CLEANLINESS_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Rất sạch', label: 'Rất sạch' },
+    { value: 'Sạch', label: 'Sạch' },
+    { value: 'Bình thường', label: 'Bình thường' },
+    { value: 'Không quan tâm', label: 'Không quan tâm' },
+];
+
+const NOISE_TOLERANCE_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Thấp', label: 'Thấp' },
+    { value: 'Trung bình', label: 'Trung bình' },
+    { value: 'Cao', label: 'Cao' },
+];
+
+const COOKING_FREQUENCY_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Không nấu', label: 'Không nấu' },
+    { value: 'Ít', label: 'Ít' },
+    { value: 'Thường xuyên', label: 'Thường xuyên' },
+    { value: 'Hàng ngày', label: 'Hàng ngày' },
+];
+
+const GUEST_FREQUENCY_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Không bao giờ', label: 'Không bao giờ' },
+    { value: 'Hiếm', label: 'Hiếm' },
+    { value: 'Thỉnh thoảng', label: 'Thỉnh thoảng' },
+    { value: 'Thường xuyên', label: 'Thường xuyên' },
+];
+
+const SOCIAL_LEVEL_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Thấp', label: 'Thấp' },
+    { value: 'Trung bình', label: 'Trung bình' },
+    { value: 'Cao', label: 'Cao' },
+];
+
+const OCCUPATION_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Sinh viên', label: 'Sinh viên' },
+    { value: 'Văn phòng', label: 'Văn phòng' },
+    { value: 'Freelancer', label: 'Freelancer' },
+    { value: 'Kinh doanh', label: 'Kinh doanh' },
+    { value: 'Khác', label: 'Khác' },
+];
+
+const TEMPERATURE_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Lạnh', label: 'Lạnh' },
+    { value: 'Mát', label: 'Mát' },
+    { value: 'Bình thường', label: 'Bình thường' },
+    { value: 'Ấm', label: 'Ấm' },
+];
+
+const QUIET_HOURS_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: '21h-6h', label: '21h - 6h' },
+    { value: '22h-7h', label: '22h - 7h' },
+    { value: '23h-8h', label: '23h - 8h' },
+    { value: 'Không cần', label: 'Không cần' },
+];
+
 type PreferenceFormState = ReturnType<typeof toPreferenceForm>;
 
 function PreferredDistrictsField({
@@ -608,13 +678,15 @@ export function ProfilePage() {
                                         <Moon className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
                                         Lịch ngủ
                                     </label>
-                                    <input
+                                    <select
                                         value={lifestyle.sleep_schedule}
                                         onChange={(e) => setLifestyle((l) => ({ ...l, sleep_schedule: e.target.value }))}
-                                        placeholder="VD: 22h - 6h, hoặc Sớm / Muộn"
                                         className={inputClass}
-                                        maxLength={50}
-                                    />
+                                    >
+                                        {SLEEP_SCHEDULE_OPTIONS.map((o) => (
+                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className={labelClass}>
@@ -657,63 +729,75 @@ export function ProfilePage() {
                                 </div>
                                 <div>
                                     <label className={labelClass}>Độ sạch sẽ</label>
-                                    <input
+                                    <select
                                         value={lifestyle.cleanliness}
                                         onChange={(e) => setLifestyle((l) => ({ ...l, cleanliness: e.target.value }))}
-                                        placeholder="VD: Rất sạch, Bình thường"
                                         className={inputClass}
-                                        maxLength={50}
-                                    />
+                                    >
+                                        {CLEANLINESS_OPTIONS.map((o) => (
+                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className={labelClass}>Chịu ồn</label>
-                                    <input
+                                    <select
                                         value={lifestyle.noise_tolerance}
                                         onChange={(e) => setLifestyle((l) => ({ ...l, noise_tolerance: e.target.value }))}
-                                        placeholder="VD: Thấp, Trung bình"
                                         className={inputClass}
-                                        maxLength={50}
-                                    />
+                                    >
+                                        {NOISE_TOLERANCE_OPTIONS.map((o) => (
+                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className={labelClass}>Tần suất nấu ăn</label>
-                                    <input
+                                    <select
                                         value={lifestyle.cooking_frequency}
                                         onChange={(e) => setLifestyle((l) => ({ ...l, cooking_frequency: e.target.value }))}
-                                        placeholder="VD: Hàng ngày, Ít"
                                         className={inputClass}
-                                        maxLength={50}
-                                    />
+                                    >
+                                        {COOKING_FREQUENCY_OPTIONS.map((o) => (
+                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className={labelClass}>Khách tới chơi</label>
-                                    <input
+                                    <select
                                         value={lifestyle.guest_frequency}
                                         onChange={(e) => setLifestyle((l) => ({ ...l, guest_frequency: e.target.value }))}
-                                        placeholder="VD: Hiếm, Thỉnh thoảng"
                                         className={inputClass}
-                                        maxLength={50}
-                                    />
+                                    >
+                                        {GUEST_FREQUENCY_OPTIONS.map((o) => (
+                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className={labelClass}>Mức độ giao tiếp</label>
-                                    <input
+                                    <select
                                         value={lifestyle.social_level}
                                         onChange={(e) => setLifestyle((l) => ({ ...l, social_level: e.target.value }))}
-                                        placeholder="VD: Thấp, Trung bình, Cao"
                                         className={inputClass}
-                                        maxLength={50}
-                                    />
+                                    >
+                                        {SOCIAL_LEVEL_OPTIONS.map((o) => (
+                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className={labelClass}>Nghề nghiệp / loại công việc</label>
-                                    <input
+                                    <select
                                         value={lifestyle.occupation_type}
                                         onChange={(e) => setLifestyle((l) => ({ ...l, occupation_type: e.target.value }))}
-                                        placeholder="VD: Văn phòng, Sinh viên"
                                         className={inputClass}
-                                        maxLength={50}
-                                    />
+                                    >
+                                        {OCCUPATION_OPTIONS.map((o) => (
+                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <label className="flex items-center gap-3 cursor-pointer group">
                                     <input
@@ -767,23 +851,27 @@ export function ProfilePage() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className={labelClass}>Nhiệt độ ưa thích</label>
-                                        <input
+                                        <select
                                             value={lifestyle.temperature_preference}
                                             onChange={(e) => setLifestyle((l) => ({ ...l, temperature_preference: e.target.value }))}
-                                            placeholder="VD: Mát, Lạnh"
                                             className={inputClass}
-                                            maxLength={20}
-                                        />
+                                        >
+                                            {TEMPERATURE_OPTIONS.map((o) => (
+                                                <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div>
                                         <label className={labelClass}>Giờ giữ yên tĩnh</label>
-                                        <input
+                                        <select
                                             value={lifestyle.quiet_hours_preference}
                                             onChange={(e) => setLifestyle((l) => ({ ...l, quiet_hours_preference: e.target.value }))}
-                                            placeholder="VD: 22h - 6h"
                                             className={inputClass}
-                                            maxLength={30}
-                                        />
+                                        >
+                                            {QUIET_HOURS_OPTIONS.map((o) => (
+                                                <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                                 <button
