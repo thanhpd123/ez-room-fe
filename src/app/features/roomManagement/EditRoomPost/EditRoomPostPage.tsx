@@ -4,6 +4,7 @@ import type { RoomStatus } from '@/lib/models/room.model';
 import { MultiImageUpload } from '@/app/components/MultiImageUpload';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
 import { getRoomPostById, updateRoomPost, fetchAmenities } from '../shared/room-post-storage';
+import { getRejectionInfoRequest } from '@/lib/api';
 
 interface Amenity {
     id: string;
@@ -41,6 +42,14 @@ export function EditRoomPostPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [amenities, setAmenities] = useState<Amenity[]>([]);
+    const [rejectionInfo, setRejectionInfo] = useState<{
+        hasRejection: boolean;
+        reason?: string | null;
+        moderatorName?: string | null;
+        rejectedAt?: string;
+    } | null>(null);
+
+    const isRejected = form.status === 'MAINTENANCE' && rejectionInfo?.hasRejection;
 
     useEffect(() => {
         let active = true;
@@ -66,6 +75,18 @@ export function EditRoomPostPage() {
                     images: roomPost.images || [],
                     amenityIds: roomPost.amenities?.map(a => a.id) || [],
                 });
+
+                // Lấy thông tin từ chối nếu phòng bị reject (MAINTENANCE)
+                if (roomPost.status === 'MAINTENANCE') {
+                    try {
+                        const rejInfo = await getRejectionInfoRequest('ROOM', roomPostId);
+                        if (active && rejInfo.data?.hasRejection) {
+                            setRejectionInfo(rejInfo.data);
+                        }
+                    } catch {
+                        // Bỏ qua lỗi
+                    }
+                }
             }
             setIsLoading(false);
         };
@@ -114,6 +135,7 @@ export function EditRoomPostPage() {
             thumbnail_url: form.images[0] || '',
             images: form.images,
             amenityIds: form.amenityIds,
+            ...(isRejected ? { resubmit: true } : {}),
         });
         setIsSubmitting(false);
 
@@ -132,6 +154,25 @@ export function EditRoomPostPage() {
         );
     }
 
+    // Chặn edit khi đang chờ duyệt
+    if (form.status === 'PENDING') {
+        return (
+            <section className="mx-auto w-full max-w-4xl rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
+                <p className="text-amber-800 font-medium">⏳ Phòng đang chờ moderator duyệt</p>
+                <p className="mt-1 text-sm text-amber-700">Bạn không thể chỉnh sửa trong khi chờ duyệt.</p>
+                <button
+                    type="button"
+                    onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts/${roomPostId}`)}
+                    className="mt-5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                    Quay lại
+                </button>
+            </section>
+        );
+    }
+
+    const isEditApproved = form.status === 'AVAILABLE';
+
     return (
         <section className="mx-auto w-full max-w-4xl">
             <header className="mb-6">
@@ -142,6 +183,39 @@ export function EditRoomPostPage() {
             </header>
 
             <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+                {/* Rejection Banner */}
+                {isRejected && (
+                    <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-4">
+                        <div className="flex items-start gap-3">
+                            <span className="text-xl">⚠️</span>
+                            <div className="flex-1">
+                                <h3 className="font-semibold text-rose-800">Phòng bị từ chối</h3>
+                                {rejectionInfo?.reason && (
+                                    <p className="mt-1 text-sm text-rose-700">
+                                        <strong>Lý do:</strong> {rejectionInfo.reason}
+                                    </p>
+                                )}
+                                <p className="mt-1 text-sm text-rose-700">
+                                    Vui lòng chỉnh sửa và ấn "Lưu & Gửi lại" bên dưới.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* Edit-on-approved notice */}
+                {isEditApproved && !isRejected && (
+                    <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                        <div className="flex items-start gap-3">
+                            <span className="text-xl">ℹ️</span>
+                            <div className="flex-1">
+                                <h3 className="font-semibold text-blue-800">Lưu ý</h3>
+                                <p className="mt-1 text-sm text-blue-700">
+                                    Sau khi lưu, phòng sẽ được gửi cho Moderator duyệt lại. Trong thời gian chờ duyệt, bạn sẽ không thể chỉnh sửa tiếp.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="md:col-span-2">
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">Tên phòng *</label>
@@ -259,9 +333,21 @@ export function EditRoomPostPage() {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                        className={`rounded-xl px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70 ${
+                            isRejected
+                                ? 'bg-rose-600 hover:bg-rose-700'
+                                : isEditApproved
+                                  ? 'bg-blue-600 hover:bg-blue-700'
+                                  : 'bg-slate-900 hover:bg-slate-800'
+                        }`}
                     >
-                        {isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+                        {isSubmitting
+                            ? 'Đang lưu...'
+                            : isRejected
+                              ? '📤 Lưu & Gửi lại để duyệt'
+                              : isEditApproved
+                                ? '📤 Lưu & Gửi để duyệt lại'
+                                : 'Lưu thay đổi'}
                     </button>
                 </div>
             </form>

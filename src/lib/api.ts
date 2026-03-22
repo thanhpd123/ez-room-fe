@@ -603,7 +603,7 @@ export interface RoommateSuggestionItem {
         social_level: string | null;
         interests: string[];
     } | null;
-    preference: { preferred_districts: string[]; room_type: string | null } | null;
+    preference: { preferred_districts: string[]; room_type: string | null; budget_min: number | null; budget_max: number | null; preferredLocation: string | null } | null;
     matchScore: number;
 }
 
@@ -655,6 +655,58 @@ export async function updateRoommateMatchStatusRequest(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Cập nhật thất bại');
+    return data;
+}
+
+export interface RoommatePublicProfile {
+    user: {
+        id: string;
+        fullName: string;
+        avatarUrl: string | null;
+        gender: string | null;
+        memberSince: string | null;
+    };
+    lifestyle: {
+        smoking: boolean | null;
+        drinking: boolean | null;
+        pets_allowed: boolean | null;
+        sleep_schedule: string | null;
+        work_from_home: boolean | null;
+        personalityType: string | null;
+        social_level: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
+        cooking_frequency: string | null;
+        wake_time: string | null;
+        bedtime: string | null;
+        occupation_type: string | null;
+        temperature_preference: string | null;
+        quiet_hours_preference: string | null;
+        interests: string[];
+        languages: string[];
+        preferred_lease_months: number | null;
+    } | null;
+    preference: {
+        preferred_districts: string[];
+        room_type: string | null;
+        budget_min: number | null;
+        budget_max: number | null;
+        preferred_amenities: string[];
+        must_have_amenities: string[];
+        preferred_lease_months: number | null;
+        pet_friendly: boolean | null;
+        transport_nearby: boolean | null;
+    } | null;
+}
+
+export async function getRoommateProfileRequest(userId: string): Promise<{
+    success: boolean;
+    data: RoommatePublicProfile;
+}> {
+    const res = await authFetch(`/roommate/profile/${encodeURIComponent(userId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải hồ sơ');
     return data;
 }
 
@@ -900,6 +952,30 @@ export async function updateRentalStatusRequest(
 }
 
 /**
+ * GET /rentals/rejection-info – landlord fetches rejection info for a target.
+ */
+export async function getRejectionInfoRequest(
+    targetType: 'RENTAL' | 'ROOM',
+    targetId: string
+): Promise<{
+    success: boolean;
+    data: {
+        hasRejection: boolean;
+        reason?: string | null;
+        moderatorName?: string | null;
+        rejectedAt?: string;
+        previousStatus?: string;
+        newStatus?: string;
+    };
+}> {
+    const params = new URLSearchParams({ targetType, targetId });
+    const res = await authFetch(`/rentals/rejection-info?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi lấy thông tin từ chối');
+    return data;
+}
+
+/**
  * PUT /rentals/:rentalId – landlord update their rental.
  */
 export async function updateRentalRequest(
@@ -912,6 +988,7 @@ export async function updateRentalRequest(
         city?: string;
         images?: string[];
         status?: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN';
+        resubmit?: boolean;
     }
 ): Promise<{ success: boolean; message: string; data: Record<string, unknown> }> {
     const res = await authFetch(`/rentals/${rentalId}`, {
@@ -1400,5 +1477,50 @@ export async function handleReportRequest(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Xử lý báo cáo thất bại');
+    return data;
+}
+
+/** Landlord Dashboard */
+
+export interface LandlordDashboardStats {
+    rentals: {
+        total: number;
+        byStatus: {
+            AVAILABLE: number;
+            UNAVAILABLE: number;
+            HIDDEN: number;
+            PENDING: number;
+            SUSPEND: number;
+            VIOLATE: number;
+        };
+    };
+    rooms: {
+        total: number;
+    };
+    wallet: {
+        balance: number;
+    };
+    feedback: {
+        total: number;
+        averageRating: number;
+    };
+    preorders: {
+        total: number;
+        byStatus: {
+            PENDING: number;
+            CONFIRMED: number;
+            CANCELLED: number;
+            EXPIRED: number;
+        };
+    };
+}
+
+export async function getLandlordDashboardStatsRequest(): Promise<{
+    success: boolean;
+    data: LandlordDashboardStats;
+}> {
+    const res = await authFetch('/rentals/dashboard');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải dashboard');
     return data;
 }

@@ -744,7 +744,7 @@ export interface ModerationQueueItem {
     priority: string;
     status: string;
     created_at: string;
-    due_by: string | null;
+    resolved_at: string | null;
     assigned_to: string | null;
     assigned_to_id: string | null;
     assigned_at: string | null;
@@ -781,7 +781,7 @@ export async function listModerationQueue(params?: {
         priority: string;
         status: string;
         created_at: string;
-        due_by: string | null;
+        resolved_at: string | null;
         assigned_to: string | null;
         assigned_at: string | null;
         users?: { id: string; fullName: string } | null;
@@ -795,7 +795,7 @@ export async function listModerationQueue(params?: {
         priority: item.priority,
         status: item.status,
         created_at: item.created_at,
-        due_by: item.due_by ?? null,
+        resolved_at: item.resolved_at ?? null,
         assigned_to: item.users?.fullName ?? item.assigned_to ?? null,
         assigned_to_id: item.users?.id ?? item.assigned_to ?? null,
         assigned_at: item.assigned_at ?? null,
@@ -823,7 +823,7 @@ export async function assignQueueItem(queueItemId: string, assignTo?: string): P
         priority: json.data.priority,
         status: json.data.status,
         created_at: json.data.created_at,
-        due_by: json.data.due_by ?? null,
+        resolved_at: json.data.resolved_at ?? null,
         assigned_to: item.users?.fullName ?? json.data.assigned_to ?? null,
         assigned_to_id: item.users?.id ?? json.data.assigned_to ?? null,
         assigned_at: json.data.assigned_at ?? null,
@@ -834,7 +834,7 @@ export interface QueueActivityItem {
     id: string;
     moderator_id: string;
     moderator_name: string;
-    action: 'CLAIM' | 'RELEASE';
+    action: 'CLAIM' | 'RELEASE' | 'RESOLVE';
     queue_item_id: string;
     queue_target_type: string;
     queue_target_id: string;
@@ -847,8 +847,10 @@ export interface QueueActivityItem {
 export async function listQueueActivity(params?: {
     page?: number;
     limit?: number;
-    action?: 'CLAIM' | 'RELEASE';
+    action?: 'CLAIM' | 'RELEASE' | 'RESOLVE';
     moderatorId?: string;
+    dateFrom?: string;
+    dateTo?: string;
 }): Promise<{
     data: QueueActivityItem[];
     pagination: { page: number; limit: number; total: number; totalPages: number };
@@ -858,6 +860,8 @@ export async function listQueueActivity(params?: {
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.action) searchParams.set('action', params.action);
     if (params?.moderatorId) searchParams.set('moderatorId', params.moderatorId);
+    if (params?.dateFrom) searchParams.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) searchParams.set('dateTo', params.dateTo);
 
     const res = await authFetch(`/moderator/queue/activity?${searchParams.toString()}`);
     const json = await res.json();
@@ -879,7 +883,7 @@ export async function listQueueActivity(params?: {
         id: item.id,
         moderator_id: item.moderator_id,
         moderator_name: item.users?.fullName ?? item.moderator_id,
-        action: item.action as 'CLAIM' | 'RELEASE',
+        action: item.action as 'CLAIM' | 'RELEASE' | 'RESOLVE',
         queue_item_id: item.target_id,
         queue_target_type: item.metadata?.queue_target_type ?? '—',
         queue_target_id: item.metadata?.queue_target_id ?? '—',
@@ -895,12 +899,50 @@ export async function listQueueActivity(params?: {
     };
 }
 
+export interface ModeratorListItem {
+    id: string;
+    fullName: string;
+    email: string;
+}
+
+export async function listModerators(): Promise<ModeratorListItem[]> {
+    try {
+        const res = await authFetch('/moderator/moderators');
+        const json = await res.json();
+        if (!res.ok) return [];
+        return (json.data || []) as ModeratorListItem[];
+    } catch {
+        return [];
+    }
+}
+
 export async function releaseQueueItem(queueItemId: string): Promise<void> {
     const res = await authFetch(`/moderator/queue/${encodeURIComponent(queueItemId)}/release`, {
         method: 'PATCH',
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json?.message || 'Trả task thất bại');
+}
+
+export interface QueueLockStatus {
+    hasQueue: boolean;
+    queueId?: string;
+    status?: 'OPEN' | 'IN_PROGRESS';
+    assignedTo?: string | null;
+    assignedToName?: string | null;
+}
+
+export async function checkQueueStatus(targetType: string, targetId: string): Promise<QueueLockStatus> {
+    try {
+        const res = await authFetch(
+            `/moderator/queue/check?targetType=${encodeURIComponent(targetType)}&targetId=${encodeURIComponent(targetId)}`
+        );
+        const json = await res.json();
+        if (!res.ok) return { hasQueue: false };
+        return json.data as QueueLockStatus;
+    } catch {
+        return { hasQueue: false };
+    }
 }
 
 export async function getModeratorOverview() {
