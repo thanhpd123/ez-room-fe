@@ -1486,6 +1486,21 @@ export interface LandlordDashboardStats {
     };
 }
 
+export interface LandlordPerformanceMetrics {
+    occupancyRate: number;
+    revenue: {
+        thisMonth: number;
+        total: number;
+    };
+    cancellationRate: number;
+    conversionRate: number;
+    bookingStats: {
+        active: number;
+        cancelled: number;
+        total: number;
+    };
+}
+
 export async function getLandlordDashboardStatsRequest(): Promise<{
     success: boolean;
     data: LandlordDashboardStats;
@@ -1493,5 +1508,41 @@ export async function getLandlordDashboardStatsRequest(): Promise<{
     const res = await authFetch('/rentals/dashboard');
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải dashboard');
+    return data;
+}
+
+export async function getLandlordPerformanceMetricsRequest(): Promise<{
+    success: boolean;
+    data: LandlordPerformanceMetrics;
+}> {
+    const res = await authFetch('/rentals/performance');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải chỉ số hiệu suất');
+    return data;
+}
+
+export interface TopSearchedRoom {
+    id: string;
+    name: string;
+    price: number;
+    searchCount: number;
+    image: string | null;
+    rentalTitle: string;
+    location: {
+        address: string;
+        district: string;
+        city: string;
+    };
+}
+
+export async function getTopSearchedRoomsRequest(limit: number = 5): Promise<{
+    success: boolean;
+    data: {
+        rooms: TopSearchedRoom[];
+    };
+}> {
+    const res = await authFetch(`/rentals/top-searched?limit=${limit}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải phòng được tìm kiếm');
     return data;
 }
