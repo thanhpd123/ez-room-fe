@@ -5,3 +5,6 @@ export { AdminRentalsPage } from './AdminRentalsPage';
 export { AdminAmenitiesPage } from './AdminAmenitiesPage';
 export { AdminLocationsPage } from './AdminLocationsPage';
 export { AdminWalletsPage } from './AdminWalletsPage';
+export { AdminFinancePage } from './AdminFinancePage';
+export { AdminSettingsPage } from './AdminSettingsPage';
+export { AdminModeratorsPage } from './AdminModeratorsPage';
