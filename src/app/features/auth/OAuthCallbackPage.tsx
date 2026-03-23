@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getRedirectByRole } from '@/lib/auth/roleRedirect';
 
 /**
  * OAuth callback route: Google redirect here with #access_token=...
@@ -32,9 +33,9 @@ export function OAuthCallbackPage() {
                 return;
             }
 
-            // Session is set; AuthContext will sync. Redirect to home.
+            // Session is set; AuthContext will sync. Redirect by role.
             // If user is new, /auth/me will return NEED_REGISTER and AuthContext will redirect to /complete-signup
-            navigate('/home', { replace: true });
+            navigate(getRedirectByRole(session.user?.user_metadata?.role as string | undefined), { replace: true });
         }
 
         handleCallback();

@@ -23,7 +23,8 @@ export function LoginPage() {
     useEffect(() => {
         if (!isLoading && user) {
             const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
-            const destination = from || getRedirectByRole(user.role);
+            const roleDestination = getRedirectByRole(user.role);
+            const destination = user.role === 'ADMIN' ? roleDestination : (from || roleDestination);
             navigate(destination, { replace: true });
         }
     }, [user, isLoading, navigate, location.state]);
