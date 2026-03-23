@@ -25,6 +25,7 @@ import {
     Legend,
     ResponsiveContainer,
 } from 'recharts';
+import { useTranslation } from 'react-i18next';
 import { getAdminStats, getRentalStats, type AdminStats, type RentalStats } from './shared/admin-api';
 
 const { Title, Text } = Typography;
@@ -32,6 +33,7 @@ const { Title, Text } = Typography;
 const COLORS = ['#1677ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1'];
 
 export function AdminDashboardPage() {
+    const { t, i18n } = useTranslation();
     const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
     const [rentalStats, setRentalStats] = useState<RentalStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -51,43 +53,46 @@ export function AdminDashboardPage() {
         return (
             <div style={{ textAlign: 'center', padding: '100px 0' }}>
                 <Spin size="large" />
-                <p style={{ marginTop: 16 }}>Đang tải dữ liệu...</p>
+                <p style={{ marginTop: 16 }}>{t('common.loading')}</p>
             </div>
         );
     }
 
+    const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN';
+    const currencySuffix = i18n.resolvedLanguage === 'en' ? ' VND' : ' đ';
+
     // Prepare chart data
     const userRoleData = adminStats
         ? [
-            { name: 'Admin', value: adminStats.users.byRole.admins },
-            { name: 'Moderator', value: adminStats.users.byRole.moderators },
-            { name: 'Landlord', value: adminStats.users.byRole.landlords },
-            { name: 'Tenant', value: adminStats.users.byRole.tenants },
+            { name: t('admin.dashboard.roles.admin'), value: adminStats.users.byRole.admins },
+            { name: t('admin.dashboard.roles.moderator'), value: adminStats.users.byRole.moderators },
+            { name: t('admin.dashboard.roles.landlord'), value: adminStats.users.byRole.landlords },
+            { name: t('admin.dashboard.roles.tenant'), value: adminStats.users.byRole.tenants },
         ]
         : [];
 
     const rentalStatusData = rentalStats
         ? [
-            { name: 'Đang hiển thị', value: rentalStats.byStatus.available, fill: '#52c41a' },
-            { name: 'Tạm ngưng', value: rentalStats.byStatus.unavailable, fill: '#1677ff' },
-            { name: 'Đã ẩn', value: rentalStats.byStatus.hidden, fill: '#faad14' },
-            { name: 'Vi phạm', value: rentalStats.byStatus.violate, fill: '#ff4d4f' },
-            { name: 'Chờ duyệt', value: rentalStats.byStatus.pending, fill: '#722ed1' },
-            { name: 'Tạm khóa', value: rentalStats.byStatus.suspend, fill: '#d9d9d9' },
+            { name: t('admin.dashboard.rentalStatus.available'), value: rentalStats.byStatus.available, fill: '#52c41a' },
+            { name: t('admin.dashboard.rentalStatus.unavailable'), value: rentalStats.byStatus.unavailable, fill: '#1677ff' },
+            { name: t('admin.dashboard.rentalStatus.hidden'), value: rentalStats.byStatus.hidden, fill: '#faad14' },
+            { name: t('admin.dashboard.rentalStatus.violate'), value: rentalStats.byStatus.violate, fill: '#ff4d4f' },
+            { name: t('admin.dashboard.rentalStatus.pending'), value: rentalStats.byStatus.pending, fill: '#722ed1' },
+            { name: t('admin.dashboard.rentalStatus.suspend'), value: rentalStats.byStatus.suspend, fill: '#d9d9d9' },
         ]
         : [];
 
     return (
         <div>
-            <Title level={2}>Dashboard</Title>
-            <Text type="secondary">Tổng quan hệ thống EZ-Room</Text>
+            <Title level={2}>{t('admin.dashboard.title')}</Title>
+            <Text type="secondary">{t('admin.dashboard.subtitle')}</Text>
 
             {/* Stats Cards */}
             <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
                 <Col xs={24} sm={12} lg={6}>
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Tổng số Users"
+                            title={t('admin.dashboard.kpis.totalUsers')}
                             value={adminStats?.users.total || 0}
                             prefix={<UserOutlined style={{ color: '#1677ff' }} />}
                         />
@@ -96,7 +101,7 @@ export function AdminDashboardPage() {
                 <Col xs={24} sm={12} lg={6}>
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Users hoạt động"
+                            title={t('admin.dashboard.kpis.activeUsers')}
                             value={adminStats?.users.byStatus.active || 0}
                             prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
                             styles={{ content: { color: '#52c41a' } }}
@@ -106,7 +111,7 @@ export function AdminDashboardPage() {
                 <Col xs={24} sm={12} lg={6}>
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Tổng số Bài đăng"
+                            title={t('admin.dashboard.kpis.totalRentals')}
                             value={rentalStats?.total || 0}
                             prefix={<HomeOutlined style={{ color: '#722ed1' }} />}
                         />
@@ -115,7 +120,7 @@ export function AdminDashboardPage() {
                 <Col xs={24} sm={12} lg={6}>
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Bài đăng tháng này"
+                            title={t('admin.dashboard.kpis.thisMonthRentals')}
                             value={rentalStats?.thisMonth || 0}
                             prefix={<ShopOutlined style={{ color: '#faad14' }} />}
                             styles={{ content: { color: '#faad14' } }}
@@ -129,7 +134,7 @@ export function AdminDashboardPage() {
                 <Col xs={24} sm={12} lg={6}>
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Tổng ví"
+                            title={t('admin.dashboard.kpis.totalWallets')}
                             value={adminStats?.wallets?.total || 0}
                             prefix={<WalletOutlined style={{ color: '#13c2c2' }} />}
                         />
@@ -138,8 +143,8 @@ export function AdminDashboardPage() {
                 <Col xs={24} sm={12} lg={6}>
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Tổng số dư"
-                            value={Number(adminStats?.wallets?.totalBalance || 0).toLocaleString('vi-VN') + ' đ'}
+                            title={t('admin.dashboard.kpis.totalBalance')}
+                            value={Number(adminStats?.wallets?.totalBalance || 0).toLocaleString(locale) + currencySuffix}
                             prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
                             styles={{ content: { color: '#52c41a', fontSize: 20 } }}
                         />
@@ -148,7 +153,7 @@ export function AdminDashboardPage() {
                 <Col xs={24} sm={12} lg={6}>
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Tổng Feedback"
+                            title={t('admin.dashboard.kpis.totalFeedback')}
                             value={adminStats?.feedback?.total || 0}
                             prefix={<StarOutlined style={{ color: '#faad14' }} />}
                         />
@@ -157,7 +162,7 @@ export function AdminDashboardPage() {
                 <Col xs={24} sm={12} lg={6}>
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Tổng Đặt cọc"
+                            title={t('admin.dashboard.kpis.totalPreorders')}
                             value={adminStats?.preorders?.total || 0}
                             prefix={<ShoppingCartOutlined style={{ color: '#eb2f96' }} />}
                         />
@@ -170,7 +175,7 @@ export function AdminDashboardPage() {
                 <Col xs={12} sm={6}>
                     <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Admin"
+                            title={t('admin.dashboard.roles.admin')}
                             value={adminStats?.users.byRole.admins || 0}
                             styles={{ content: { fontSize: 20 } }}
                         />
@@ -179,7 +184,7 @@ export function AdminDashboardPage() {
                 <Col xs={12} sm={6}>
                     <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Moderator"
+                            title={t('admin.dashboard.roles.moderator')}
                             value={adminStats?.users.byRole.moderators || 0}
                             styles={{ content: { fontSize: 20 } }}
                         />
@@ -188,7 +193,7 @@ export function AdminDashboardPage() {
                 <Col xs={12} sm={6}>
                     <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Chủ trọ"
+                            title={t('admin.dashboard.roles.landlord')}
                             value={adminStats?.users.byRole.landlords || 0}
                             styles={{ content: { fontSize: 20 } }}
                         />
@@ -197,7 +202,7 @@ export function AdminDashboardPage() {
                 <Col xs={12} sm={6}>
                     <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
-                            title="Người thuê"
+                            title={t('admin.dashboard.roles.tenant')}
                             value={adminStats?.users.byRole.tenants || 0}
                             styles={{ content: { fontSize: 20 } }}
                         />
@@ -211,7 +216,7 @@ export function AdminDashboardPage() {
                     <Card
                         title={
                             <span>
-                                <TeamOutlined /> Phân bố Users theo Role
+                                <TeamOutlined /> {t('admin.dashboard.charts.usersByRole')}
                             </span>
                         }
                         variant="borderless"
@@ -244,7 +249,7 @@ export function AdminDashboardPage() {
                     <Card
                         title={
                             <span>
-                                <HomeOutlined /> Trạng thái Bài đăng
+                                <HomeOutlined /> {t('admin.dashboard.charts.rentalsByStatus')}
                             </span>
                         }
                         variant="borderless"
@@ -257,7 +262,7 @@ export function AdminDashboardPage() {
                                 <YAxis dataKey="name" type="category" width={100} />
                                 <Tooltip />
                                 <Legend />
-                                <Bar dataKey="value" name="Số lượng" />
+                                <Bar dataKey="value" name={t('admin.dashboard.charts.count')} />
                             </BarChart>
                         </ResponsiveContainer>
                     </Card>
@@ -268,14 +273,14 @@ export function AdminDashboardPage() {
             <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
                 <Col xs={24}>
                     <Card
-                        title="Tình trạng hệ thống"
+                        title={t('admin.dashboard.systemStatus.title')}
                         variant="borderless"
                         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
                     >
                         <Row gutter={[16, 16]}>
                             <Col xs={12} sm={6}>
                                 <Statistic
-                                    title="Bài đăng Available"
+                                    title={t('admin.dashboard.systemStatus.availableRentals')}
                                     value={rentalStats?.byStatus.available || 0}
                                     styles={{ content: { color: '#52c41a' } }}
                                     prefix={<CheckCircleOutlined />}
@@ -283,7 +288,7 @@ export function AdminDashboardPage() {
                             </Col>
                             <Col xs={12} sm={6}>
                                 <Statistic
-                                    title="Bài đăng Unavailable"
+                                    title={t('admin.dashboard.systemStatus.unavailableRentals')}
                                     value={rentalStats?.byStatus.unavailable || 0}
                                     styles={{ content: { color: '#1677ff' } }}
                                     prefix={<HomeOutlined />}
@@ -291,7 +296,7 @@ export function AdminDashboardPage() {
                             </Col>
                             <Col xs={12} sm={6}>
                                 <Statistic
-                                    title="Bài đăng Hidden"
+                                    title={t('admin.dashboard.systemStatus.hiddenRentals')}
                                     value={rentalStats?.byStatus.hidden || 0}
                                     styles={{ content: { color: '#faad14' } }}
                                     prefix={<StopOutlined />}
@@ -299,7 +304,7 @@ export function AdminDashboardPage() {
                             </Col>
                             <Col xs={12} sm={6}>
                                 <Statistic
-                                    title="Users bị Ban"
+                                    title={t('admin.dashboard.systemStatus.bannedUsers')}
                                     value={adminStats?.users.byStatus.banned || 0}
                                     styles={{ content: { color: '#ff4d4f' } }}
                                     prefix={<StopOutlined />}

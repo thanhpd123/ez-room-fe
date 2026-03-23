@@ -157,6 +157,457 @@
     "notFound": "Không tìm thấy thông tin phòng trọ",
     "loading": "Đang tải..."
   },
+  "admin": {
+    "brand": "EZ-Room Admin",
+    "defaultUser": "Admin",
+    "menu": {
+      "dashboard": "Tổng quan",
+      "users": "Người dùng",
+      "rentals": "Bài đăng",
+      "wallets": "Quản lý ví",
+      "reportsGroup": "Báo cáo",
+      "finance": "Tài chính",
+      "moderatorKpis": "Hiệu suất kiểm duyệt",
+      "settingsGroup": "Thiết lập",
+      "locations": "Địa điểm",
+      "amenities": "Tiện ích",
+      "systemSettings": "Cấu hình hệ thống"
+    },
+    "userMenu": {
+      "profile": "Cài đặt",
+      "changePassword": "Đổi mật khẩu",
+      "logout": "Đăng xuất"
+    },
+    "language": {
+      "toggleTitle": "Đổi ngôn ngữ"
+    },
+    "finance": {
+      "title": "Tài chính",
+      "subtitle": "Theo dõi cashflow, lợi nhuận và đối soát nội bộ",
+      "charts": {
+        "title": "Biểu đồ cơ cấu dòng tiền",
+        "amount": "Số tiền",
+        "deposit": "Đặt cọc",
+        "topup": "Nạp ví",
+        "vip": "VIP",
+        "platformFee": "Phí nền tảng",
+        "refund": "Hoàn tiền"
+      },
+      "filters": {
+        "from": "Từ ngày",
+        "to": "Đến ngày",
+        "apply": "Áp dụng bộ lọc"
+      },
+      "kpis": {
+        "platformFees": "Doanh thu phí nền tảng",
+        "preorderDeposits": "Đặt cọc thành công",
+        "walletTopups": "Nạp ví thành công",
+        "refunds": "Refund hoàn tất",
+        "pendingOrders": "Đơn thanh toán chờ xử lý",
+        "vipPurchases": "Giao dịch VIP"
+      },
+      "reconciliation": {
+        "title": "Đối soát sai lệch",
+        "noMismatch": "Không phát hiện sai lệch trong phạm vi đã lọc"
+      },
+      "table": {
+        "preorder": "Yêu cầu đặt cọc",
+        "paymentOrder": "Lệnh thanh toán"
+      }
+    },
+    "moderators": {
+      "title": "Hiệu suất Moderator",
+      "subtitle": "Theo dõi năng suất và chất lượng vận hành moderation",
+      "filters": {
+        "apply": "Áp dụng bộ lọc"
+      },
+      "table": {
+        "moderator": "Moderator",
+        "status": "Trạng thái",
+        "openAssigned": "Open Assigned",
+        "resolvedInRange": "Resolved (khoảng lọc)",
+        "escalatedInRange": "Escalated (khoảng lọc)",
+        "avgResolution": "Thời gian xử lý TB"
+      }
+    },
+    "settings": {
+      "title": "Cấu hình hệ thống",
+      "subtitle": "Quản trị rule tài chính ở mức hệ thống",
+      "providerKeysNotice": "Provider keys (PayOS, Supabase, Cloudinary) vẫn quản lý bằng environment variables.",
+      "sections": {
+        "depositRules": "Quy tắc đặt cọc Preorder",
+        "platformCommission": "Hoa hồng nền tảng"
+      },
+      "fields": {
+        "defaultPercent": "Phần trăm mặc định",
+        "minPercent": "Phần trăm tối thiểu",
+        "maxPercent": "Phần trăm tối đa",
+        "baseMonths": "Số tháng chuẩn",
+        "preorderFeeBps": "Phí preorder (bps)",
+        "preorderFeeHelp": "100 bps = 1%"
+      },
+      "required": "Bắt buộc",
+      "save": "Lưu thay đổi"
+    },
+    "wallets": {
+      "title": "Quản lý ví",
+      "pendingBadge": "Chờ duyệt",
+      "quickPendingTooltip": "Bấm để lọc nhanh các yêu cầu rút tiền chờ duyệt trong drawer giao dịch",
+      "notice": "Admin có thể theo dõi ví và duyệt/từ chối các yêu cầu rút tiền đang chờ xử lý. Số dư chỉ thay đổi khi yêu cầu được duyệt thành công.",
+      "searchPlaceholder": "Tìm theo tên, email...",
+      "searchButton": "Tìm kiếm",
+      "totalWalletsText": "Tổng {{total}} ví",
+      "totalTransactionsText": "Tổng {{total}} giao dịch",
+      "tabs": {
+        "overview": "Tổng quan",
+        "withdrawalQueue": "Chờ duyệt rút tiền",
+        "walletExplorer": "Danh sách ví"
+      },
+      "overview": {
+        "subtitle": "Tập trung theo dõi chỉ số vận hành và chuyển nhanh sang hàng đợi xử lý.",
+        "goToQueue": "Mở queue chờ duyệt"
+      },
+      "queue": {
+        "goNow": "Xử lý ngay",
+        "notice": "Đây là luồng chính để duyệt/từ chối rút tiền toàn hệ thống trên một màn hình.",
+        "searchPlaceholder": "Tìm theo tên, email, số điện thoại...",
+        "searchButton": "Tìm trong queue",
+        "resetFilters": "Đặt lại bộ lọc",
+        "totalText": "Tổng {{total}} yêu cầu",
+        "empty": "Không có yêu cầu rút tiền chờ duyệt",
+        "selectedText": "Đã chọn {{count}} yêu cầu",
+        "messages": {
+          "partialFailed": "Có {{count}} yêu cầu xử lý thất bại."
+        },
+        "kpis": {
+          "pendingCount": "Số yêu cầu chờ duyệt",
+          "pendingAmount": "Tổng tiền chờ duyệt",
+          "avgWaiting": "Thời gian chờ trung bình",
+          "overdueCount": "Số đơn quá SLA (>{{sla}}h)"
+        },
+        "quickFilters": {
+          "all": "Tất cả",
+          "lt24h": "Chờ < 24h",
+          "gt24h": "Chờ > 24h",
+          "amountOver": "Số tiền > {{amount}}"
+        },
+        "sort": {
+          "newest": "Mới nhất trước",
+          "oldest": "Cũ nhất trước",
+          "amountDesc": "Số tiền giảm dần",
+          "amountAsc": "Số tiền tăng dần"
+        },
+        "table": {
+          "user": "Người dùng",
+          "amount": "Số tiền",
+          "status": "Trạng thái",
+          "waitingAge": "Chờ bao lâu",
+          "priority": "Ưu tiên",
+          "description": "Ghi chú",
+          "actions": "Hành động"
+        },
+        "status": {
+          "pending": "Đang chờ",
+          "overdue": "Quá hạn"
+        },
+        "priority": {
+          "HIGH": "High",
+          "NORMAL": "Normal"
+        },
+        "batch": {
+          "approve": "Duyệt đã chọn",
+          "reject": "Từ chối đã chọn"
+        },
+        "age": {
+          "lessThanHour": "< 1 giờ",
+          "hours": "{{value}} giờ",
+          "days": "{{value}} ngày"
+        }
+      },
+      "messages": {
+        "openWalletFirst": "Mở giao dịch của một ví rồi bấm lại để lọc các yêu cầu rút tiền chờ duyệt."
+      },
+      "stats": {
+        "totalWallets": "Tổng số ví",
+        "totalBalance": "Tổng số dư hệ thống",
+        "avgBalance": "Số dư trung bình",
+        "maxBalance": "Số dư cao nhất",
+        "byTypeTitle": "Thống kê giao dịch theo loại"
+      },
+      "actions": {
+        "viewTransactions": "Xem giao dịch",
+        "transactions": "Giao dịch",
+        "approve": "Duyệt",
+        "reject": "Từ chối"
+      },
+      "table": {
+        "user": "User",
+        "role": "Role",
+        "balance": "Số dư",
+        "createdAt": "Ngày tạo"
+      },
+      "txTable": {
+        "type": "Loại",
+        "amount": "Số tiền",
+        "status": "Trạng thái",
+        "description": "Mô tả",
+        "time": "Thời gian",
+        "actions": "Hành động"
+      },
+      "txType": {
+        "DEPOSIT": "Nạp tiền",
+        "WITHDRAW": "Rút tiền",
+        "TRANSFER": "Chuyển tiền",
+        "PREORDER": "Đặt cọc",
+        "REFUND": "Hoàn tiền",
+        "PAYMENT": "Thanh toán"
+      },
+      "txStatus": {
+        "PENDING": "Đang xử lý",
+        "SUCCESS": "Thành công",
+        "FAILED": "Thất bại",
+        "CANCELLED": "Đã hủy"
+      },
+      "drawer": {
+        "title": "Lịch sử giao dịch",
+        "owner": "Chủ ví",
+        "email": "Email",
+        "role": "Role",
+        "currentBalance": "Số dư hiện tại"
+      },
+      "filters": {
+        "pendingWithdraw": "Chờ duyệt rút tiền",
+        "allTransactions": "Tất cả giao dịch",
+        "byType": "Lọc theo loại",
+        "byStatus": "Lọc theo trạng thái"
+      },
+      "rejectModal": {
+        "title": "Từ chối yêu cầu rút tiền",
+        "confirm": "Xác nhận từ chối",
+        "cancel": "Hủy",
+        "description": "Bạn có thể nhập lý do để thông báo cho người dùng (không bắt buộc).",
+        "placeholder": "Ví dụ: Thông tin tài khoản nhận tiền chưa hợp lệ",
+        "templateLabel": "Mẫu lý do",
+        "templatePlaceholder": "Chọn mẫu lý do nhanh"
+      },
+      "rejectTemplates": {
+        "bankInfoInvalid": "Thông tin tài khoản nhận tiền chưa hợp lệ.",
+        "identityMismatch": "Thông tin chủ tài khoản không khớp hồ sơ xác thực.",
+        "riskDetected": "Yêu cầu có dấu hiệu rủi ro, cần kiểm tra thêm.",
+        "duplicateRequest": "Yêu cầu trùng lặp với giao dịch đang xử lý.",
+        "contactSupport": "Vui lòng liên hệ CSKH để được hỗ trợ cập nhật thông tin."
+      }
+    },
+    "users": {
+      "title": "Quản lý người dùng",
+      "totalUsersText": "Tổng {{total}} người dùng",
+      "table": {
+        "user": "User",
+        "phone": "SĐT",
+        "role": "Role",
+        "status": "Trạng thái",
+        "createdAt": "Ngày tạo",
+        "actions": "Hành động"
+      },
+      "filters": {
+        "searchPlaceholder": "Tìm theo tên, email, phone...",
+        "rolePlaceholder": "Lọc theo Role",
+        "statusPlaceholder": "Lọc theo Status",
+        "searchButton": "Tìm kiếm"
+      },
+      "actions": {
+        "viewDetail": "Xem chi tiết",
+        "changeRole": "Đổi role",
+        "confirmBanTitle": "Ban user này?",
+        "confirmBanDesc": "Bạn có chắc muốn ban \"{{name}}\"?",
+        "ban": "Ban",
+        "cancel": "Hủy",
+        "banUser": "Ban user",
+        "confirmUnbanTitle": "Mở khóa user này?",
+        "confirmUnbanDesc": "Bạn có chắc muốn mở khóa \"{{name}}\"?",
+        "unban": "Mở khóa",
+        "unbanUser": "Unban user"
+      },
+      "roleModal": {
+        "title": "Đổi role cho \"{{name}}\"",
+        "save": "Lưu",
+        "cancel": "Hủy",
+        "selectNewRole": "Chọn role mới:"
+      },
+      "drawer": {
+        "title": "Chi tiết người dùng",
+        "vip": "VIP",
+        "id": "ID",
+        "phone": "SĐT",
+        "createdAt": "Ngày tạo",
+        "lastUpdated": "Cập nhật lần cuối",
+        "stats": "Thống kê",
+        "rentals": "Bài đăng",
+        "favorites": "Yêu thích",
+        "preorders": "Đặt cọc",
+        "wallet": "Ví",
+        "balance": "Số dư",
+        "walletCreatedAt": "Ngày tạo ví",
+        "preferences": "Sở thích tìm phòng",
+        "budget": "Ngân sách",
+        "roomType": "Loại phòng",
+        "location": "Khu vực",
+        "lifestyle": "Hồ sơ lối sống",
+        "occupation": "Nghề nghiệp",
+        "personality": "Tính cách",
+        "rentalPosts": "Bài đăng ({{count}})",
+        "roomsCount": "{{count}} phòng",
+        "recentPreorders": "Đặt cọc gần đây",
+        "landlordWarning": "Lưu ý: Dữ liệu chủ trọ có thể liên kết với nhiều bài đăng, phòng, đặt cọc và giao dịch. Không nên xóa tài khoản chủ trọ.",
+        "notFound": "Không tìm thấy thông tin."
+      },
+      "role": {
+        "ADMIN": "Admin",
+        "MODERATOR": "Moderator",
+        "LANDLORD": "Chủ trọ",
+        "TENANT": "Người thuê",
+        "GUEST": "Khách"
+      },
+      "status": {
+        "ACTIVE": "Hoạt động",
+        "INACTIVE": "Không hoạt động",
+        "SUSPENDED": "Tạm ngưng",
+        "BANNED": "Bị cấm"
+      },
+      "rentalStatus": {
+        "AVAILABLE": "Đang hiển thị",
+        "UNAVAILABLE": "Tạm ngưng",
+        "HIDDEN": "Đã ẩn",
+        "VIOLATE": "Vi phạm",
+        "PENDING": "Chờ duyệt",
+        "SUSPEND": "Tạm khóa"
+      }
+    },
+    "rentals": {
+      "title": "Quản lý phòng trọ",
+      "totalText": "Tổng {{total}} phòng",
+      "messages": {
+        "loadDetailFailed": "Không thể tải chi tiết"
+      },
+      "table": {
+        "title": "Tiêu đề",
+        "owner": "Chủ trọ",
+        "roomCount": "Số phòng",
+        "location": "Địa chỉ",
+        "status": "Trạng thái",
+        "actions": "Hành động"
+      },
+      "actions": {
+        "viewDetail": "Xem chi tiết",
+        "confirmDeleteTitle": "Xóa phòng này?",
+        "confirmDeleteDescription": "Hành động này không thể hoàn tác!",
+        "delete": "Xóa",
+        "cancel": "Hủy"
+      },
+      "stats": {
+        "total": "Tổng bài đăng"
+      },
+      "filters": {
+        "searchPlaceholder": "Tìm theo tiêu đề, địa chỉ...",
+        "statusPlaceholder": "Lọc theo Status",
+        "searchButton": "Tìm kiếm"
+      },
+      "detail": {
+        "owner": "Chủ trọ",
+        "phone": "SĐT",
+        "location": "Địa chỉ",
+        "roomCount": "Số phòng",
+        "status": "Trạng thái",
+        "description": "Mô tả"
+      },
+      "status": {
+        "AVAILABLE": "Đang hiển thị",
+        "UNAVAILABLE": "Tạm ngưng",
+        "HIDDEN": "Đã ẩn",
+        "VIOLATE": "Vi phạm",
+        "PENDING": "Chờ duyệt",
+        "SUSPEND": "Tạm khóa"
+      }
+    },
+    "dashboard": {
+      "title": "Tổng quan",
+      "subtitle": "Tổng quan hệ thống EZ-Room",
+      "kpis": {
+        "totalUsers": "Tổng số Users",
+        "activeUsers": "Users hoạt động",
+        "totalRentals": "Tổng số Bài đăng",
+        "thisMonthRentals": "Bài đăng tháng này",
+        "totalWallets": "Tổng ví",
+        "totalBalance": "Tổng số dư",
+        "totalFeedback": "Tổng Feedback",
+        "totalPreorders": "Tổng Đặt cọc"
+      },
+      "roles": {
+        "admin": "Admin",
+        "moderator": "Moderator",
+        "landlord": "Chủ trọ",
+        "tenant": "Người thuê"
+      },
+      "rentalStatus": {
+        "available": "Đang hiển thị",
+        "unavailable": "Tạm ngưng",
+        "hidden": "Đã ẩn",
+        "violate": "Vi phạm",
+        "pending": "Chờ duyệt",
+        "suspend": "Tạm khóa"
+      },
+      "charts": {
+        "usersByRole": "Phân bố Users theo Role",
+        "rentalsByStatus": "Trạng thái Bài đăng",
+        "count": "Số lượng"
+      },
+      "systemStatus": {
+        "title": "Tình trạng hệ thống",
+        "availableRentals": "Bài đăng Available",
+        "unavailableRentals": "Bài đăng Unavailable",
+        "hiddenRentals": "Bài đăng Hidden",
+        "bannedUsers": "Users bị Ban"
+      }
+    },
+    "locations": {
+      "title": "Quản lý Địa điểm",
+      "totalText": "Tổng {{total}} địa điểm",
+      "table": {
+        "city": "Thành phố",
+        "district": "Quận/Huyện",
+        "address": "Địa chỉ",
+        "actions": "Hành động",
+        "empty": "-"
+      },
+      "filters": {
+        "byCity": "Lọc theo thành phố:",
+        "allCities": "Tất cả thành phố"
+      },
+      "actions": {
+        "add": "Thêm địa điểm",
+        "edit": "Sửa",
+        "delete": "Xóa",
+        "cancel": "Hủy",
+        "update": "Cập nhật",
+        "create": "Tạo mới",
+        "confirmDeleteTitle": "Xóa địa điểm này?",
+        "confirmDeleteDescription": "Bạn có chắc muốn xóa \"{{city}} - {{district}}\"?"
+      },
+      "modal": {
+        "editTitle": "Sửa địa điểm",
+        "createTitle": "Thêm địa điểm mới"
+      },
+      "form": {
+        "addressLabel": "Địa chỉ chi tiết",
+        "addressRequired": "Vui lòng nhập địa chỉ",
+        "addressPlaceholder": "VD: 123 Nguyễn Huệ, Phường Bến Nghé...",
+        "cityLabel": "Thành phố (tùy chọn)",
+        "cityPlaceholder": "VD: Hồ Chí Minh, Hà Nội...",
+        "districtLabel": "Quận/Huyện (tùy chọn)",
+        "districtPlaceholder": "VD: Quận 1, Thủ Đức..."
+      }
+    }
+  },
   "common": {
     "loading": "Đang tải..."
   }

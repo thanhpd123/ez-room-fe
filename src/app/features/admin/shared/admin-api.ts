@@ -193,6 +193,64 @@ export interface WalletStats {
     }>;
 }
 
+export interface PendingWithdrawalQueueItem {
+    id: string;
+    walletId: string;
+    amount: string;
+    status: 'PENDING';
+    transaction_type: 'WITHDRAW';
+    description: string | null;
+    createdAt: string;
+    waitingHours: number;
+    priority: 'HIGH' | 'NORMAL';
+    isOverdue: boolean;
+    wallet: {
+        id: string;
+        balance: string;
+    };
+    user: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone: string | null;
+        avatarUrl: string | null;
+        role: string;
+        status: string;
+    };
+}
+
+export interface PendingWithdrawalQueueSummary {
+    pendingCount: number;
+    pendingAmount: number;
+    avgWaitingHours: number;
+    overdueCount: number;
+    slaHours: number;
+    priorityAmountThreshold: number;
+}
+
+export interface GetPendingWithdrawalQueueParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sortBy?: 'createdAt' | 'amount';
+    order?: 'asc' | 'desc';
+    minAmount?: number;
+    maxAmount?: number;
+    createdAfter?: string;
+    createdBefore?: string;
+}
+
+export interface BatchWithdrawalActionResult {
+    transactionId: string;
+    walletId: string | null;
+    amount: string | null;
+}
+
+export interface BatchWithdrawalFailure {
+    transactionId: string;
+    message: string;
+}
+
 export interface PaginationInfo {
     page: number;
     limit: number;
@@ -648,5 +706,284 @@ export async function rejectWalletWithdrawal(
             success: false,
             message: err.response?.data?.message || 'Lỗi khi từ chối yêu cầu rút tiền',
         };
+    }
+}
+
+export async function getPendingWithdrawalQueue(
+    params: GetPendingWithdrawalQueueParams = {}
+): Promise<{
+    data: PendingWithdrawalQueueItem[];
+    summary: PendingWithdrawalQueueSummary;
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/wallets/withdrawals/pending'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            data: res.data.data,
+            summary: res.data.summary,
+            pagination: res.data.pagination,
+        };
+    } catch (error) {
+        console.error('getPendingWithdrawalQueue error:', error);
+        return {
+            data: [],
+            summary: {
+                pendingCount: 0,
+                pendingAmount: 0,
+                avgWaitingHours: 0,
+                overdueCount: 0,
+                slaHours: 12,
+                priorityAmountThreshold: 3000000,
+            },
+            pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function approveWalletWithdrawalsBatch(transactionIds: string[]): Promise<{
+    success: boolean;
+    message: string;
+    approved: BatchWithdrawalActionResult[];
+    failed: BatchWithdrawalFailure[];
+}> {
+    try {
+        const res = await axios.patch(
+            getApiUrl('/admin/wallets/withdrawals/batch-approve'),
+            { transactionIds },
+            { headers: getAuthHeader() }
+        );
+        return {
+            success: true,
+            message: res.data.message || 'Duyệt hàng loạt thành công',
+            approved: res.data.data?.approved || [],
+            failed: res.data.data?.failed || [],
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi duyệt hàng loạt yêu cầu rút tiền',
+            approved: [],
+            failed: [],
+        };
+    }
+}
+
+export async function rejectWalletWithdrawalsBatch(
+    transactionIds: string[],
+    reason?: string
+): Promise<{
+    success: boolean;
+    message: string;
+    rejected: BatchWithdrawalActionResult[];
+    failed: BatchWithdrawalFailure[];
+}> {
+    try {
+        const res = await axios.patch(
+            getApiUrl('/admin/wallets/withdrawals/batch-reject'),
+            {
+                transactionIds,
+                reason: reason?.trim() || undefined,
+            },
+            { headers: getAuthHeader() }
+        );
+        return {
+            success: true,
+            message: res.data.message || 'Từ chối hàng loạt thành công',
+            rejected: res.data.data?.rejected || [],
+            failed: res.data.data?.failed || [],
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi từ chối hàng loạt yêu cầu rút tiền',
+            rejected: [],
+            failed: [],
+        };
+    }
+}
+
+// ==================== Settings API ====================
+
+export interface SystemSettingsData {
+    settings: {
+        'preorder.deposit': {
+            defaultPercent: number;
+            minPercent: number;
+            maxPercent: number;
+            baseMonths: number;
+        };
+        'platform.commission': {
+            preorderFeeBps: number;
+        };
+    };
+    meta: Record<string, { source: 'db' | 'default'; updatedAt: string | null; updatedBy: string | null }>;
+}
+
+export async function getSystemSettings(): Promise<SystemSettingsData | null> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/settings'), {
+            headers: getAuthHeader(),
+        });
+        return res.data.data;
+    } catch (error) {
+        console.error('getSystemSettings error:', error);
+        return null;
+    }
+}
+
+export interface UpdateSystemSettingsInput {
+    settings: Partial<{
+        'preorder.deposit': {
+            defaultPercent: number;
+            minPercent: number;
+            maxPercent: number;
+            baseMonths: number;
+        };
+        'platform.commission': {
+            preorderFeeBps: number;
+        };
+    }>;
+}
+
+export async function updateSystemSettings(payload: UpdateSystemSettingsInput): Promise<{ success: boolean; message: string; data?: SystemSettingsData }> {
+    try {
+        const res = await axios.patch(getApiUrl('/admin/settings'), payload, {
+            headers: getAuthHeader(),
+        });
+        return {
+            success: true,
+            message: res.data.message || 'Cập nhật settings thành công',
+            data: res.data.data,
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi cập nhật settings',
+        };
+    }
+}
+
+// ==================== Finance API ====================
+
+export interface DateRangeParams {
+    from?: string;
+    to?: string;
+}
+
+export interface FinanceSummaryData {
+    range: {
+        from: string;
+        to: string;
+    };
+    kpis: {
+        preorderDeposits: { successCount: number; successAmount: number };
+        walletTopups: { successCount: number; successAmount: number };
+        vipPurchases: { successCount: number; successAmount: number };
+        refunds: { completedCount: number; completedAmount: number };
+        platformFees: { entries: number; amount: number };
+        pendingPaymentOrders: number;
+    };
+}
+
+export async function getFinanceSummary(params: DateRangeParams = {}): Promise<FinanceSummaryData | null> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/finance/summary'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return res.data.data;
+    } catch (error) {
+        console.error('getFinanceSummary error:', error);
+        return null;
+    }
+}
+
+export interface ReconciliationItem {
+    type: string;
+    order: {
+        id: string;
+        vnp_txn_ref: string;
+        amount: string;
+        status: string;
+        ref_type: string | null;
+        ref_id: string | null;
+        created_at: string;
+        updated_at: string;
+    } | null;
+    preorder: {
+        id: string;
+        userId?: string;
+        roomId?: string;
+        status: string;
+        payment_status: string;
+        deposit_amount: string | null;
+        createdAt: string;
+    } | null;
+}
+
+export interface FinanceReconciliationData {
+    range: { from: string; to: string };
+    summary: { total: number; byType: Record<string, number> };
+    mismatches: ReconciliationItem[];
+}
+
+export async function getFinanceReconciliation(params: DateRangeParams & { page?: number; limit?: number } = {}): Promise<{
+    data: FinanceReconciliationData | null;
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/finance/reconciliation'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            data: res.data.data,
+            pagination: res.data.pagination,
+        };
+    } catch (error) {
+        console.error('getFinanceReconciliation error:', error);
+        return {
+            data: null,
+            pagination: { page: 1, limit: 50, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+// ==================== Moderator KPI API ====================
+
+export interface ModeratorKpiItem {
+    id: string;
+    fullName: string;
+    email: string;
+    status: string;
+    queue: {
+        openAssigned: number;
+        resolvedInRange: number;
+        escalatedInRange: number;
+        avgResolutionMs: number | null;
+    };
+}
+
+export interface ModeratorKpiData {
+    range: { from: string; to: string };
+    moderators: ModeratorKpiItem[];
+}
+
+export async function getModeratorKpis(params: DateRangeParams = {}): Promise<ModeratorKpiData | null> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/moderators/kpis'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return res.data.data;
+    } catch (error) {
+        console.error('getModeratorKpis error:', error);
+        return null;
     }
 }
