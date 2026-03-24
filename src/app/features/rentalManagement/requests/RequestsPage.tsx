@@ -17,6 +17,7 @@ function formatDateTime(dateString: string) {
 
 const statusColors: Record<string, string> = {
     PENDING: 'bg-yellow-100 text-yellow-700',
+    PENDING_PAID: 'bg-blue-100 text-blue-700',
     CONFIRMED: 'bg-green-100 text-green-700',
     CANCELLED: 'bg-red-100 text-red-700',
     EXPIRED: 'bg-slate-100 text-slate-700',
@@ -24,10 +25,24 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
     PENDING: 'Chờ xác nhận',
+    PENDING_PAID: 'Đã thanh toán, chờ xác nhận',
     CONFIRMED: 'Đã duyệt',
     CANCELLED: 'Đã từ chối',
     EXPIRED: 'Hết hạn',
 };
+
+const paymentStatusLabels: Record<RentalRequest['paymentStatus'], string> = {
+    UNPAID: 'Chưa thanh toán',
+    PAID: 'Đã thanh toán',
+    REFUNDED: 'Đã hoàn tiền',
+};
+
+function getDisplayStatus(request: RentalRequest) {
+    if (request.status === 'PENDING' && request.paymentStatus === 'PAID') {
+        return 'PENDING_PAID';
+    }
+    return request.status;
+}
 
 export function RequestsPage() {
     const [requests, setRequests] = useState<RentalRequest[]>([]);
@@ -129,69 +144,83 @@ export function RequestsPage() {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {requests.map((request) => (
-                        <div
-                            key={request.id}
-                            className="rounded-lg bg-white p-4 shadow-sm border border-border hover:shadow-md transition-shadow"
-                        >
-                            <div className="flex flex-col gap-4">
-                                {/* Header: User Info & Status */}
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <h3 className="font-semibold text-foreground">{request.user.fullName}</h3>
-                                        <p className="text-sm text-muted-foreground">{request.user.email}</p>
-                                        {request.user.phone && (
-                                            <p className="text-sm text-muted-foreground">{request.user.phone}</p>
-                                        )}
-                                    </div>
-                                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[request.status]}`}>
-                                        {statusLabels[request.status]}
-                                    </span>
-                                </div>
+                    {requests.map((request) => {
+                        // Show combined state so landlords can quickly spot deposits already paid by tenant.
+                        const displayStatus = getDisplayStatus(request);
+                        const canConfirm = request.status === 'PENDING' && request.paymentStatus === 'PAID';
 
-                                {/* Room & Rental Info */}
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <p className="text-muted-foreground">Phòng</p>
-                                        <p className="font-medium">{request.room.room_name || 'N/A'}</p>
+                        return (
+                            <div
+                                key={request.id}
+                                className="rounded-lg bg-white p-4 shadow-sm border border-border hover:shadow-md transition-shadow"
+                            >
+                                <div className="flex flex-col gap-4">
+                                    {/* Header: User Info & Status */}
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <h3 className="font-semibold text-foreground">{request.user.fullName}</h3>
+                                            <p className="text-sm text-muted-foreground">{request.user.email}</p>
+                                            {request.user.phone && (
+                                                <p className="text-sm text-muted-foreground">{request.user.phone}</p>
+                                            )}
+                                        </div>
+                                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[displayStatus]}`}>
+                                            {statusLabels[displayStatus]}
+                                        </span>
                                     </div>
-                                    <div>
-                                        <p className="text-muted-foreground">Giá phòng</p>
-                                        <p className="font-medium">{formatCurrency(request.room.price)}/tháng</p>
-                                    </div>
-                                    <div className="col-span-2">
-                                        <p className="text-muted-foreground">Nhà cho thuê</p>
-                                        <p className="font-medium">{request.rental.title}</p>
-                                    </div>
-                                </div>
 
-                                {/* Request Date */}
-                                <div className="text-xs text-muted-foreground pt-2 border-t border-border">
-                                    Yêu cầu ngày: {formatDateTime(request.createdAt)}
-                                </div>
-
-                                {/* Actions */}
-                                {request.status === 'PENDING' && (
-                                    <div className="flex gap-2 pt-2">
-                                        <button
-                                            onClick={() => handleConfirm(request.id)}
-                                            disabled={actioningId === request.id}
-                                            className="flex-1 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium text-white transition-colors"
-                                        >
-                                            {actioningId === request.id ? 'Đang xử lý...' : '✓ Duyệt'}
-                                        </button>
-                                        <button
-                                            onClick={() => handleReject(request.id)}
-                                            disabled={actioningId === request.id}
-                                            className="flex-1 rounded-lg border border-red-200 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium text-red-600 transition-colors"
-                                        >
-                                            {actioningId === request.id ? 'Đang xử lý...' : '✕ Từ chối'}
-                                        </button>
+                                    {/* Room & Rental Info */}
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <p className="text-muted-foreground">Phòng</p>
+                                            <p className="font-medium">{request.room.room_name || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground">Giá phòng</p>
+                                            <p className="font-medium">{formatCurrency(request.room.price)}/tháng</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground">Thanh toán cọc</p>
+                                            <p className="font-medium">{paymentStatusLabels[request.paymentStatus]}</p>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <p className="text-muted-foreground">Nhà cho thuê</p>
+                                            <p className="font-medium">{request.rental.title}</p>
+                                        </div>
                                     </div>
-                                )}
+
+                                    {/* Request Date */}
+                                    <div className="text-xs text-muted-foreground pt-2 border-t border-border">
+                                        Yêu cầu ngày: {formatDateTime(request.createdAt)}
+                                    </div>
+
+                                    {/* Actions */}
+                                    {request.status === 'PENDING' && (
+                                        <div className="flex gap-2 pt-2">
+                                            <button
+                                                onClick={() => handleConfirm(request.id)}
+                                                disabled={actioningId === request.id || !canConfirm}
+                                                className="flex-1 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium text-white transition-colors"
+                                            >
+                                                {actioningId === request.id
+                                                    ? 'Đang xử lý...'
+                                                    : canConfirm
+                                                        ? '✓ Duyệt'
+                                                        : 'Chờ tenant thanh toán cọc'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleReject(request.id)}
+                                                disabled={actioningId === request.id}
+                                                className="flex-1 rounded-lg border border-red-200 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium text-red-600 transition-colors"
+                                            >
+                                                {actioningId === request.id ? 'Đang xử lý...' : '✕ Từ chối'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>

@@ -8,6 +8,7 @@ import {
     FileText,
     MessageSquare,
     Star,
+    Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ const items = [
     { label: 'Tổng quan', path: '/rental-management', Icon: LayoutDashboard },
     { label: 'Danh sách nhà cho thuê', path: '/rental-management/rentals', Icon: Building2 },
     { label: 'Yêu cầu', path: '/rental-management/requests', Icon: FileText },
+    { label: 'Ví tiền', path: '/wallet', Icon: Wallet },
     { label: 'Đánh giá', path: '/rental-management/reviews', Icon: Star },
     { label: 'Tin nhắn', path: '/chat', Icon: MessageSquare },
     { label: 'Thêm nhà cho thuê', path: '/rental-management/rentals/create', Icon: CirclePlus },

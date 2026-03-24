@@ -12,6 +12,16 @@ import {
 } from '@/lib/api';
 
 type ActionType = 'DEPOSIT' | 'WITHDRAW';
+type TransactionFilter = 'ALL' | WalletTransactionItem['type'];
+
+const transactionFilterOptions: Array<{ value: TransactionFilter; label: string }> = [
+    { value: 'ALL', label: 'Tất cả' },
+    { value: 'PREORDER', label: 'Đặt cọc' },
+    { value: 'DEPOSIT', label: 'Nạp tiền' },
+    { value: 'WITHDRAW', label: 'Rút tiền' },
+    { value: 'PAYMENT', label: 'Thanh toán' },
+    { value: 'REFUND', label: 'Hoàn tiền' },
+];
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -45,24 +55,56 @@ export function WalletPage() {
     const [description, setDescription] = useState('');
     const [redirectingToPayOS, setRedirectingToPayOS] = useState(false);
     const [verifyingPayOS, setVerifyingPayOS] = useState(false);
+    const [filterType, setFilterType] = useState<TransactionFilter>('ALL');
 
     const amount = useMemo(() => Number(amountText), [amountText]);
 
-    const loadWallet = async () => {
+    const fetchWalletSnapshot = async (selectedFilter: TransactionFilter = filterType) => {
+        const transactionType = selectedFilter === 'ALL' ? undefined : selectedFilter;
         const [walletRes, txRes] = await Promise.all([
             getMyWalletRequest(),
-            getMyWalletTransactionsRequest({ page: 1, limit: 20 }),
+            getMyWalletTransactionsRequest({ page: 1, limit: 20, type: transactionType }),
         ]);
-        setWallet(walletRes.data);
-        setTransactions(txRes.data || []);
+        return {
+            wallet: walletRes.data,
+            transactions: txRes.data || [],
+        };
+    };
+
+    const loadWallet = async (selectedFilter: TransactionFilter = filterType) => {
+        const snapshot = await fetchWalletSnapshot(selectedFilter);
+        setWallet(snapshot.wallet);
+        setTransactions(snapshot.transactions);
     };
 
     useEffect(() => {
         setLoading(true);
-        loadWallet()
+        loadWallet(filterType)
             .catch((e) => setError(e instanceof Error ? e.message : 'Không tải được ví'))
             .finally(() => setLoading(false));
-    }, []);
+    }, [filterType]);
+
+    useEffect(() => {
+        const pollIntervalMs = 20000;
+        const intervalId = window.setInterval(() => {
+            const currentBalance = wallet?.balance || 0;
+
+            fetchWalletSnapshot(filterType)
+                .then((snapshot) => {
+                    setWallet(snapshot.wallet);
+                    setTransactions(snapshot.transactions);
+
+                    if (snapshot.wallet.balance > currentBalance) {
+                        setMessage('Ví đã được cập nhật: bạn vừa nhận thêm tiền.');
+                    }
+                })
+                .catch(() => {
+                    // Ignore transient polling errors to avoid noisy UX.
+                });
+        }, pollIntervalMs);
+
+        return () => window.clearInterval(intervalId);
+    }, [wallet?.balance, filterType]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -96,7 +138,7 @@ export function WalletPage() {
                 }
 
                 setMessage('Nạp tiền thành công. Số dư ví đã được cập nhật.');
-                await loadWallet();
+                await loadWallet(filterType);
             })
             .catch((e) => {
                 setError(e instanceof Error ? e.message : 'Không thể xác minh giao dịch nạp ví');
@@ -142,7 +184,7 @@ export function WalletPage() {
             }
             setAmountText('');
             setDescription('');
-            await loadWallet();
+            await loadWallet(filterType);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Thao tác thất bại');
         } finally {
@@ -239,10 +281,27 @@ export function WalletPage() {
 
                 <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-sm">
                     <h2 className="text-lg font-semibold text-foreground mb-4">Lịch sử giao dịch</h2>
+                    <div className="mb-4 flex flex-wrap gap-2">
+                        {transactionFilterOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setFilterType(option.value)}
+                                className={`rounded-xl border px-3 py-1.5 text-sm font-medium transition-colors ${filterType === option.value
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'border-border hover:bg-muted'
+                                    }`}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
                     {loading ? (
                         <p className="text-muted-foreground">Đang tải lịch sử...</p>
                     ) : transactions.length === 0 ? (
-                        <p className="text-muted-foreground">Chưa có giao dịch nào.</p>
+                        <p className="text-muted-foreground">
+                            {filterType === 'ALL' ? 'Chưa có giao dịch nào.' : `Chưa có giao dịch ${txTypeLabel(filterType)}.`}
+                        </p>
                     ) : (
                         <div className="space-y-3">
                             {transactions.map((tx) => (
@@ -255,8 +314,8 @@ export function WalletPage() {
                                         </p>
                                     </div>
                                     <div className="text-right">
-                                        <p className={`font-semibold ${tx.type === 'DEPOSIT' || tx.type === 'REFUND' ? 'text-primary' : 'text-foreground'}`}>
-                                            {tx.type === 'DEPOSIT' || tx.type === 'REFUND' ? '+' : '-'}{formatMoney(tx.amount)}
+                                        <p className={`font-semibold ${tx.type === 'DEPOSIT' || tx.type === 'REFUND' || tx.type === 'PREORDER' ? 'text-primary' : 'text-foreground'}`}>
+                                            {tx.type === 'DEPOSIT' || tx.type === 'REFUND' || tx.type === 'PREORDER' ? '+' : '-'}{formatMoney(tx.amount)}
                                         </p>
                                         <p className="text-xs text-muted-foreground mt-1">{tx.status}</p>
                                     </div>
