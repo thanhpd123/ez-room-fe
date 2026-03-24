@@ -21,6 +21,8 @@ export function SearchPage() {
         searchByImage,
         resetSearch,
         imageSearchError,
+        textSearchError,
+        vipUpgradePath,
     } = useSearch();
 
     const showImageTab = isTenant || isVip;
@@ -31,7 +33,7 @@ export function SearchPage() {
             <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
 
             {/* Hero section with search */}
-            <section className="relative bg-gradient-to-br from-primary/10 via-background to-accent/5 py-6 sm:py-10 lg:py-14">
+            <section className="relative bg-linear-to-br from-primary/10 via-background to-accent/5 py-6 sm:py-10 lg:py-14">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center mb-4 sm:mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading mb-2">
                         Tìm kiếm phòng trọ
@@ -51,7 +53,10 @@ export function SearchPage() {
                                         onSearch={searchByText}
                                         isSearching={isSearching}
                                         basicOnly={basicOnly}
-                                        onVoiceResult={showImageTab ? () => {} : undefined}
+                                        onVoiceResult={showImageTab ? () => { } : undefined}
+                                        backendError={textSearchError}
+                                        vipUpgradePath={vipUpgradePath}
+                                        onUpgradeVip={(path) => navigate(path || '/vip-plans')}
                                     />
                                 ) : (
                                     <SearchByImage

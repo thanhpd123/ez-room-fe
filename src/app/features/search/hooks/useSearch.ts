@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import type { Room, SearchCriteria } from '../types';
 import { smartSearchRequest, searchByImageRequest } from '@/lib/api';
 import type { SmartSearchRoomItem } from '@/lib/api';
+import type { ApiErrorWithCode } from '@/lib/api';
 
 function smartSearchItemToRoom(r: SmartSearchRoomItem): Room {
     const loc = r.location;
@@ -32,6 +33,8 @@ interface UseSearchReturn {
     searchByImage: (imageFile: File, options?: { district?: string }) => void;
     resetSearch: () => void;
     imageSearchError: string | null;
+    textSearchError: string | null;
+    vipUpgradePath: string | null;
 }
 
 export function useSearch(): UseSearchReturn {
@@ -40,11 +43,15 @@ export function useSearch(): UseSearchReturn {
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const [imageSearchError, setImageSearchError] = useState<string | null>(null);
+    const [textSearchError, setTextSearchError] = useState<string | null>(null);
+    const [vipUpgradePath, setVipUpgradePath] = useState<string | null>(null);
 
     const searchByText = useCallback(async (criteria: SearchCriteria) => {
         setIsSearching(true);
         setHasSearched(false);
         setImageSearchError(null);
+        setTextSearchError(null);
+        setVipUpgradePath(null);
         const district = criteria.district?.trim() || criteria.location?.trim();
         smartSearchRequest(
             {
@@ -64,7 +71,16 @@ export function useSearch(): UseSearchReturn {
             .then((res) => {
                 setResults((res.data || []).map(smartSearchItemToRoom));
             })
-            .catch(() => setResults([]))
+            .catch((err: ApiErrorWithCode) => {
+                setResults([]);
+                if (err?.code === 'VIP_REQUIRED_FOR_ADVANCED_FILTERS') {
+                    setTextSearchError(err.message || 'Bộ lọc nâng cao yêu cầu tài khoản VIP');
+                    setVipUpgradePath(err.upgradePath || '/vip-plans');
+                    return;
+                }
+
+                setTextSearchError(err?.message || 'Không thể tải kết quả tìm kiếm');
+            })
             .finally(() => {
                 setIsSearching(false);
                 setHasSearched(true);
@@ -75,6 +91,8 @@ export function useSearch(): UseSearchReturn {
         setIsSearching(true);
         setHasSearched(false);
         setImageSearchError(null);
+        setTextSearchError(null);
+        setVipUpgradePath(null);
         searchByImageRequest(imageFile, { district: options?.district })
             .then((res) => {
                 const items = res.data || [];
@@ -108,6 +126,8 @@ export function useSearch(): UseSearchReturn {
         setResults([]);
         setHasSearched(false);
         setImageSearchError(null);
+        setTextSearchError(null);
+        setVipUpgradePath(null);
     }, []);
 
     // Auto-search from URL params on mount
@@ -154,5 +174,7 @@ export function useSearch(): UseSearchReturn {
         searchByImage,
         resetSearch,
         imageSearchError,
+        textSearchError,
+        vipUpgradePath,
     };
 }

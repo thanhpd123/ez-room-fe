@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/app/features/home/components';
+import { Crown } from 'lucide-react';
 import {
     depositWalletRequest,
     getMyWalletRequest,
@@ -10,6 +11,8 @@ import {
     type WalletSummary,
     type WalletTransactionItem,
 } from '@/lib/api';
+import { useAuth } from '@/app/context/AuthContext';
+import { trackEvent } from '@/lib/analytics';
 
 type ActionType = 'DEPOSIT' | 'WITHDRAW';
 type TransactionFilter = 'ALL' | WalletTransactionItem['type'];
@@ -44,6 +47,7 @@ function txTypeLabel(type: WalletTransactionItem['type']): string {
 
 export function WalletPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [wallet, setWallet] = useState<WalletSummary | null>(null);
     const [transactions, setTransactions] = useState<WalletTransactionItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -58,6 +62,10 @@ export function WalletPage() {
     const [filterType, setFilterType] = useState<TransactionFilter>('ALL');
 
     const amount = useMemo(() => Number(amountText), [amountText]);
+    const canUpgradeVip =
+        user != null &&
+        (user.role === 'TENANT' || user.role === 'LANDLORD') &&
+        user.isVip !== true;
 
     const fetchWalletSnapshot = async (selectedFilter: TransactionFilter = filterType) => {
         const transactionType = selectedFilter === 'ALL' ? undefined : selectedFilter;
@@ -203,6 +211,30 @@ export function WalletPage() {
                     </p>
                 </div>
 
+                {canUpgradeVip && (
+                    <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+                        <p className="text-sm text-amber-900">Tài khoản thường đang bị giới hạn một số quyền lợi. Nâng cấp VIP để mở rộng trải nghiệm.</p>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                trackEvent('vip_cta_clicked', { source: 'wallet' });
+                                navigate('/vip-plans?source=wallet');
+                            }}
+                            className="mt-2 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+                        >
+                            <Crown className="h-3.5 w-3.5" />
+                            Nâng cấp VIP
+                        </button>
+                    </div>
+                )}
+
+                {!canUpgradeVip && user?.isVip === true && (
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        <Crown className="h-3.5 w-3.5" />
+                        Tài khoản VIP đang hoạt động
+                    </div>
+                )}
+
                 {redirectingToPayOS && (
                     <div className="mb-4 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-primary">
                         Đang chuyển tới PayOS...
@@ -288,8 +320,8 @@ export function WalletPage() {
                                 type="button"
                                 onClick={() => setFilterType(option.value)}
                                 className={`rounded-xl border px-3 py-1.5 text-sm font-medium transition-colors ${filterType === option.value
-                                        ? 'bg-primary text-primary-foreground border-primary'
-                                        : 'border-border hover:bg-muted'
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'border-border hover:bg-muted'
                                     }`}
                             >
                                 {option.label}

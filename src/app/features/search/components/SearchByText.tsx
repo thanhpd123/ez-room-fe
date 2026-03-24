@@ -13,6 +13,10 @@ interface SearchByTextProps {
     basicOnly?: boolean;
     /** Voice search: callback with transcribed text to fill q. */
     onVoiceResult?: (text: string) => void;
+    /** Server-side search error (e.g., VIP required for advanced filters). */
+    backendError?: string | null;
+    vipUpgradePath?: string | null;
+    onUpgradeVip?: (path: string) => void;
 }
 
 interface FormState {
@@ -93,7 +97,15 @@ function VoiceSearchButton({
     );
 }
 
-export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoiceResult }: SearchByTextProps) {
+export function SearchByText({
+    onSearch,
+    isSearching,
+    basicOnly = false,
+    onVoiceResult,
+    backendError = null,
+    vipUpgradePath = null,
+    onUpgradeVip,
+}: SearchByTextProps) {
     const [searchParams] = useSearchParams();
     const [formState, setFormState] = useState<FormState>(initialFormState);
     const [error, setError] = useState('');
@@ -232,6 +244,24 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
                 </div>
             )}
 
+            {backendError && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
+                        <p className="text-amber-900 text-sm">{backendError}</p>
+                    </div>
+                    {onUpgradeVip && (
+                        <button
+                            type="button"
+                            onClick={() => onUpgradeVip(vipUpgradePath || '/vip-plans')}
+                            className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors"
+                        >
+                            Nâng cấp VIP
+                        </button>
+                    )}
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Search query (name, description) */}
                 <div className="space-y-2">
@@ -322,30 +352,30 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
 
                 {/* Area Range – tenant/VIP only */}
                 {!basicOnly && (
-                <div className="space-y-2">
-                    <label className="flex items-center gap-2 font-medium text-foreground">
-                        <Maximize className="w-4 h-4 text-primary" />
-                        Diện tích (m²)
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <input
-                            type="text"
-                            value={formState.minArea}
-                            onChange={(e) => handleInputChange('minArea', e.target.value)}
-                            placeholder="Diện tích tối thiểu"
-                            disabled={isSearching}
-                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
-                        />
-                        <input
-                            type="text"
-                            value={formState.maxArea}
-                            onChange={(e) => handleInputChange('maxArea', e.target.value)}
-                            placeholder="Diện tích tối đa"
-                            disabled={isSearching}
-                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
-                        />
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2 font-medium text-foreground">
+                            <Maximize className="w-4 h-4 text-primary" />
+                            Diện tích (m²)
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <input
+                                type="text"
+                                value={formState.minArea}
+                                onChange={(e) => handleInputChange('minArea', e.target.value)}
+                                placeholder="Diện tích tối thiểu"
+                                disabled={isSearching}
+                                className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                            />
+                            <input
+                                type="text"
+                                value={formState.maxArea}
+                                onChange={(e) => handleInputChange('maxArea', e.target.value)}
+                                placeholder="Diện tích tối đa"
+                                disabled={isSearching}
+                                className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                            />
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* Room Type */}
@@ -371,29 +401,29 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
 
                 {/* Amenities – tenant/VIP only */}
                 {!basicOnly && (
-                <div className="space-y-3">
-                    <label className="font-medium text-foreground">Tiện nghi</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {amenitiesList.map((amenity) => (
-                            <label
-                                key={amenity.id}
-                                className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formState.selectedAmenities.includes(amenity.id)
+                    <div className="space-y-3">
+                        <label className="font-medium text-foreground">Tiện nghi</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {amenitiesList.map((amenity) => (
+                                <label
+                                    key={amenity.id}
+                                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formState.selectedAmenities.includes(amenity.id)
                                         ? 'border-primary bg-primary/5'
                                         : 'border-border hover:border-primary/50'
-                                    } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={formState.selectedAmenities.includes(amenity.id)}
-                                    onChange={() => handleAmenityToggle(amenity.id)}
-                                    disabled={isSearching}
-                                    className="w-4 h-4 text-primary accent-primary"
-                                />
-                                <span className="text-sm">{amenity.name}</span>
-                            </label>
-                        ))}
+                                        } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={formState.selectedAmenities.includes(amenity.id)}
+                                        onChange={() => handleAmenityToggle(amenity.id)}
+                                        disabled={isSearching}
+                                        className="w-4 h-4 text-primary accent-primary"
+                                    />
+                                    <span className="text-sm">{amenity.name}</span>
+                                </label>
+                            ))}
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* Action Buttons */}

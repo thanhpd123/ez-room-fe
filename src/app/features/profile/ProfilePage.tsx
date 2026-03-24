@@ -14,6 +14,7 @@ import {
     Sparkles,
     MapPin,
     Banknote,
+    Crown,
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { ImageUpload } from '@/app/components/ImageUpload';
@@ -27,6 +28,7 @@ import {
     type LifestyleProfileResponse,
     type UserPreferenceResponse,
 } from '@/lib/api';
+import { trackEvent } from '@/lib/analytics';
 import type { ProvinceItem, WardItem } from '@/lib/provinces-api';
 
 type Tab = 'profile' | 'lifestyle' | 'preference';
@@ -316,6 +318,10 @@ export function ProfilePage() {
     const [preferenceSaving, setPreferenceSaving] = useState(false);
     const [preferenceError, setPreferenceError] = useState<string | null>(null);
     const [preferenceSuccess, setPreferenceSuccess] = useState(false);
+    const canUpgradeVip =
+        user != null &&
+        (user.role === 'TENANT' || user.role === 'LANDLORD') &&
+        user.isVip !== true;
 
     useEffect(() => {
         if (user) {
@@ -488,12 +494,35 @@ export function ProfilePage() {
                             <div className="mt-3">
                                 <span
                                     className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${user?.role === 'LANDLORD'
-                                            ? 'bg-accent/15 text-accent'
-                                            : 'bg-primary/15 text-primary'
+                                        ? 'bg-accent/15 text-accent'
+                                        : 'bg-primary/15 text-primary'
                                         }`}
                                 >
                                     {user?.role === 'LANDLORD' ? 'Chủ nhà / Cho thuê' : 'Người thuê phòng'}
                                 </span>
+                            </div>
+                            <div className="mt-4">
+                                {canUpgradeVip ? (
+                                    <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+                                        <p className="text-sm text-amber-900">Bạn đang dùng tài khoản thường. Nâng cấp VIP để mở thêm quyền lợi nâng cao.</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                trackEvent('vip_cta_clicked', { source: 'profile' });
+                                                navigate('/vip-plans?source=profile');
+                                            }}
+                                            className="mt-2 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+                                        >
+                                            <Crown className="h-3.5 w-3.5" />
+                                            Nâng cấp VIP
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                        <Crown className="h-3.5 w-3.5" />
+                                        Tài khoản VIP đang hoạt động
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -507,8 +536,8 @@ export function ProfilePage() {
                             type="button"
                             onClick={() => setTab(t.id)}
                             className={`flex items-center gap-2 px-4 py-2.5 sm:px-5 rounded-xl font-medium text-xs sm:text-sm transition-all shrink-0 min-h-11 touch-manipulation ${tab === t.id
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                    : 'bg-muted text-foreground hover:bg-muted/80'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted text-foreground hover:bg-muted/80'
                                 }`}
                         >
                             <t.icon className="w-4 h-4" strokeWidth={2} />
