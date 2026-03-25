@@ -1,11 +1,66 @@
 import axios from 'axios';
 import { getApiUrl } from '@/lib/api-config';
 
+axios.defaults.withCredentials = true;
+
 // Get token from localStorage (same key as AuthContext)
 function getAuthHeader() {
     const token = localStorage.getItem('ezroom_token');
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
+
+axios.interceptors.request.use((config) => {
+    const token = localStorage.getItem('ezroom_token');
+    if (token) {
+        config.headers = config.headers || {};
+        if (!('Authorization' in config.headers)) {
+            (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+        }
+    }
+    return config;
+});
+
+axios.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config as (typeof error.config & { _retry?: boolean });
+        const shouldRetry =
+            !!originalRequest &&
+            !originalRequest._retry &&
+            error?.response?.status === 401 &&
+            !!localStorage.getItem('ezroom_token') &&
+            typeof originalRequest.url === 'string' &&
+            !originalRequest.url.endsWith('/auth/refresh') &&
+            !originalRequest.url.endsWith('/auth/login');
+
+        if (!shouldRetry) {
+            return Promise.reject(error);
+        }
+
+        originalRequest._retry = true;
+        try {
+            const refreshRes = await fetch(getApiUrl('/auth/refresh'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            });
+            const refreshData = await refreshRes.json().catch(() => ({}));
+            if (!refreshRes.ok) {
+                return Promise.reject(error);
+            }
+            const nextToken = refreshData?.accessToken || refreshData?.token;
+            if (!nextToken) {
+                return Promise.reject(error);
+            }
+            localStorage.setItem('ezroom_token', nextToken);
+            originalRequest.headers = originalRequest.headers || {};
+            (originalRequest.headers as Record<string, string>).Authorization = `Bearer ${nextToken}`;
+            return axios(originalRequest);
+        } catch {
+            return Promise.reject(error);
+        }
+    }
+);
 
 // ==================== Types ====================
 

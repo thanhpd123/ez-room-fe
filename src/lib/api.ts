@@ -28,6 +28,7 @@ export function setStoredAuth(token: string, user: Record<string, unknown>): voi
 export function clearStoredAuth(): void {
     localStorage.removeItem(EZROOM_TOKEN_KEY);
     localStorage.removeItem('ezroom_user');
+    localStorage.removeItem('ezroom_refresh_token');
 }
 
 /**
@@ -36,17 +37,50 @@ export function clearStoredAuth(): void {
 export async function loginWithEmail(
     email: string,
     password: string
-): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; isVip?: boolean; gender?: string | null } }> {
+): Promise<{ accessToken: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; isVip?: boolean; gender?: string | null } }> {
     const url = getApiUrl('/auth/login');
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Đăng nhập thất bại');
-    if (!data.success || !data.token || !data.user) throw new Error('Phản hồi không hợp lệ');
-    return { token: data.token, user: data.user };
+    const accessToken = data?.accessToken || data?.token;
+    if (!data.success || !accessToken || !data.user) throw new Error('Phản hồi không hợp lệ');
+    return { accessToken, user: data.user };
+}
+
+export async function refreshAccessTokenRequest(): Promise<{ accessToken: string; user?: Record<string, unknown> }> {
+    const res = await fetch(getApiUrl('/auth/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data?.message || 'Không thể làm mới phiên đăng nhập');
+    }
+    const accessToken = data?.accessToken || data?.token;
+    if (!accessToken) {
+        throw new Error('Phản hồi làm mới phiên không hợp lệ');
+    }
+    return { accessToken, user: data?.user };
+}
+
+export async function logoutCurrentSessionRequest(): Promise<void> {
+    await fetch(getApiUrl('/auth/logout'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+    });
+}
+
+export async function logoutAllSessionsRequest(): Promise<void> {
+    await authFetch('/auth/logout-all', {
+        method: 'POST',
+    });
 }
 
 /**
@@ -251,21 +285,45 @@ export async function authFetch(
     path: string,
     options: RequestInit = {}
 ): Promise<Response> {
-    const token = await getAccessToken();
-    const url = getApiUrl(path);
-
-    const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        ...options.headers,
+    const fetchWithToken = async (token: string | null): Promise<Response> => {
+        const url = getApiUrl(path);
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        };
+        if (token) {
+            (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+        }
+        return fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include',
+        });
     };
-    if (token) {
-        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+    const token = await getAccessToken();
+    let response = await fetchWithToken(token);
+
+    const shouldTryRefresh =
+        response.status === 401 &&
+        !!localStorage.getItem(EZROOM_TOKEN_KEY) &&
+        path !== '/auth/login' &&
+        path !== '/auth/refresh' &&
+        path !== '/auth/logout';
+
+    if (!shouldTryRefresh) {
+        return response;
     }
 
-    return fetch(url, {
-        ...options,
-        headers,
-    });
+    try {
+        const { accessToken } = await refreshAccessTokenRequest();
+        localStorage.setItem(EZROOM_TOKEN_KEY, accessToken);
+        response = await fetchWithToken(accessToken);
+    } catch {
+        return response;
+    }
+
+    return response;
 }
 
 /**
