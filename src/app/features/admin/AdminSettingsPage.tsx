@@ -74,7 +74,7 @@ export function AdminSettingsPage() {
                 <Alert
                     type="info"
                     showIcon
-                    message={t('admin.settings.providerKeysNotice')}
+                    title={t('admin.settings.providerKeysNotice')}
                     style={{ marginBottom: 16 }}
                 />
 

@@ -29,6 +29,7 @@ export interface RentalRequest {
     userId: string;
     roomId: string;
     status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
+    paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
     createdAt: string;
     user: {
         id: string;

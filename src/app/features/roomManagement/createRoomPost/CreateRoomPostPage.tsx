@@ -4,6 +4,7 @@ import type { RoomStatus } from '@/lib/models/room.model';
 import { MultiImageUpload } from '@/app/components/MultiImageUpload';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
 import { createRoomPost, fetchAmenities } from '../shared/room-post-storage';
+import type { RoomPostApiError } from '../shared/room-post-storage';
 import {
     type CreateManagedRoomPostInput,
 } from '../shared/types';
@@ -45,6 +46,8 @@ export function CreateRoomPostPage() {
     const [errors, setErrors] = useState<FormErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [amenities, setAmenities] = useState<Amenity[]>([]);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [upgradePath, setUpgradePath] = useState<string | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -74,10 +77,10 @@ export function CreateRoomPostPage() {
 
     const onChangeField =
         <K extends keyof CreateRoomPostFormState>(key: K) =>
-        (value: CreateRoomPostFormState[K]) => {
-            setForm((prev) => ({ ...prev, [key]: value }));
-            setErrors((prev) => ({ ...prev, [key]: undefined }));
-        };
+            (value: CreateRoomPostFormState[K]) => {
+                setForm((prev) => ({ ...prev, [key]: value }));
+                setErrors((prev) => ({ ...prev, [key]: undefined }));
+            };
 
     const validate = () => {
         const nextErrors: FormErrors = {};
@@ -112,9 +115,20 @@ export function CreateRoomPostPage() {
         };
 
         setIsSubmitting(true);
-        await createRoomPost(payload);
-        setIsSubmitting(false);
-        navigate(`/rental-management/rentals/${rentalId}/room-posts`);
+        setSubmitError(null);
+        setUpgradePath(null);
+        try {
+            await createRoomPost(payload);
+            navigate(`/rental-management/rentals/${rentalId}/room-posts`);
+        } catch (err) {
+            const apiErr = err as RoomPostApiError;
+            setSubmitError(apiErr?.message || 'Không thể tạo phòng. Vui lòng thử lại.');
+            if (apiErr?.code === 'FREE_TIER_ROOM_LIMIT_REACHED') {
+                setUpgradePath(apiErr.upgradePath || '/vip-plans');
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (!rentalId) {
@@ -142,6 +156,20 @@ export function CreateRoomPostPage() {
             </header>
 
             <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+                {submitError && (
+                    <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+                        <p className="text-sm text-amber-900">{submitError}</p>
+                        {upgradePath && (
+                            <button
+                                type="button"
+                                onClick={() => navigate(upgradePath)}
+                                className="mt-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+                            >
+                                Nâng cấp VIP để mở rộng quota
+                            </button>
+                        )}
+                    </div>
+                )}
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="md:col-span-2">
                         <label className="mb-1.5 block text-sm font-medium text-slate-700">Tiêu đề phòng *</label>

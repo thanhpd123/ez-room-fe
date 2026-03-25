@@ -8,6 +8,7 @@ import { useFavorites } from '@/app/context/FavoritesContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { useChatBox } from '@/app/context/ChatBoxContext';
 import { supportedLngs, type SupportedLang } from '@/i18n';
+import { trackEvent } from '@/lib/analytics';
 
 interface HeaderProps {
     onLogin?: () => void;
@@ -24,15 +25,18 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
     const { user, signOut } = useAuth();
     const chatBox = useChatBox();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const showVipCta =
+        user != null &&
+        (user.role === 'TENANT' || user.role === 'LANDLORD') &&
+        user.isVip !== true;
 
     const navLink = (to: string, label: string, icon?: React.ReactNode) => {
         const isActive = location.pathname === to || (to === '/home' && location.pathname === '/') || (to !== '/home' && location.pathname.startsWith(to));
         return (
             <Link
                 to={to}
-                className={`relative py-2 transition-colors font-medium no-underline after:absolute after:bottom-0 after:left-0 after:h-0.5 after:rounded-full after:bg-primary after:transition-all after:duration-200 ${
-                    isActive ? 'text-primary after:w-full' : 'text-muted-foreground hover:text-primary after:w-0 hover:after:w-full'
-                } flex items-center gap-1.5`}
+                className={`relative py-2 transition-colors font-medium no-underline after:absolute after:bottom-0 after:left-0 after:h-0.5 after:rounded-full after:bg-primary after:transition-all after:duration-200 ${isActive ? 'text-primary after:w-full' : 'text-muted-foreground hover:text-primary after:w-0 hover:after:w-full'
+                    } flex items-center gap-1.5`}
             >
                 {icon}
                 {label}
@@ -74,6 +78,15 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                     <nav className="hidden md:flex items-center gap-6 lg:gap-8">
                         {navLink('/home', t('nav.home'))}
                         {navLink('/roommate', t('nav.findRoommate'))}
+                        {showVipCta && (
+                            <Link
+                                to="/vip-plans?source=header"
+                                onClick={() => trackEvent('vip_cta_clicked', { source: 'header_desktop' })}
+                                className="relative py-2 transition-colors font-medium no-underline after:absolute after:bottom-0 after:left-0 after:h-0.5 after:rounded-full after:bg-primary after:transition-all after:duration-200 text-muted-foreground hover:text-primary after:w-0 hover:after:w-full flex items-center gap-1.5"
+                            >
+                                VIP
+                            </Link>
+                        )}
                         {user?.role === 'LANDLORD' && navLink('/rental-management', t('nav.rentalManagement'))}
                         {navLink('/blog', t('nav.blog'), <BookOutlined className="text-sm" />)}
                     </nav>
@@ -119,7 +132,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
 
                         {user ? (
                             <div className="flex items-center gap-1 sm:gap-2">
-                                <Link to="/profile" className="hidden sm:flex items-center gap-2 text-foreground text-sm max-w-[140px] truncate hover:opacity-90 no-underline">
+                                <Link to="/profile" className="hidden sm:flex items-center gap-2 text-foreground text-sm max-w-35 truncate hover:opacity-90 no-underline">
                                     {user.avatarUrl ? (
                                         <Avatar src={user.avatarUrl} size={32} className="ring-2 ring-border" />
                                     ) : (
@@ -139,7 +152,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 <Button type="text" onClick={handleLogin} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground p-2 sm:px-3 touch-manipulation" icon={<LoginOutlined />}>
                                     <span className="hidden sm:inline">{t('nav.login')}</span>
                                 </Button>
-                                <Button type="primary" onClick={handleRegister} size="middle" className="rounded-xl px-4 touch-manipulation min-h-[36px] sm:min-h-[40px] shadow-sm hover:shadow">
+                                <Button type="primary" onClick={handleRegister} size="middle" className="rounded-xl px-4 touch-manipulation min-h-9 sm:min-h-10 shadow-sm hover:shadow">
                                     {t('nav.register')}
                                 </Button>
                             </div>
@@ -163,6 +176,18 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                     <Link to="/roommate" className={navLinkClass} onClick={() => setMobileMenuOpen(false)}>
                         {t('nav.findRoommate')}
                     </Link>
+                    {showVipCta && (
+                        <Link
+                            to="/vip-plans?source=header"
+                            className={navLinkClass}
+                            onClick={() => {
+                                trackEvent('vip_cta_clicked', { source: 'header_mobile' });
+                                setMobileMenuOpen(false);
+                            }}
+                        >
+                            VIP
+                        </Link>
+                    )}
                     {user?.role === 'LANDLORD' && (
                         <Link to="/rental-management" className={navLinkClass} onClick={() => setMobileMenuOpen(false)}>
                             {t('nav.rentalManagement')}
@@ -175,10 +200,10 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                     <div className="border-t border-border pt-4 mt-4 flex flex-col gap-3">
                         {!user ? (
                             <>
-                                <Button type="default" block size="large" onClick={handleLogin} icon={<LoginOutlined />} className="rounded-xl min-h-[48px]">
+                                <Button type="default" block size="large" onClick={handleLogin} icon={<LoginOutlined />} className="rounded-xl min-h-12">
                                     {t('nav.login')}
                                 </Button>
-                                <Button type="primary" block size="large" onClick={handleRegister} className="rounded-xl min-h-[48px]">
+                                <Button type="primary" block size="large" onClick={handleRegister} className="rounded-xl min-h-12">
                                     {t('nav.register')}
                                 </Button>
                             </>
@@ -189,22 +214,22 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                     block
                                     size="large"
                                     icon={<MessageOutlined />}
-                                    className="rounded-xl min-h-[48px]"
+                                    className="rounded-xl min-h-12"
                                     onClick={() => { setMobileMenuOpen(false); chatBox ? chatBox.openChat() : navigate('/chat'); }}
                                 >
                                     {t('nav.chat', 'Tin nhắn')}
                                 </Button>
                                 <Link to="/wallet" onClick={() => setMobileMenuOpen(false)}>
-                                    <Button type="default" block size="large" icon={<WalletOutlined />} className="rounded-xl min-h-[48px]">
+                                    <Button type="default" block size="large" icon={<WalletOutlined />} className="rounded-xl min-h-12">
                                         Ví tiền
                                     </Button>
                                 </Link>
                                 <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
-                                    <Button type="default" block size="large" icon={<UserOutlined />} className="rounded-xl min-h-[48px]">
+                                    <Button type="default" block size="large" icon={<UserOutlined />} className="rounded-xl min-h-12">
                                         {t('nav.account')}
                                     </Button>
                                 </Link>
-                                <Button type="default" block size="large" onClick={() => { signOut(); setMobileMenuOpen(false); }} icon={<LogoutOutlined />} className="rounded-xl min-h-[48px]">
+                                <Button type="default" block size="large" onClick={() => { signOut(); setMobileMenuOpen(false); }} icon={<LogoutOutlined />} className="rounded-xl min-h-12">
                                     {t('nav.logout')}
                                 </Button>
                             </>

@@ -18,6 +18,7 @@ export interface AuthUser {
     avatarUrl: string | undefined;
     phone?: string | null;
     role?: string;
+    isVip?: boolean;
     gender?: string | null;
 }
 
@@ -69,6 +70,7 @@ function readInitialStoredAuth(): {
                 avatarUrl: u.avatarUrl ?? undefined,
                 phone: u.phone,
                 role: u.role,
+                isVip: u.isVip === true,
                 gender: u.gender ?? undefined,
             },
             accessToken: token,
@@ -88,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [accessToken, setAccessToken] = useState<string | null>(initialStoredAuth.accessToken);
     const [isLoading, setIsLoading] = useState(initialStoredAuth.isLoading);
 
-    const setUserFromBackend = useCallback((data: { user: { id: string; email: string | null; full_name: string | null; avatar_url: string | null; role?: string; phone?: string | null; gender?: string | null } }) => {
+    const setUserFromBackend = useCallback((data: { user: { id: string; email: string | null; full_name: string | null; avatar_url: string | null; role?: string; phone?: string | null; isVip?: boolean; gender?: string | null } }) => {
         const u = data.user;
         setUser({
             id: u.id,
@@ -97,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             avatarUrl: u.avatar_url ?? undefined,
             role: u.role,
             phone: u.phone ?? undefined,
+            isVip: u.isVip === true,
             gender: u.gender ?? undefined,
         });
     }, []);
@@ -186,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             avatarUrl: u.avatarUrl ?? undefined,
             phone: u.phone,
             role: u.role,
+            isVip: u.isVip === true,
             gender: u.gender ?? undefined,
         });
         setAccessToken(token);
@@ -205,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 avatarUrl: u.avatar_url,
                 phone: u.phone ?? null,
                 role: u.role,
+                isVip: u.isVip === true,
                 gender: u.gender ?? null,
             };
             localStorage.setItem('ezroom_user', JSON.stringify(stored));

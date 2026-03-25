@@ -36,7 +36,7 @@ export function clearStoredAuth(): void {
 export async function loginWithEmail(
     email: string,
     password: string
-): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; gender?: string | null } }> {
+): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; isVip?: boolean; gender?: string | null } }> {
     const url = getApiUrl('/auth/login');
     const res = await fetch(url, {
         method: 'POST',
@@ -1244,6 +1244,12 @@ export interface SmartSearchRoomItem {
     otherRoomsInRental: Array<{ id: string; roomName: string | null; price: number; area: number | null; roomType: string; image: string }>;
 }
 
+export interface ApiErrorWithCode extends Error {
+    code?: string;
+    upgradePath?: string;
+    featureName?: string;
+}
+
 /**
  * GET /public/search – room-based recommendation search.
  * Pass token via options for user-preference scoring. Rooms sorted by match score.
@@ -1275,7 +1281,13 @@ export async function smartSearchRequest(
     if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     const res = await fetch(url, { cache: 'no-store', headers });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tìm kiếm');
+    if (!res.ok) {
+        const err = new Error(json?.message || json?.error || 'Lỗi tìm kiếm') as ApiErrorWithCode;
+        err.code = json?.code;
+        err.upgradePath = json?.upgradePath;
+        err.featureName = json?.featureName;
+        throw err;
+    }
     return json;
 }
 
@@ -1389,6 +1401,73 @@ export interface LandlordProfileResponse {
             reviewer: { id: string; fullName: string; avatarUrl: string | null } | null;
         }>;
     };
+}
+
+export interface VipPackageItem {
+    id: string;
+    name: string;
+    description: string | null;
+    durationDays: number;
+    price: number;
+    targetRole: 'TENANT' | 'LANDLORD' | string;
+    isActive: boolean;
+    createdAt: string | null;
+}
+
+export async function getVipPackagesRequest(targetRole?: 'TENANT' | 'LANDLORD'): Promise<{
+    success: boolean;
+    data: VipPackageItem[];
+}> {
+    const search = new URLSearchParams();
+    if (targetRole) search.set('targetRole', targetRole);
+    const qs = search.toString();
+    const res = await fetch(getApiUrl(`/vip/packages${qs ? `?${qs}` : ''}`), {
+        cache: 'no-store',
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || 'Không thể tải gói VIP');
+    }
+    return json;
+}
+
+export async function createVipPurchaseRequest(packageId: string): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+        payment?: {
+            checkoutUrl?: string | null;
+            orderCode?: string;
+        };
+    };
+}> {
+    const res = await authFetch('/vip/purchase', {
+        method: 'POST',
+        body: JSON.stringify({ packageId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || 'Không thể tạo thanh toán VIP');
+    }
+    return json;
+}
+
+export async function verifyVipPurchaseRequest(orderCode: string): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+        confirmed?: boolean;
+        activated?: boolean;
+        vipExpiresAt?: string;
+        payosStatus?: string;
+    };
+}> {
+    const res = await authFetch(`/vip/verify?orderCode=${encodeURIComponent(orderCode)}`);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || 'Không thể xác minh thanh toán VIP');
+    }
+    return json;
 }
 
 export async function getLandlordProfileRequest(userId: string): Promise<LandlordProfileResponse> {
