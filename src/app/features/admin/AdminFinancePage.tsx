@@ -252,7 +252,7 @@ export function AdminFinancePage() {
                 {mismatchTypeTags.length > 0 ? (
                     <Space wrap style={{ marginBottom: 12 }}>{mismatchTypeTags}</Space>
                 ) : (
-                    <Alert type="success" showIcon message={t('admin.finance.reconciliation.noMismatch')} style={{ marginBottom: 12 }} />
+                    <Alert type="success" showIcon title={t('admin.finance.reconciliation.noMismatch')} style={{ marginBottom: 12 }} />
                 )}
 
                 <Table

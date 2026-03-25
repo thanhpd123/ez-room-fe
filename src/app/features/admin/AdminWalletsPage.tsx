@@ -688,11 +688,11 @@ export function AdminWalletsPage() {
     };
 
     const queueTab = (
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <Alert
                 type="info"
                 showIcon
-                message={t('admin.wallets.queue.notice')}
+                title={t('admin.wallets.queue.notice')}
                 icon={<ClockCircleOutlined />}
             />
 
@@ -729,7 +729,7 @@ export function AdminWalletsPage() {
                         <Statistic
                             title={t('admin.wallets.queue.kpis.overdueCount', { sla: queueSummary.slaHours })}
                             value={queueSummary.overdueCount}
-                            valueStyle={{ color: queueSummary.overdueCount > 0 ? '#cf1322' : undefined }}
+                            styles={{ content: { color: queueSummary.overdueCount > 0 ? '#cf1322' : undefined } }}
                             prefix={<FireOutlined />}
                         />
                     </Card>
@@ -813,7 +813,7 @@ export function AdminWalletsPage() {
                 <Alert
                     type="warning"
                     showIcon
-                    message={t('admin.wallets.queue.selectedText', { count: selectedQueueIds.length })}
+                    title={t('admin.wallets.queue.selectedText', { count: selectedQueueIds.length })}
                     action={
                         <Space>
                             <Button
@@ -862,7 +862,7 @@ export function AdminWalletsPage() {
     );
 
     const overviewTab = (
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <Row gutter={16}>
                 <Col xs={24} sm={12} lg={6}>
                     <Card>
@@ -884,14 +884,14 @@ export function AdminWalletsPage() {
                         <Statistic
                             title={t('admin.wallets.queue.kpis.overdueCount', { sla: queueSummary.slaHours })}
                             value={queueSummary.overdueCount}
-                            valueStyle={{ color: '#cf1322' }}
+                            styles={{ content: { color: '#cf1322' } }}
                         />
                     </Card>
                 </Col>
             </Row>
 
             <Card>
-                <Space direction="vertical" size={12}>
+                <Space orientation="vertical" size={12}>
                     <Text>{t('admin.wallets.overview.subtitle')}</Text>
                     <Space>
                         <Button type="primary" onClick={handleQuickViewPendingWithdrawals}>
@@ -929,7 +929,7 @@ export function AdminWalletsPage() {
     );
 
     const explorerTab = (
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <Card>
                 <Space wrap>
                     <Input
