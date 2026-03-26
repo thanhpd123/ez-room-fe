@@ -21,14 +21,24 @@ import {
     MapPin,
     Banknote,
     Home,
+    DoorOpen,
+    Send,
+    Link2,
+    Copy,
+    ExternalLink,
 } from 'lucide-react';
 import {
     getRoommateSuggestionsRequest,
     getRoommateMatchesRequest,
     sendRoommateRequestRequest,
     updateRoommateMatchStatusRequest,
+    getMyActiveRoomsRequest,
+    inviteRoommateRequest,
+    searchRoommatesRequest,
     type RoommateSuggestionItem,
     type RoommateMatchItem,
+    type MyActiveRoomItem,
+    type RoommateSearchResultItem,
 } from '@/lib/api';
 
 const AVATAR_PLACEHOLDER = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
@@ -74,6 +84,22 @@ export function FindRoommatePage() {
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const [viewingProfile, setViewingProfile] = useState<{ userId: string; matchScore?: number } | null>(null);
+
+    // Invite roommate modal state
+    const [inviteTarget, setInviteTarget] = useState<{ userId: string; fullName: string } | null>(null);
+    const [activeRooms, setActiveRooms] = useState<MyActiveRoomItem[]>([]);
+    const [loadingRooms, setLoadingRooms] = useState(false);
+    const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+    const [sendingInvite, setSendingInvite] = useState(false);
+    const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+    const [copiedLink, setCopiedLink] = useState(false);
+
+    // AI search state
+    const [aiQuery, setAiQuery] = useState('');
+    const [aiResults, setAiResults] = useState<RoommateSearchResultItem[]>([]);
+    const [aiSearching, setAiSearching] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+    const [aiActive, setAiActive] = useState(false);
 
     // Filter state
     const [filterArea, setFilterArea] = useState('');
@@ -171,6 +197,60 @@ export function FindRoommatePage() {
             .finally(() => setUpdatingId(null));
     };
 
+    const openInviteModal = (userId: string, fullName: string) => {
+        setInviteTarget({ userId, fullName });
+        setSelectedRoomId(null);
+        setInviteSuccess(null);
+        setLoadingRooms(true);
+        getMyActiveRoomsRequest()
+            .then((r) => setActiveRooms(r.data || []))
+            .catch(() => setActiveRooms([]))
+            .finally(() => setLoadingRooms(false));
+    };
+
+    const closeInviteModal = () => {
+        setInviteTarget(null);
+        setActiveRooms([]);
+        setSelectedRoomId(null);
+        setInviteSuccess(null);
+    };
+
+    const handleSendInvite = () => {
+        if (!inviteTarget || !selectedRoomId) return;
+        setSendingInvite(true);
+        setMessage(null);
+        inviteRoommateRequest(inviteTarget.userId, selectedRoomId)
+            .then((r) => {
+                setInviteSuccess(r.message || 'Đã gửi lời mời ở ghép!');
+            })
+            .catch((e) => setMessage(e instanceof Error ? e.message : 'Gửi lời mời thất bại'))
+            .finally(() => setSendingInvite(false));
+    };
+
+    const handleAiSearch = async () => {
+        const q = aiQuery.trim();
+        if (!q || q.length < 3) return;
+        setAiSearching(true);
+        setAiError(null);
+        setAiActive(true);
+        try {
+            const r = await searchRoommatesRequest(q, 10);
+            setAiResults(r.data || []);
+        } catch (err) {
+            setAiError(err instanceof Error ? err.message : 'Lỗi tìm kiếm');
+            setAiResults([]);
+        } finally {
+            setAiSearching(false);
+        }
+    };
+
+    const clearAiSearch = () => {
+        setAiQuery('');
+        setAiResults([]);
+        setAiActive(false);
+        setAiError(null);
+    };
+
     const sentPending = matches.filter((m) => m.isRequester && m.status === 'PENDING');
     const receivedPending = matches.filter((m) => !m.isRequester && m.status === 'PENDING');
     const accepted = matches.filter((m) => m.status === 'ACCEPTED');
@@ -216,201 +296,178 @@ export function FindRoommatePage() {
                 )}
 
                 <>
-                    {/* Suggestions */}
-                    <section className="mb-12">
-                            <div className="flex items-center justify-between mb-1">
-                                <h2 className="font-heading text-xl font-semibold text-foreground flex items-center gap-2">
-                                    <Sparkles className="w-5 h-5 text-accent" />
-                                    Gợi ý roommate
+                    {/* AI Personality Search (VIP) */}
+                    <section className="mb-8">
+                        <div className="bg-gradient-to-r from-amber-50/80 to-orange-50/80 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200/60 dark:border-amber-800/40 rounded-2xl p-5">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Sparkles className="w-5 h-5 text-amber-500" />
+                                <h2 className="font-heading text-lg font-semibold text-foreground">
+                                    Tìm roommate AI
                                 </h2>
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500 text-white">
+                                    VIP
+                                </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-3">
+                                Mô tả tính cách bạn muốn tìm, AI sẽ tìm roommate phù hợp nhất.
+                            </p>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={aiQuery}
+                                    onChange={(e) => setAiQuery(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
+                                    placeholder="VD: Tìm bạn chill chill, không hút thuốc..."
+                                    className="flex-1 px-4 py-3 bg-white dark:bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all"
+                                />
+                                {aiActive ? (
+                                    <button
+                                        type="button"
+                                        onClick={clearAiSearch}
+                                        className="px-4 py-3 rounded-xl border border-border hover:bg-muted text-sm font-medium transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                ) : null}
                                 <button
                                     type="button"
-                                    onClick={() => setShowFilters((v) => !v)}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-                                        showFilters
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-muted text-foreground hover:bg-muted/80'
-                                    }`}
+                                    onClick={handleAiSearch}
+                                    disabled={aiSearching || aiQuery.trim().length < 3}
+                                    className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm flex items-center gap-2 disabled:opacity-50 transition-colors"
                                 >
-                                    <SlidersHorizontal className="w-4 h-4" />
-                                    Bộ lọc
-                                    {hasActiveFilter && (
-                                        <span className="w-2 h-2 rounded-full bg-accent inline-block" />
+                                    {aiSearching ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Search className="w-4 h-4" />
                                     )}
+                                    Tìm
                                 </button>
                             </div>
-                            <p className="text-muted-foreground text-sm mb-4">
-                                {hasGender
-                                    ? 'Ưu tiên người cùng giới và có phong cách sống phù hợp với bạn'
-                                    : 'Tenant phù hợp được sắp xếp theo điểm match cao đến thấp'}
-                            </p>
-
-                            {/* Filter bar */}
-                            {showFilters && (
-                                <div className="mb-6 p-4 bg-card rounded-2xl border border-border shadow-sm">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                        {/* Area */}
-                                        <div>
-                                            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                                                <MapPin className="w-3.5 h-3.5" />
-                                                Khu vực
-                                            </label>
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                                <input
-                                                    type="text"
-                                                    value={filterArea}
-                                                    onChange={(e) => setFilterArea(e.target.value)}
-                                                    placeholder="VD: Quận 1, Bình Thạnh..."
-                                                    className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                                />
-                                            </div>
-                                        </div>
-                                        {/* Budget max */}
-                                        <div>
-                                            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                                                <Banknote className="w-3.5 h-3.5" />
-                                                Ngân sách tối đa (VNĐ)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={filterBudgetMax}
-                                                onChange={(e) => setFilterBudgetMax(e.target.value === '' ? '' : Number(e.target.value))}
-                                                placeholder="VD: 5000000"
-                                                min={0}
-                                                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                            />
-                                        </div>
-                                        {/* Room type */}
-                                        <div>
-                                            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                                                <Home className="w-3.5 h-3.5" />
-                                                Loại phòng
-                                            </label>
-                                            <select
-                                                value={filterRoomType}
-                                                onChange={(e) => setFilterRoomType(e.target.value)}
-                                                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                            >
-                                                <option value="">Tất cả</option>
-                                                <option value="PRIVATE">Phòng riêng</option>
-                                                <option value="SHARED">Ở ghép</option>
-                                                <option value="STUDIO">Studio</option>
-                                                <option value="APARTMENT">Căn hộ</option>
-                                            </select>
-                                        </div>
-                                        {/* Gender */}
-                                        <div>
-                                            <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                                                <Users className="w-3.5 h-3.5" />
-                                                Giới tính
-                                            </label>
-                                            <select
-                                                value={filterGender}
-                                                onChange={(e) => setFilterGender(e.target.value)}
-                                                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                            >
-                                                <option value="">Tất cả</option>
-                                                <option value="Nam">Nam</option>
-                                                <option value="Nữ">Nữ</option>
-                                                <option value="Khác">Khác</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    {hasActiveFilter && (
-                                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                                            <p className="text-sm text-muted-foreground">
-                                                Tìm thấy <span className="font-semibold text-foreground">{filteredSuggestions.length}</span> roommate phù hợp
-                                            </p>
-                                            <button
-                                                type="button"
-                                                onClick={resetFilters}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                            >
-                                                <RotateCcw className="w-3.5 h-3.5" />
-                                                Xóa bộ lọc
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                            {aiError && (
+                                <p className="text-sm text-red-500 mt-2">{aiError}</p>
                             )}
-                            {loadingSuggestions ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {[1, 2, 3].map((i) => (
-                                        <div key={i} className="bg-card rounded-2xl border border-border p-6 animate-pulse">
-                                            <div className="flex gap-4">
-                                                <div className="w-16 h-16 rounded-full bg-muted" />
-                                                <div className="flex-1 space-y-2">
-                                                    <div className="h-5 bg-muted rounded w-2/3" />
-                                                    <div className="h-4 bg-muted rounded w-1/2" />
-                                                    <div className="h-10 bg-muted rounded-xl w-full mt-4" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                        </div>
+                    </section>
+
+                    {/* AI Search Results */}
+                    {aiActive && (
+                        <section className="mb-12">
+                            <h2 className="font-heading text-xl font-semibold text-foreground flex items-center gap-2 mb-4">
+                                <Sparkles className="w-5 h-5 text-amber-500" />
+                                Kết quả AI
+                                <span className="text-sm font-normal text-muted-foreground ml-1">
+                                    ({aiResults.length} kết quả)
+                                </span>
+                            </h2>
+                            {aiSearching ? (
+                                <div className="flex items-center justify-center py-16">
+                                    <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+                                    <span className="ml-3 text-muted-foreground">Đang tìm kiếm AI...</span>
                                 </div>
-                            ) : filteredSuggestions.length === 0 ? (
-                                <div className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-12 text-center text-muted-foreground">
-                                    {hasActiveFilter
-                                        ? 'Không tìm thấy roommate phù hợp với bộ lọc. Thử thay đổi tiêu chí lọc.'
-                                        : 'Chưa có gợi ý phù hợp. Hãy cập nhật Phong cách sống và Sở thích tìm phòng trong Hồ sơ để nhận gợi ý tốt hơn.'}
+                            ) : aiResults.length === 0 ? (
+                                <div className="text-center py-12 text-muted-foreground">
+                                    <Users className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                                    <p>Không tìm thấy roommate phù hợp. Thử mô tả khác nhé!</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                                    {filteredSuggestions.map((item) => (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                                    {aiResults.map((r) => (
                                         <div
-                                            key={item.user.id}
-                                            className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                                            key={r.user.id}
+                                            className="bg-card border border-border rounded-2xl p-5 hover:shadow-md transition-shadow relative"
                                         >
-                                            <div className="p-5 flex gap-4">
-                                                <button
-                                                    type="button"
-                                                    className="shrink-0 group relative"
-                                                    onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
-                                                    title="Xem hồ sơ"
-                                                >
-                                                    <ImageWithFallback
-                                                        src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
-                                                        alt={item.user.fullName}
-                                                        className="w-16 h-16 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors"
-                                                    />
-                                                    <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Eye className="w-5 h-5 text-white" />
-                                                    </span>
-                                                </button>
-                                                <div className="min-w-0 flex-1">
-                                                    <button
-                                                        type="button"
-                                                        className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-left"
-                                                        onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
-                                                        title="Xem hồ sơ"
-                                                    >
-                                                        {item.user.fullName}
-                                                    </button>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                                            {item.matchScore}% phù hợp
-                                                        </span>
-                                                    </div>
-                                                    <LifestyleTags item={item} />
+                                            {/* Similarity badge */}
+                                            <div className="absolute top-3 right-3">
+                                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${r.similarityScore >= 70
+                                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                                                        : r.similarityScore >= 40
+                                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                                                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                                    }`}>
+                                                    {r.similarityScore}% phù hợp
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <ImageWithFallback
+                                                    src={r.user.avatarUrl || AVATAR_PLACEHOLDER}
+                                                    alt={r.user.fullName || ''}
+                                                    className="w-14 h-14 rounded-full object-cover border-2 border-border"
+                                                />
+                                                <div className="min-w-0">
+                                                    <p className="font-semibold text-foreground truncate">
+                                                        {r.user.fullName}
+                                                    </p>
+                                                    {r.user.gender && (
+                                                        <p className="text-xs text-muted-foreground">{r.user.gender}</p>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="px-5 pb-5 flex gap-2">
+
+                                            {/* Tags */}
+                                            {r.lifestyle && (
+                                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                                    {r.lifestyle.personalityType && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                            {r.lifestyle.personalityType}
+                                                        </span>
+                                                    )}
+                                                    {r.lifestyle.social_level && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                            {r.lifestyle.social_level}
+                                                        </span>
+                                                    )}
+                                                    {r.lifestyle.smoking === false && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                            Không hút thuốc
+                                                        </span>
+                                                    )}
+                                                    {r.lifestyle.drinking === false && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                            Không rượu bia
+                                                        </span>
+                                                    )}
+                                                    {r.lifestyle.work_from_home && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                            WFH
+                                                        </span>
+                                                    )}
+                                                    {r.lifestyle.interests.slice(0, 3).map((i) => (
+                                                        <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                            {i}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* AI Reason */}
+                                            {r.aiReason && (
+                                                <p className="text-xs italic text-primary/80 mb-3 leading-relaxed bg-primary/5 rounded-lg px-3 py-2">
+                                                    💡 {r.aiReason}
+                                                </p>
+                                            )}
+
+                                            <div className="flex items-center gap-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
-                                                    className="flex-1 py-2.5 rounded-xl font-medium border border-border hover:bg-muted flex items-center justify-center gap-2 transition-colors"
+                                                    onClick={() => setViewingProfile({ userId: r.user.id, matchScore: r.similarityScore })}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
                                                 >
-                                                    <Eye className="w-4 h-4" />
-                                                    Xem hồ sơ
+                                                    <Eye className="w-4 h-4" /> Xem hồ sơ
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    disabled={!!sendingId}
-                                                    onClick={() => handleSendRequest(item.user.id)}
-                                                    className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
+                                                    onClick={() => {
+                                                        setSendingId(r.user.id);
+                                                        sendRoommateRequestRequest(r.user.id)
+                                                            .then(() => setMessage('Đã gửi lời mời!'))
+                                                            .catch((e) => setMessage(e instanceof Error ? e.message : 'Lỗi'))
+                                                            .finally(() => setSendingId(null));
+                                                    }}
+                                                    disabled={sendingId === r.user.id}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
                                                 >
-                                                    {sendingId === item.user.id ? (
+                                                    {sendingId === r.user.id ? (
                                                         <Loader2 className="w-4 h-4 animate-spin" />
                                                     ) : (
                                                         <UserPlus className="w-4 h-4" />
@@ -422,131 +479,348 @@ export function FindRoommatePage() {
                                     ))}
                                 </div>
                             )}
+                        </section>
+                    )}
+
+                    {/* Suggestions */}
+                    <section className="mb-12">
+                        <div className="flex items-center justify-between mb-1">
+                            <h2 className="font-heading text-xl font-semibold text-foreground flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-accent" />
+                                Gợi ý roommate
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setShowFilters((v) => !v)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${showFilters
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-muted text-foreground hover:bg-muted/80'
+                                    }`}
+                            >
+                                <SlidersHorizontal className="w-4 h-4" />
+                                Bộ lọc
+                                {hasActiveFilter && (
+                                    <span className="w-2 h-2 rounded-full bg-accent inline-block" />
+                                )}
+                            </button>
+                        </div>
+                        <p className="text-muted-foreground text-sm mb-4">
+                            {hasGender
+                                ? 'Ưu tiên người cùng giới và có phong cách sống phù hợp với bạn'
+                                : 'Tenant phù hợp được sắp xếp theo điểm match cao đến thấp'}
+                        </p>
+
+                        {/* Filter bar */}
+                        {showFilters && (
+                            <div className="mb-6 p-4 bg-card rounded-2xl border border-border shadow-sm">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    {/* Area */}
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                                            <MapPin className="w-3.5 h-3.5" />
+                                            Khu vực
+                                        </label>
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                            <input
+                                                type="text"
+                                                value={filterArea}
+                                                onChange={(e) => setFilterArea(e.target.value)}
+                                                placeholder="VD: Quận 1, Bình Thạnh..."
+                                                className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                    {/* Budget max */}
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                                            <Banknote className="w-3.5 h-3.5" />
+                                            Ngân sách tối đa (VNĐ)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={filterBudgetMax}
+                                            onChange={(e) => setFilterBudgetMax(e.target.value === '' ? '' : Number(e.target.value))}
+                                            placeholder="VD: 5000000"
+                                            min={0}
+                                            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        />
+                                    </div>
+                                    {/* Room type */}
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                                            <Home className="w-3.5 h-3.5" />
+                                            Loại phòng
+                                        </label>
+                                        <select
+                                            value={filterRoomType}
+                                            onChange={(e) => setFilterRoomType(e.target.value)}
+                                            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        >
+                                            <option value="">Tất cả</option>
+                                            <option value="PRIVATE">Phòng riêng</option>
+                                            <option value="SHARED">Ở ghép</option>
+                                            <option value="STUDIO">Studio</option>
+                                            <option value="APARTMENT">Căn hộ</option>
+                                        </select>
+                                    </div>
+                                    {/* Gender */}
+                                    <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                                            <Users className="w-3.5 h-3.5" />
+                                            Giới tính
+                                        </label>
+                                        <select
+                                            value={filterGender}
+                                            onChange={(e) => setFilterGender(e.target.value)}
+                                            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        >
+                                            <option value="">Tất cả</option>
+                                            <option value="Nam">Nam</option>
+                                            <option value="Nữ">Nữ</option>
+                                            <option value="Khác">Khác</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                {hasActiveFilter && (
+                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                                        <p className="text-sm text-muted-foreground">
+                                            Tìm thấy <span className="font-semibold text-foreground">{filteredSuggestions.length}</span> roommate phù hợp
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={resetFilters}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5" />
+                                            Xóa bộ lọc
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {loadingSuggestions ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="bg-card rounded-2xl border border-border p-6 animate-pulse">
+                                        <div className="flex gap-4">
+                                            <div className="w-16 h-16 rounded-full bg-muted" />
+                                            <div className="flex-1 space-y-2">
+                                                <div className="h-5 bg-muted rounded w-2/3" />
+                                                <div className="h-4 bg-muted rounded w-1/2" />
+                                                <div className="h-10 bg-muted rounded-xl w-full mt-4" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : filteredSuggestions.length === 0 ? (
+                            <div className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-12 text-center text-muted-foreground">
+                                {hasActiveFilter
+                                    ? 'Không tìm thấy roommate phù hợp với bộ lọc. Thử thay đổi tiêu chí lọc.'
+                                    : 'Chưa có gợi ý phù hợp. Hãy cập nhật Phong cách sống và Sở thích tìm phòng trong Hồ sơ để nhận gợi ý tốt hơn.'}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                                {filteredSuggestions.map((item) => (
+                                    <div
+                                        key={item.user.id}
+                                        className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                                    >
+                                        <div className="p-5 flex gap-4">
+                                            <button
+                                                type="button"
+                                                className="shrink-0 group relative"
+                                                onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                title="Xem hồ sơ"
+                                            >
+                                                <ImageWithFallback
+                                                    src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
+                                                    alt={item.user.fullName}
+                                                    className="w-16 h-16 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors"
+                                                />
+                                                <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Eye className="w-5 h-5 text-white" />
+                                                </span>
+                                            </button>
+                                            <div className="min-w-0 flex-1">
+                                                <button
+                                                    type="button"
+                                                    className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-left"
+                                                    onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                    title="Xem hồ sơ"
+                                                >
+                                                    {item.user.fullName}
+                                                </button>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                        {item.matchScore}% phù hợp
+                                                    </span>
+                                                </div>
+                                                <LifestyleTags item={item} />
+                                            </div>
+                                        </div>
+                                        <div className="px-5 pb-5 flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                className="flex-1 py-2.5 rounded-xl font-medium border border-border hover:bg-muted flex items-center justify-center gap-2 transition-colors"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                                Xem hồ sơ
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={!!sendingId}
+                                                onClick={() => handleSendRequest(item.user.id)}
+                                                className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
+                                            >
+                                                {sendingId === item.user.id ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <UserPlus className="w-4 h-4" />
+                                                )}
+                                                Gửi lời mời
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </section>
 
                     {/* My matches */}
                     <section>
-                            <h2 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
-                                <Heart className="w-5 h-5 text-accent" />
-                                Lời mời của tôi
-                            </h2>
+                        <h2 className="font-heading text-xl font-semibold text-foreground mb-6 flex items-center gap-2">
+                            <Heart className="w-5 h-5 text-accent" />
+                            Lời mời của tôi
+                        </h2>
 
-                            {loadingMatches ? (
-                                <div className="space-y-4">
-                                    <div className="h-24 bg-muted rounded-2xl animate-pulse" />
-                                    <div className="h-24 bg-muted rounded-2xl animate-pulse" />
-                                </div>
-                            ) : (
-                                <div className="space-y-8">
-                                    {receivedPending.length > 0 && (
-                                        <div>
-                                            <h3 className="text-sm font-medium text-muted-foreground mb-3">Lời mời nhận được</h3>
-                                            <div className="space-y-3">
-                                                {receivedPending.map((m) => (
-                                                    <div
-                                                        key={m.id}
-                                                        className="flex items-center justify-between gap-4 p-4 bg-card rounded-2xl border border-border"
+                        {loadingMatches ? (
+                            <div className="space-y-4">
+                                <div className="h-24 bg-muted rounded-2xl animate-pulse" />
+                                <div className="h-24 bg-muted rounded-2xl animate-pulse" />
+                            </div>
+                        ) : (
+                            <div className="space-y-8">
+                                {receivedPending.length > 0 && (
+                                    <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Lời mời nhận được</h3>
+                                        <div className="space-y-3">
+                                            {receivedPending.map((m) => (
+                                                <div
+                                                    key={m.id}
+                                                    className="flex items-center justify-between gap-4 p-4 bg-card rounded-2xl border border-border"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+                                                        onClick={() => m.otherUser?.id && setViewingProfile({ userId: m.otherUser.id })}
+                                                        title="Xem hồ sơ"
                                                     >
+                                                        <ImageWithFallback
+                                                            src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
+                                                            alt={m.otherUser?.fullName || ''}
+                                                            className="w-12 h-12 rounded-full object-cover shrink-0"
+                                                        />
+                                                        <span className="font-medium text-foreground truncate">
+                                                            {m.otherUser?.fullName || '—'}
+                                                        </span>
+                                                    </button>
+                                                    <div className="flex gap-2 shrink-0">
                                                         <button
                                                             type="button"
-                                                            className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
-                                                            onClick={() => m.otherUser?.id && setViewingProfile({ userId: m.otherUser.id })}
-                                                            title="Xem hồ sơ"
+                                                            disabled={!!updatingId}
+                                                            onClick={() => handleAcceptReject(m.id, 'ACCEPTED')}
+                                                            className="p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                                                            title="Chấp nhận"
                                                         >
-                                                            <ImageWithFallback
-                                                                src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
-                                                                alt={m.otherUser?.fullName || ''}
-                                                                className="w-12 h-12 rounded-full object-cover shrink-0"
-                                                            />
-                                                            <span className="font-medium text-foreground truncate">
-                                                                {m.otherUser?.fullName || '—'}
-                                                            </span>
+                                                            {updatingId === m.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
                                                         </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={!!updatingId}
+                                                            onClick={() => handleAcceptReject(m.id, 'REJECTED')}
+                                                            className="p-2.5 rounded-xl border border-border hover:bg-muted disabled:opacity-60"
+                                                            title="Từ chối"
+                                                        >
+                                                            <X className="w-5 h-5 text-muted-foreground" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {sentPending.length > 0 && (
+                                    <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Lời mời đã gửi</h3>
+                                        <div className="space-y-3">
+                                            {sentPending.map((m) => (
+                                                <div
+                                                    key={m.id}
+                                                    className="flex items-center gap-3 p-4 bg-card rounded-2xl border border-border"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+                                                        onClick={() => m.otherUser?.id && setViewingProfile({ userId: m.otherUser.id })}
+                                                        title="Xem hồ sơ"
+                                                    >
+                                                        <ImageWithFallback
+                                                            src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
+                                                            alt={m.otherUser?.fullName || ''}
+                                                            className="w-12 h-12 rounded-full object-cover shrink-0"
+                                                        />
+                                                        <span className="font-medium text-foreground truncate">
+                                                            {m.otherUser?.fullName || '—'}
+                                                        </span>
+                                                    </button>
+                                                    <span className="text-sm text-muted-foreground ml-auto">Đang chờ phản hồi</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {accepted.length > 0 && (
+                                    <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Đã kết nối</h3>
+                                        <div className="space-y-3">
+                                            {accepted.map((m) => (
+                                                <div
+                                                    key={m.id}
+                                                    className="flex items-center gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/20"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity"
+                                                        onClick={() => m.otherUser?.id && setViewingProfile({ userId: m.otherUser.id })}
+                                                        title="Xem hồ sơ"
+                                                    >
+                                                        <ImageWithFallback
+                                                            src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
+                                                            alt={m.otherUser?.fullName || ''}
+                                                            className="w-12 h-12 rounded-full object-cover shrink-0"
+                                                        />
+                                                        <span className="font-medium text-foreground truncate flex-1 min-w-0">
+                                                            {m.otherUser?.fullName || '—'}
+                                                        </span>
+                                                    </button>
+                                                    <span className="text-sm text-primary font-medium flex items-center gap-1 shrink-0">
+                                                        <Check className="w-4 h-4" /> Đã chấp nhận
+                                                    </span>
+                                                    {m.otherUser?.id && (
                                                         <div className="flex gap-2 shrink-0">
                                                             <button
                                                                 type="button"
-                                                                disabled={!!updatingId}
-                                                                onClick={() => handleAcceptReject(m.id, 'ACCEPTED')}
-                                                                className="p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-                                                                title="Chấp nhận"
+                                                                onClick={() => openInviteModal(m.otherUser!.id, m.otherUser!.fullName || '')}
+                                                                className="p-2.5 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 shrink-0"
+                                                                title="Mời ở ghép"
                                                             >
-                                                                {updatingId === m.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                                                                <DoorOpen className="w-5 h-5" />
                                                             </button>
-                                                            <button
-                                                                type="button"
-                                                                disabled={!!updatingId}
-                                                                onClick={() => handleAcceptReject(m.id, 'REJECTED')}
-                                                                className="p-2.5 rounded-xl border border-border hover:bg-muted disabled:opacity-60"
-                                                                title="Từ chối"
-                                                            >
-                                                                <X className="w-5 h-5 text-muted-foreground" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {sentPending.length > 0 && (
-                                        <div>
-                                            <h3 className="text-sm font-medium text-muted-foreground mb-3">Lời mời đã gửi</h3>
-                                            <div className="space-y-3">
-                                                {sentPending.map((m) => (
-                                                    <div
-                                                        key={m.id}
-                                                        className="flex items-center gap-3 p-4 bg-card rounded-2xl border border-border"
-                                                    >
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
-                                                            onClick={() => m.otherUser?.id && setViewingProfile({ userId: m.otherUser.id })}
-                                                            title="Xem hồ sơ"
-                                                        >
-                                                            <ImageWithFallback
-                                                                src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
-                                                                alt={m.otherUser?.fullName || ''}
-                                                                className="w-12 h-12 rounded-full object-cover shrink-0"
-                                                            />
-                                                            <span className="font-medium text-foreground truncate">
-                                                                {m.otherUser?.fullName || '—'}
-                                                            </span>
-                                                        </button>
-                                                        <span className="text-sm text-muted-foreground ml-auto">Đang chờ phản hồi</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {accepted.length > 0 && (
-                                        <div>
-                                            <h3 className="text-sm font-medium text-muted-foreground mb-3">Đã kết nối</h3>
-                                            <div className="space-y-3">
-                                                {accepted.map((m) => (
-                                                    <div
-                                                        key={m.id}
-                                                        className="flex items-center gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/20"
-                                                    >
-                                                        <button
-                                                            type="button"
-                                                            className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80 transition-opacity"
-                                                            onClick={() => m.otherUser?.id && setViewingProfile({ userId: m.otherUser.id })}
-                                                            title="Xem hồ sơ"
-                                                        >
-                                                            <ImageWithFallback
-                                                                src={m.otherUser?.avatarUrl || AVATAR_PLACEHOLDER}
-                                                                alt={m.otherUser?.fullName || ''}
-                                                                className="w-12 h-12 rounded-full object-cover shrink-0"
-                                                            />
-                                                            <span className="font-medium text-foreground truncate flex-1 min-w-0">
-                                                                {m.otherUser?.fullName || '—'}
-                                                            </span>
-                                                        </button>
-                                                        <span className="text-sm text-primary font-medium flex items-center gap-1 shrink-0">
-                                                            <Check className="w-4 h-4" /> Đã chấp nhận
-                                                        </span>
-                                                        {m.otherUser?.id && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => (chatBox ? chatBox.openChatWith(m.otherUser!.id) : navigate(`/chat/${m.otherUser!.id}`))}
@@ -555,20 +829,21 @@ export function FindRoommatePage() {
                                                             >
                                                                 <MessageCircle className="w-5 h-5" />
                                                             </button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
-                                    )}
+                                    </div>
+                                )}
 
-                                    {sentPending.length === 0 && receivedPending.length === 0 && accepted.length === 0 && (
-                                        <div className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-8 text-center text-muted-foreground">
-                                            Chưa có lời mời nào. Gửi lời mời cho ai đó trong danh sách gợi ý phía trên.
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                {sentPending.length === 0 && receivedPending.length === 0 && accepted.length === 0 && (
+                                    <div className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-8 text-center text-muted-foreground">
+                                        Chưa có lời mời nào. Gửi lời mời cho ai đó trong danh sách gợi ý phía trên.
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </section>
                 </>
 
@@ -577,6 +852,182 @@ export function FindRoommatePage() {
                     matchScore={viewingProfile?.matchScore}
                     onClose={() => setViewingProfile(null)}
                 />
+
+                {/* Invite Roommate Modal */}
+                {inviteTarget && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={closeInviteModal}>
+                        <div
+                            className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden flex flex-col"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between p-5 border-b border-border">
+                                <h2 className="font-heading text-lg font-semibold text-foreground flex items-center gap-2">
+                                    <DoorOpen className="w-5 h-5 text-accent" />
+                                    Mời {inviteTarget.fullName} ở ghép
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={closeInviteModal}
+                                    className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-muted-foreground" />
+                                </button>
+                            </div>
+
+                            {/* Body */}
+                            <div className="p-5 overflow-y-auto flex-1">
+                                {inviteSuccess ? (
+                                    <div className="text-center py-8">
+                                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                                            <Check className="w-8 h-8 text-primary" />
+                                        </div>
+                                        <p className="text-lg font-semibold text-foreground mb-2">Thành công!</p>
+                                        <p className="text-muted-foreground text-sm">{inviteSuccess}</p>
+
+                                        {/* Shareable room link */}
+                                        {selectedRoomId && (
+                                            <div className="mt-5 bg-muted/50 rounded-xl p-4 text-left">
+                                                <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                                                    <Link2 className="w-3.5 h-3.5" />
+                                                    Link phòng – gửi cho bạn bè để xem trực tiếp:
+                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="text"
+                                                        readOnly
+                                                        value={`${window.location.origin}/room/${selectedRoomId}`}
+                                                        className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground select-all focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(`${window.location.origin}/room/${selectedRoomId}`);
+                                                            setCopiedLink(true);
+                                                            setTimeout(() => setCopiedLink(false), 2000);
+                                                        }}
+                                                        className={`shrink-0 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${
+                                                            copiedLink
+                                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                                                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                                        }`}
+                                                    >
+                                                        {copiedLink ? (
+                                                            <><Check className="w-3.5 h-3.5" /> Đã sao chép</>
+                                                        ) : (
+                                                            <><Copy className="w-3.5 h-3.5" /> Sao chép</>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                                <a
+                                                    href={`/room/${selectedRoomId}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1.5 mt-2.5 text-xs text-primary hover:underline"
+                                                >
+                                                    <ExternalLink className="w-3 h-3" />
+                                                    Mở trang phòng
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            onClick={closeInviteModal}
+                                            className="mt-6 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+                                        >
+                                            Đóng
+                                        </button>
+                                    </div>
+                                ) : loadingRooms ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                    </div>
+                                ) : activeRooms.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <Home className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-60" />
+                                        <p className="text-muted-foreground">Bạn chưa thuê phòng nào.</p>
+                                        <p className="text-muted-foreground text-sm mt-1">Hãy thuê phòng trước khi mời ở ghép.</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p className="text-sm text-muted-foreground mb-4">
+                                            Chọn phòng bạn đang thuê để mời <strong>{inviteTarget.fullName}</strong> ở ghép:
+                                        </p>
+                                        <div className="space-y-3">
+                                            {activeRooms.map((room) => (
+                                                <label
+                                                    key={room.roomId}
+                                                    className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${selectedRoomId === room.roomId
+                                                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                                                            : 'border-border hover:border-primary/30 hover:bg-muted/30'
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="invite-room"
+                                                        checked={selectedRoomId === room.roomId}
+                                                        onChange={() => setSelectedRoomId(room.roomId)}
+                                                        className="w-4 h-4 text-primary accent-primary shrink-0"
+                                                    />
+                                                    {room.image && (
+                                                        <ImageWithFallback
+                                                            src={room.image}
+                                                            alt={room.roomName}
+                                                            className="w-16 h-16 rounded-lg object-cover shrink-0"
+                                                        />
+                                                    )}
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-medium text-foreground truncate">
+                                                            {room.roomName} – {room.propertyName}
+                                                        </p>
+                                                        {room.address && (
+                                                            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                                                <MapPin className="w-3 h-3" />{room.address}
+                                                            </p>
+                                                        )}
+                                                        {room.price != null && (
+                                                            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                                                <Banknote className="w-3 h-3" />{Number(room.price).toLocaleString('vi-VN')} VNĐ/tháng
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            {!inviteSuccess && activeRooms.length > 0 && !loadingRooms && (
+                                <div className="flex items-center justify-end gap-3 p-5 border-t border-border">
+                                    <button
+                                        type="button"
+                                        onClick={closeInviteModal}
+                                        className="px-5 py-2.5 rounded-xl font-medium border border-border hover:bg-muted transition-colors"
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={!selectedRoomId || sendingInvite}
+                                        onClick={handleSendInvite}
+                                        className="px-5 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center gap-2 transition-colors"
+                                    >
+                                        {sendingInvite ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Send className="w-4 h-4" />
+                                        )}
+                                        Gửi lời mời ở ghép
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );
