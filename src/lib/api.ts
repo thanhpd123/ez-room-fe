@@ -28,6 +28,7 @@ export function setStoredAuth(token: string, user: Record<string, unknown>): voi
 export function clearStoredAuth(): void {
     localStorage.removeItem(EZROOM_TOKEN_KEY);
     localStorage.removeItem('ezroom_user');
+    localStorage.removeItem('ezroom_refresh_token');
 }
 
 /**
@@ -36,17 +37,50 @@ export function clearStoredAuth(): void {
 export async function loginWithEmail(
     email: string,
     password: string
-): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; gender?: string | null } }> {
+): Promise<{ accessToken: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; isVip?: boolean; gender?: string | null } }> {
     const url = getApiUrl('/auth/login');
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Đăng nhập thất bại');
-    if (!data.success || !data.token || !data.user) throw new Error('Phản hồi không hợp lệ');
-    return { token: data.token, user: data.user };
+    const accessToken = data?.accessToken || data?.token;
+    if (!data.success || !accessToken || !data.user) throw new Error('Phản hồi không hợp lệ');
+    return { accessToken, user: data.user };
+}
+
+export async function refreshAccessTokenRequest(): Promise<{ accessToken: string; user?: Record<string, unknown> }> {
+    const res = await fetch(getApiUrl('/auth/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data?.message || 'Không thể làm mới phiên đăng nhập');
+    }
+    const accessToken = data?.accessToken || data?.token;
+    if (!accessToken) {
+        throw new Error('Phản hồi làm mới phiên không hợp lệ');
+    }
+    return { accessToken, user: data?.user };
+}
+
+export async function logoutCurrentSessionRequest(): Promise<void> {
+    await fetch(getApiUrl('/auth/logout'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+    });
+}
+
+export async function logoutAllSessionsRequest(): Promise<void> {
+    await authFetch('/auth/logout-all', {
+        method: 'POST',
+    });
 }
 
 /**
@@ -251,21 +285,45 @@ export async function authFetch(
     path: string,
     options: RequestInit = {}
 ): Promise<Response> {
-    const token = await getAccessToken();
-    const url = getApiUrl(path);
-
-    const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        ...options.headers,
+    const fetchWithToken = async (token: string | null): Promise<Response> => {
+        const url = getApiUrl(path);
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        };
+        if (token) {
+            (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+        }
+        return fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include',
+        });
     };
-    if (token) {
-        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+    const token = await getAccessToken();
+    let response = await fetchWithToken(token);
+
+    const shouldTryRefresh =
+        response.status === 401 &&
+        !!localStorage.getItem(EZROOM_TOKEN_KEY) &&
+        path !== '/auth/login' &&
+        path !== '/auth/refresh' &&
+        path !== '/auth/logout';
+
+    if (!shouldTryRefresh) {
+        return response;
     }
 
-    return fetch(url, {
-        ...options,
-        headers,
-    });
+    try {
+        const { accessToken } = await refreshAccessTokenRequest();
+        localStorage.setItem(EZROOM_TOKEN_KEY, accessToken);
+        response = await fetchWithToken(accessToken);
+    } catch {
+        return response;
+    }
+
+    return response;
 }
 
 /**
@@ -448,7 +506,9 @@ export interface MyPreorderItem {
 
 export interface CreatePreorderDepositPaymentRequest {
     roomId: string;
-    depositAmount: number;
+    depositMonths?: number;
+    depositPercent?: number;
+    depositAmount?: number;
     buyerName?: string;
     buyerEmail?: string;
     buyerPhone?: string;
@@ -461,6 +521,8 @@ export interface CreatePreorderDepositPaymentResponse {
         preorderId: string;
         roomId: string;
         depositAmount: number;
+        depositPercent?: number;
+        depositMonths?: number;
         payment: {
             provider: 'PAYOS';
             orderCode: string;
@@ -1174,7 +1236,7 @@ export async function getRoomReviewsRequest(
     const params = new URLSearchParams();
     if (options.page) params.append('page', String(options.page));
     if (options.limit) params.append('limit', String(options.limit));
-    
+
     const res = await fetch(getApiUrl(`/feedback/room/${roomId}?${params}`));
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || json?.error || 'Không thể tải đánh giá');
@@ -1240,6 +1302,12 @@ export interface SmartSearchRoomItem {
     otherRoomsInRental: Array<{ id: string; roomName: string | null; price: number; area: number | null; roomType: string; image: string }>;
 }
 
+export interface ApiErrorWithCode extends Error {
+    code?: string;
+    upgradePath?: string;
+    featureName?: string;
+}
+
 /**
  * GET /public/search – room-based recommendation search.
  * Pass token via options for user-preference scoring. Rooms sorted by match score.
@@ -1271,7 +1339,13 @@ export async function smartSearchRequest(
     if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     const res = await fetch(url, { cache: 'no-store', headers });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tìm kiếm');
+    if (!res.ok) {
+        const err = new Error(json?.message || json?.error || 'Lỗi tìm kiếm') as ApiErrorWithCode;
+        err.code = json?.code;
+        err.upgradePath = json?.upgradePath;
+        err.featureName = json?.featureName;
+        throw err;
+    }
     return json;
 }
 
@@ -1385,6 +1459,73 @@ export interface LandlordProfileResponse {
             reviewer: { id: string; fullName: string; avatarUrl: string | null } | null;
         }>;
     };
+}
+
+export interface VipPackageItem {
+    id: string;
+    name: string;
+    description: string | null;
+    durationDays: number;
+    price: number;
+    targetRole: 'TENANT' | 'LANDLORD' | string;
+    isActive: boolean;
+    createdAt: string | null;
+}
+
+export async function getVipPackagesRequest(targetRole?: 'TENANT' | 'LANDLORD'): Promise<{
+    success: boolean;
+    data: VipPackageItem[];
+}> {
+    const search = new URLSearchParams();
+    if (targetRole) search.set('targetRole', targetRole);
+    const qs = search.toString();
+    const res = await fetch(getApiUrl(`/vip/packages${qs ? `?${qs}` : ''}`), {
+        cache: 'no-store',
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || 'Không thể tải gói VIP');
+    }
+    return json;
+}
+
+export async function createVipPurchaseRequest(packageId: string): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+        payment?: {
+            checkoutUrl?: string | null;
+            orderCode?: string;
+        };
+    };
+}> {
+    const res = await authFetch('/vip/purchase', {
+        method: 'POST',
+        body: JSON.stringify({ packageId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || 'Không thể tạo thanh toán VIP');
+    }
+    return json;
+}
+
+export async function verifyVipPurchaseRequest(orderCode: string): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+        confirmed?: boolean;
+        activated?: boolean;
+        vipExpiresAt?: string;
+        payosStatus?: string;
+    };
+}> {
+    const res = await authFetch(`/vip/verify?orderCode=${encodeURIComponent(orderCode)}`);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || 'Không thể xác minh thanh toán VIP');
+    }
+    return json;
 }
 
 export async function getLandlordProfileRequest(userId: string): Promise<LandlordProfileResponse> {

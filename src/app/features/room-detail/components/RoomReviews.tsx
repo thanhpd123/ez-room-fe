@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Star, User, MessageCircle } from 'lucide-react';
 import { getRoomReviewsRequest } from '@/lib/api';
-import { useTranslation } from 'react-i18next';
 
 interface Review {
     id: string;
@@ -26,10 +25,8 @@ interface RoomReviewsProps {
 }
 
 export function RoomReviews({ roomId }: RoomReviewsProps) {
-    const { t } = useTranslation();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState({
         total: 0,
         averageRating: 0,
@@ -42,10 +39,9 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
     const loadReviews = async () => {
         try {
             setLoading(true);
-            setError(null);
             const result = await getRoomReviewsRequest(roomId, { page: 1, limit: 10 });
             setReviews(result.reviews || []);
-            
+
             if (result.reviews && result.reviews.length > 0) {
                 const avgRating = (result.reviews.reduce((sum, r) => sum + (r.rating || 0), 0)) / result.reviews.length;
                 setStats({
@@ -54,7 +50,7 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                 });
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Có lỗi khi tải đánh giá');
+            console.error('Failed to load room reviews:', err);
         } finally {
             setLoading(false);
         }
@@ -88,7 +84,7 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
             {/* Header */}
             <div className="mb-8">
                 <h3 className="font-nunito text-lg mb-4">Đánh giá từ khách hàng</h3>
-                
+
                 <div className="flex items-start gap-8">
                     {/* Rating Summary */}
                     <div className="flex items-center gap-4">
@@ -100,11 +96,10 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                 {[...Array(5)].map((_, i) => (
                                     <Star
                                         key={i}
-                                        className={`w-4 h-4 ${
-                                            i < Math.round(stats.averageRating)
+                                        className={`w-4 h-4 ${i < Math.round(stats.averageRating)
                                                 ? 'fill-primary text-primary'
                                                 : 'text-muted-foreground'
-                                        }`}
+                                            }`}
                                     />
                                 ))}
                             </div>
@@ -132,7 +127,7 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                     <User className="w-5 h-5 text-primary" />
                                 </div>
                             )}
-                            
+
                             <div className="flex-1">
                                 <div className="flex items-center justify-between gap-2 mb-2">
                                     <p className="font-medium text-foreground">
@@ -142,17 +137,16 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                         {new Date(review.createdAt).toLocaleDateString('vi-VN')}
                                     </span>
                                 </div>
-                                
+
                                 {/* Rating Stars */}
                                 <div className="flex gap-1 mb-3">
                                     {[...Array(5)].map((_, i) => (
                                         <Star
                                             key={i}
-                                            className={`w-4 h-4 ${
-                                                i < (review.rating || 0)
+                                            className={`w-4 h-4 ${i < (review.rating || 0)
                                                     ? 'fill-primary text-primary'
                                                     : 'text-muted-foreground'
-                                            }`}
+                                                }`}
                                         />
                                     ))}
                                 </div>
@@ -169,11 +163,10 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                             {[...Array(5)].map((_, i) => (
                                                 <div
                                                     key={i}
-                                                    className={`w-1.5 h-1.5 rounded-full ${
-                                                        i < (review.cleanlinessRating || 0)
+                                                    className={`w-1.5 h-1.5 rounded-full ${i < (review.cleanlinessRating || 0)
                                                             ? 'bg-primary'
                                                             : 'bg-muted-foreground'
-                                                    }`}
+                                                        }`}
                                                 />
                                             ))}
                                         </div>
@@ -186,11 +179,10 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                             {[...Array(5)].map((_, i) => (
                                                 <div
                                                     key={i}
-                                                    className={`w-1.5 h-1.5 rounded-full ${
-                                                        i < (review.locationRating || 0)
+                                                    className={`w-1.5 h-1.5 rounded-full ${i < (review.locationRating || 0)
                                                             ? 'bg-primary'
                                                             : 'bg-muted-foreground'
-                                                    }`}
+                                                        }`}
                                                 />
                                             ))}
                                         </div>
@@ -203,11 +195,10 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                             {[...Array(5)].map((_, i) => (
                                                 <div
                                                     key={i}
-                                                    className={`w-1.5 h-1.5 rounded-full ${
-                                                        i < (review.valueRating || 0)
+                                                    className={`w-1.5 h-1.5 rounded-full ${i < (review.valueRating || 0)
                                                             ? 'bg-primary'
                                                             : 'bg-muted-foreground'
-                                                    }`}
+                                                        }`}
                                                 />
                                             ))}
                                         </div>
@@ -220,11 +211,10 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                             {[...Array(5)].map((_, i) => (
                                                 <div
                                                     key={i}
-                                                    className={`w-1.5 h-1.5 rounded-full ${
-                                                        i < (review.landlordRating || 0)
+                                                    className={`w-1.5 h-1.5 rounded-full ${i < (review.landlordRating || 0)
                                                             ? 'bg-primary'
                                                             : 'bg-muted-foreground'
-                                                    }`}
+                                                        }`}
                                                 />
                                             ))}
                                         </div>

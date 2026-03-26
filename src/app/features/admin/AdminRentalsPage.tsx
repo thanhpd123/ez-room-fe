@@ -33,20 +33,22 @@ import {
     type RentalStats,
     type PaginationInfo,
 } from './shared/admin-api';
+import { useTranslation } from 'react-i18next';
 
 const { Title } = Typography;
 const { Option } = Select;
 
 const STATUS_OPTIONS = [
-    { value: 'AVAILABLE', label: 'Đang hiển thị', color: 'success' },
-    { value: 'UNAVAILABLE', label: 'Tạm ngưng', color: 'processing' },
-    { value: 'HIDDEN', label: 'Đã ẩn', color: 'default' },
-    { value: 'VIOLATE', label: 'Vi phạm', color: 'error' },
-    { value: 'PENDING', label: 'Chờ duyệt', color: 'warning' },
-    { value: 'SUSPEND', label: 'Tạm khóa', color: 'default' },
+    { value: 'AVAILABLE', color: 'success' },
+    { value: 'UNAVAILABLE', color: 'processing' },
+    { value: 'HIDDEN', color: 'default' },
+    { value: 'VIOLATE', color: 'error' },
+    { value: 'PENDING', color: 'warning' },
+    { value: 'SUSPEND', color: 'default' },
 ];
 
 export function AdminRentalsPage() {
+    const { t } = useTranslation();
     const [rentals, setRentals] = useState<Rental[]>([]);
     const [stats, setStats] = useState<RentalStats | null>(null);
     const [pagination, setPagination] = useState<PaginationInfo>({
@@ -123,10 +125,12 @@ export function AdminRentalsPage() {
             const detail = await getRentalById(rental.id);
             setViewingRental(detail);
         } catch {
-            message.error('Không thể tải chi tiết');
+            message.error(t('admin.rentals.messages.loadDetailFailed'));
         }
         setDetailLoading(false);
     };
+
+    const statusLabel = (status: string) => t(`admin.rentals.status.${status}`);
 
     const handleStatusChange = async (rentalId: string, newStatus: string) => {
         const result = await updateRentalStatus(rentalId, newStatus);
@@ -152,7 +156,7 @@ export function AdminRentalsPage() {
 
     const columns: ColumnsType<Rental> = [
         {
-            title: 'Tiêu đề',
+            title: t('admin.rentals.table.title'),
             dataIndex: 'title',
             key: 'title',
             render: (title) => (
@@ -162,17 +166,17 @@ export function AdminRentalsPage() {
             ),
         },
         {
-            title: 'Chủ trọ',
+            title: t('admin.rentals.table.owner'),
             key: 'owner',
             render: (_, record) => record.owner?.fullName || '-',
         },
         {
-            title: 'Số phòng',
+            title: t('admin.rentals.table.roomCount'),
             key: 'roomCount',
             render: (_, record) => record.roomCount || record.rooms?.length || 0,
         },
         {
-            title: 'Địa chỉ',
+            title: t('admin.rentals.table.location'),
             key: 'location',
             render: (_, record) => {
                 const loc = record.location;
@@ -181,7 +185,7 @@ export function AdminRentalsPage() {
             },
         },
         {
-            title: 'Trạng thái',
+            title: t('admin.rentals.table.status'),
             dataIndex: 'status',
             key: 'status',
             render: (status, record) => {
@@ -194,7 +198,7 @@ export function AdminRentalsPage() {
                     >
                         {STATUS_OPTIONS.map((opt) => (
                             <Option key={opt.value} value={opt.value}>
-                                <Tag color={opt.color}>{opt.label}</Tag>
+                                <Tag color={opt.color}>{statusLabel(opt.value)}</Tag>
                             </Option>
                         ))}
                     </Select>
@@ -202,7 +206,7 @@ export function AdminRentalsPage() {
             },
         },
         {
-            title: 'Hành động',
+            title: t('admin.rentals.table.actions'),
             key: 'actions',
             render: (_, record) => (
                 <Space>
@@ -211,21 +215,21 @@ export function AdminRentalsPage() {
                         icon={<EyeOutlined />}
                         onClick={() => handleViewDetail(record)}
                         loading={detailLoading}
-                        title="Xem chi tiết"
+                        title={t('admin.rentals.actions.viewDetail')}
                     />
                     <Popconfirm
-                        title="Xóa phòng này?"
-                        description="Hành động này không thể hoàn tác!"
+                        title={t('admin.rentals.actions.confirmDeleteTitle')}
+                        description={t('admin.rentals.actions.confirmDeleteDescription')}
                         onConfirm={() => handleDelete(record)}
-                        okText="Xóa"
-                        cancelText="Hủy"
+                        okText={t('admin.rentals.actions.delete')}
+                        cancelText={t('admin.rentals.actions.cancel')}
                         okButtonProps={{ danger: true }}
                     >
                         <Button
                             type="text"
                             danger
                             icon={<DeleteOutlined />}
-                            title="Xóa"
+                            title={t('admin.rentals.actions.delete')}
                         />
                     </Popconfirm>
                 </Space>
@@ -235,7 +239,7 @@ export function AdminRentalsPage() {
 
     return (
         <div>
-            <Title level={2}>Quản lý Phòng trọ</Title>
+            <Title level={2}>{t('admin.rentals.title')}</Title>
 
             {/* Stats */}
             {stats && (
@@ -243,7 +247,7 @@ export function AdminRentalsPage() {
                     <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
-                                title="Tổng bài đăng"
+                                title={t('admin.rentals.stats.total')}
                                 value={stats.total}
                                 prefix={<HomeOutlined />}
                             />
@@ -252,7 +256,7 @@ export function AdminRentalsPage() {
                     <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
-                                title="Đang hiển thị"
+                                title={statusLabel('AVAILABLE')}
                                 value={stats.byStatus.available || 0}
                                 styles={{ content: { color: '#52c41a' } }}
                             />
@@ -261,7 +265,7 @@ export function AdminRentalsPage() {
                     <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
-                                title="Tạm ngưng"
+                                title={statusLabel('UNAVAILABLE')}
                                 value={stats.byStatus.unavailable || 0}
                                 styles={{ content: { color: '#1890ff' } }}
                             />
@@ -270,7 +274,7 @@ export function AdminRentalsPage() {
                     <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
-                                title="Chờ duyệt"
+                                title={statusLabel('PENDING')}
                                 value={stats.byStatus.pending || 0}
                                 styles={{ content: { color: '#faad14' } }}
                             />
@@ -279,7 +283,7 @@ export function AdminRentalsPage() {
                     <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
-                                title="Vi phạm"
+                                title={statusLabel('VIOLATE')}
                                 value={stats.byStatus.violate || 0}
                                 styles={{ content: { color: '#ff4d4f' } }}
                             />
@@ -288,7 +292,7 @@ export function AdminRentalsPage() {
                     <Col xs={12} sm={8} lg={4}>
                         <Card>
                             <Statistic
-                                title="Đã ẩn"
+                                title={statusLabel('HIDDEN')}
                                 value={stats.byStatus.hidden || 0}
                                 styles={{ content: { color: '#999' } }}
                             />
@@ -301,7 +305,7 @@ export function AdminRentalsPage() {
             <Card style={{ marginBottom: 16 }}>
                 <Space wrap>
                     <Input
-                        placeholder="Tìm theo tiêu đề, địa chỉ..."
+                        placeholder={t('admin.rentals.filters.searchPlaceholder')}
                         prefix={<SearchOutlined />}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -310,7 +314,7 @@ export function AdminRentalsPage() {
                         allowClear
                     />
                     <Select
-                        placeholder="Lọc theo Status"
+                        placeholder={t('admin.rentals.filters.statusPlaceholder')}
                         value={statusFilter}
                         onChange={setStatusFilter}
                         style={{ width: 180 }}
@@ -318,12 +322,12 @@ export function AdminRentalsPage() {
                     >
                         {STATUS_OPTIONS.map((opt) => (
                             <Option key={opt.value} value={opt.value}>
-                                {opt.label}
+                                {statusLabel(opt.value)}
                             </Option>
                         ))}
                     </Select>
                     <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
-                        Tìm kiếm
+                        {t('admin.rentals.filters.searchButton')}
                     </Button>
                 </Space>
             </Card>
@@ -340,7 +344,7 @@ export function AdminRentalsPage() {
                         pageSize: pagination.limit,
                         total: pagination.total,
                         showSizeChanger: false,
-                        showTotal: (total) => `Tổng ${total} phòng`,
+                        showTotal: (total) => t('admin.rentals.totalText', { total }),
                     }}
                     onChange={handleTableChange}
                 />
@@ -362,26 +366,26 @@ export function AdminRentalsPage() {
                             style={{ marginTop: 16 }}
                             size="small"
                         >
-                            <Descriptions.Item label="Chủ trọ">
+                            <Descriptions.Item label={t('admin.rentals.detail.owner')}>
                                 {viewingRental.owner?.fullName || '-'}
                             </Descriptions.Item>
-                            <Descriptions.Item label="SĐT">
+                            <Descriptions.Item label={t('admin.rentals.detail.phone')}>
                                 {viewingRental.owner?.phone || '-'}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Địa chỉ" span={2}>
+                            <Descriptions.Item label={t('admin.rentals.detail.location')} span={2}>
                                 {viewingRental.location?.address || '-'}
                                 {viewingRental.location?.district && `, ${viewingRental.location.district}`}
                                 {viewingRental.location?.city && `, ${viewingRental.location.city}`}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Số phòng">
+                            <Descriptions.Item label={t('admin.rentals.detail.roomCount')}>
                                 {viewingRental.roomCount || viewingRental.rooms?.length || 0}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Trạng thái">
+                            <Descriptions.Item label={t('admin.rentals.detail.status')}>
                                 <Tag color={STATUS_OPTIONS.find(s => s.value === viewingRental.status)?.color}>
-                                    {STATUS_OPTIONS.find(s => s.value === viewingRental.status)?.label}
+                                    {statusLabel(viewingRental.status)}
                                 </Tag>
                             </Descriptions.Item>
-                            <Descriptions.Item label="Mô tả" span={2}>
+                            <Descriptions.Item label={t('admin.rentals.detail.description')} span={2}>
                                 {viewingRental.description || '-'}
                             </Descriptions.Item>
                         </Descriptions>

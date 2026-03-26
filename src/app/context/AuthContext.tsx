@@ -9,7 +9,13 @@ import {
 } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
-import { authFetch, clearStoredAuth, loginWithEmail, setStoredAuth } from '@/lib/api';
+import {
+    authFetch,
+    clearStoredAuth,
+    loginWithEmail,
+    logoutCurrentSessionRequest,
+    setStoredAuth,
+} from '@/lib/api';
 
 export interface AuthUser {
     id: string;
@@ -18,6 +24,7 @@ export interface AuthUser {
     avatarUrl: string | undefined;
     phone?: string | null;
     role?: string;
+    isVip?: boolean;
     gender?: string | null;
 }
 
@@ -69,6 +76,7 @@ function readInitialStoredAuth(): {
                 avatarUrl: u.avatarUrl ?? undefined,
                 phone: u.phone,
                 role: u.role,
+                isVip: u.isVip === true,
                 gender: u.gender ?? undefined,
             },
             accessToken: token,
@@ -88,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [accessToken, setAccessToken] = useState<string | null>(initialStoredAuth.accessToken);
     const [isLoading, setIsLoading] = useState(initialStoredAuth.isLoading);
 
-    const setUserFromBackend = useCallback((data: { user: { id: string; email: string | null; full_name: string | null; avatar_url: string | null; role?: string; phone?: string | null; gender?: string | null } }) => {
+    const setUserFromBackend = useCallback((data: { user: { id: string; email: string | null; full_name: string | null; avatar_url: string | null; role?: string; phone?: string | null; isVip?: boolean; gender?: string | null } }) => {
         const u = data.user;
         setUser({
             id: u.id,
@@ -97,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             avatarUrl: u.avatar_url ?? undefined,
             role: u.role,
             phone: u.phone ?? undefined,
+            isVip: u.isVip === true,
             gender: u.gender ?? undefined,
         });
     }, []);
@@ -177,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signInWithEmail = useCallback(async (email: string, password: string) => {
-        const { token, user: u } = await loginWithEmail(email, password);
+        const { accessToken: token, user: u } = await loginWithEmail(email, password);
         setStoredAuth(token, u);
         setUser({
             id: u.id,
@@ -186,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             avatarUrl: u.avatarUrl ?? undefined,
             phone: u.phone,
             role: u.role,
+            isVip: u.isVip === true,
             gender: u.gender ?? undefined,
         });
         setAccessToken(token);
@@ -205,6 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 avatarUrl: u.avatar_url,
                 phone: u.phone ?? null,
                 role: u.role,
+                isVip: u.isVip === true,
                 gender: u.gender ?? null,
             };
             localStorage.setItem('ezroom_user', JSON.stringify(stored));
@@ -212,6 +223,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [setUserFromBackend]);
 
     const signOut = useCallback(async () => {
+        try {
+            await logoutCurrentSessionRequest();
+        } catch {
+            // Ignore network/logout errors; local sign-out must still proceed.
+        }
         await supabase.auth.signOut();
         clearStoredAuth();
         setUser(null);

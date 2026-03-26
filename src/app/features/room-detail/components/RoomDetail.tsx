@@ -16,7 +16,7 @@ import {
   MessageCircle,
   type LucideIcon
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useFavorites } from '@/app/context/FavoritesContext';
 import { useAuth } from '@/app/context/AuthContext';
@@ -60,8 +60,26 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
   const [depositSubmitting, setDepositSubmitting] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depositAmountInput, setDepositAmountInput] = useState('');
+  const [depositMonthsOption, setDepositMonthsOption] = useState('1');
   const [depositError, setDepositError] = useState('');
   const [redirectingToPayOS, setRedirectingToPayOS] = useState(false);
+
+  const depositMonthChoices = [
+    { value: '0.5', label: '0.5 tháng' },
+    { value: '1', label: '1 tháng' },
+    { value: '2', label: '2 tháng' },
+    { value: '3', label: '3 tháng' },
+  ];
+
+  const selectedDepositMonths = useMemo(() => {
+    const parsed = Number(depositMonthsOption);
+    if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+    return parsed;
+  }, [depositMonthsOption]);
+
+  const inferredDepositAmount = useMemo(() => {
+    return Math.max(0, Math.round(room.price * selectedDepositMonths));
+  }, [room.price, selectedDepositMonths]);
 
   const handleContactNow = () => {
     if (!user) {
@@ -110,8 +128,9 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
       return;
     }
 
-    const suggestedAmount = Math.max(1000, Math.round(room.price));
+    const suggestedAmount = Math.max(1000, Math.round(room.price * selectedDepositMonths));
     setDepositAmountInput(String(suggestedAmount));
+    setDepositMonthsOption('1');
     setDepositError('');
     setShowDepositModal(true);
   };
@@ -128,6 +147,12 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
       return;
     }
 
+    const selectedMonths = Number(depositMonthsOption);
+    if (!Number.isFinite(selectedMonths) || selectedMonths <= 0) {
+      setDepositError('Vui lòng chọn số tháng đặt cọc hợp lệ.');
+      return;
+    }
+
     setDepositError('');
 
     try {
@@ -135,6 +160,7 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
 
       const response = await createPreorderDepositPaymentRequest({
         roomId: room.id,
+        depositMonths: selectedMonths,
         depositAmount: normalized,
         buyerName: user.fullName || undefined,
         buyerEmail: user.email || undefined,
@@ -342,9 +368,10 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                   type="button"
                   onClick={handleOpenDepositModal}
                   disabled={depositSubmitting || room.status !== 'available'}
-                  className="w-full bg-secondary hover:bg-secondary/80 disabled:opacity-60 disabled:cursor-not-allowed text-secondary-foreground py-3 rounded-lg transition-colors"
+                  className="group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-amber-500 to-rose-500 py-3 font-semibold text-white shadow-md transition-all duration-300 hover:scale-[1.01] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {depositSubmitting ? 'Đang tạo thanh toán...' : room.status === 'available' ? 'Đặt cọc phòng' : 'Phòng không khả dụng'}
+                  <span className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  <span className="relative">{depositSubmitting ? 'Đang tạo thanh toán...' : room.status === 'available' ? 'Đặt cọc phòng ngay' : 'Phòng không khả dụng'}</span>
                 </button>
               </div>
 
@@ -418,8 +445,30 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
           <section className="relative w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-xl">
             <h3 className="font-nunito text-xl mb-2">Đặt cọc phòng</h3>
             <p className="text-sm text-muted-foreground mb-5">
-              Nhập số tiền cọc (VND), hệ thống sẽ chuyển bạn sang PayOS để thanh toán.
+              Chọn số tháng cọc và nhập số tiền tương ứng, hệ thống sẽ chuyển bạn sang PayOS để thanh toán.
             </p>
+
+            <label className="block text-sm font-medium text-foreground mb-2">Cọc mấy tháng</label>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {depositMonthChoices.map((choice) => (
+                <button
+                  key={choice.value}
+                  type="button"
+                  onClick={() => {
+                    setDepositMonthsOption(choice.value);
+                    setDepositAmountInput(String(Math.max(1000, Math.round(room.price * Number(choice.value)))));
+                    if (depositError) setDepositError('');
+                  }}
+                  className={`rounded-lg border px-2 py-2 text-sm font-medium transition-colors ${depositMonthsOption === choice.value
+                      ? 'border-amber-500 bg-amber-50 text-amber-700'
+                      : 'border-border bg-white text-foreground hover:bg-muted'
+                    }`}
+                  disabled={depositSubmitting}
+                >
+                  {choice.label}
+                </button>
+              ))}
+            </div>
 
             <label className="block text-sm font-medium text-foreground mb-2">Số tiền đặt cọc</label>
             <input
@@ -440,6 +489,14 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                 Tương đương: {Number(depositAmountInput || 0).toLocaleString('vi-VN')} ₫
               </p>
             )}
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              Gợi ý theo {selectedDepositMonths} tháng: {inferredDepositAmount.toLocaleString('vi-VN')} ₫
+            </p>
+
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              Lưu ý: Vui lòng liên hệ với chủ trọ để xác nhận chính xác mức cọc trước khi thanh toán.
+            </div>
 
             {!!depositError && (
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{depositError}</p>

@@ -157,6 +157,457 @@
     "notFound": "Room not found",
     "loading": "Loading..."
   },
+  "admin": {
+    "brand": "EZ-Room Admin",
+    "defaultUser": "Admin",
+    "menu": {
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "rentals": "Rentals",
+      "wallets": "Wallets",
+      "reportsGroup": "Reports",
+      "finance": "Finance",
+      "moderatorKpis": "Moderator KPIs",
+      "settingsGroup": "Settings",
+      "locations": "Locations",
+      "amenities": "Amenities",
+      "systemSettings": "System Settings"
+    },
+    "userMenu": {
+      "profile": "Profile Settings",
+      "changePassword": "Change Password",
+      "logout": "Log out"
+    },
+    "language": {
+      "toggleTitle": "Switch language"
+    },
+    "finance": {
+      "title": "Finance",
+      "subtitle": "Track cashflow, profit, and internal reconciliation",
+      "charts": {
+        "title": "Cashflow composition chart",
+        "amount": "Amount",
+        "deposit": "Preorder deposits",
+        "topup": "Wallet topups",
+        "vip": "VIP purchases",
+        "platformFee": "Platform fees",
+        "refund": "Refunds"
+      },
+      "filters": {
+        "from": "From",
+        "to": "To",
+        "apply": "Apply filters"
+      },
+      "kpis": {
+        "platformFees": "Platform fee revenue",
+        "preorderDeposits": "Successful preorder deposits",
+        "walletTopups": "Successful wallet topups",
+        "refunds": "Completed refunds",
+        "pendingOrders": "Pending payment orders",
+        "vipPurchases": "VIP purchases"
+      },
+      "reconciliation": {
+        "title": "Reconciliation mismatches",
+        "noMismatch": "No mismatches found in the selected range"
+      },
+      "table": {
+        "preorder": "Preorder",
+        "paymentOrder": "Payment order"
+      }
+    },
+    "moderators": {
+      "title": "Moderator KPIs",
+      "subtitle": "Monitor moderation productivity and quality",
+      "filters": {
+        "apply": "Apply filters"
+      },
+      "table": {
+        "moderator": "Moderator",
+        "status": "Status",
+        "openAssigned": "Open Assigned",
+        "resolvedInRange": "Resolved (range)",
+        "escalatedInRange": "Escalated (range)",
+        "avgResolution": "Avg Resolution"
+      }
+    },
+    "settings": {
+      "title": "System Settings",
+      "subtitle": "Manage financial rules at system level",
+      "providerKeysNotice": "Provider keys (PayOS, Supabase, Cloudinary) remain managed via environment variables.",
+      "sections": {
+        "depositRules": "Preorder Deposit Rules",
+        "platformCommission": "Platform Commission"
+      },
+      "fields": {
+        "defaultPercent": "Default Percent",
+        "minPercent": "Min Percent",
+        "maxPercent": "Max Percent",
+        "baseMonths": "Base Months",
+        "preorderFeeBps": "Preorder Fee (bps)",
+        "preorderFeeHelp": "100 bps = 1%"
+      },
+      "required": "Required",
+      "save": "Save changes"
+    },
+    "wallets": {
+      "title": "Wallet Management",
+      "pendingBadge": "Pending",
+      "quickPendingTooltip": "Click to quickly filter pending withdrawal requests in the transaction drawer",
+      "notice": "Admins can monitor wallets and approve/reject pending withdrawal requests. Balance changes only when a request is approved successfully.",
+      "searchPlaceholder": "Search by name, email...",
+      "searchButton": "Search",
+      "totalWalletsText": "Total {{total}} wallets",
+      "totalTransactionsText": "Total {{total}} transactions",
+      "tabs": {
+        "overview": "Overview",
+        "withdrawalQueue": "Withdrawal Queue",
+        "walletExplorer": "Wallet Explorer"
+      },
+      "overview": {
+        "subtitle": "Track core operations metrics and jump directly into approval queue.",
+        "goToQueue": "Open withdrawal queue"
+      },
+      "queue": {
+        "goNow": "Handle now",
+        "notice": "This is the primary workflow to approve/reject system-wide withdrawal requests in one screen.",
+        "searchPlaceholder": "Search by user name, email, phone...",
+        "searchButton": "Search queue",
+        "resetFilters": "Reset filters",
+        "totalText": "Total {{total}} requests",
+        "empty": "No pending withdrawal requests",
+        "selectedText": "Selected {{count}} requests",
+        "messages": {
+          "partialFailed": "{{count}} requests failed to process."
+        },
+        "kpis": {
+          "pendingCount": "Pending requests",
+          "pendingAmount": "Pending amount",
+          "avgWaiting": "Average waiting time",
+          "overdueCount": "Overdue (> {{sla}}h)"
+        },
+        "quickFilters": {
+          "all": "All",
+          "lt24h": "Waiting < 24h",
+          "gt24h": "Waiting > 24h",
+          "amountOver": "Amount > {{amount}}"
+        },
+        "sort": {
+          "newest": "Newest first",
+          "oldest": "Oldest first",
+          "amountDesc": "Amount high to low",
+          "amountAsc": "Amount low to high"
+        },
+        "table": {
+          "user": "User",
+          "amount": "Amount",
+          "status": "Status",
+          "waitingAge": "Waiting age",
+          "priority": "Priority",
+          "description": "Note",
+          "actions": "Actions"
+        },
+        "status": {
+          "pending": "Pending",
+          "overdue": "Overdue"
+        },
+        "priority": {
+          "HIGH": "High",
+          "NORMAL": "Normal"
+        },
+        "batch": {
+          "approve": "Approve selected",
+          "reject": "Reject selected"
+        },
+        "age": {
+          "lessThanHour": "< 1 hour",
+          "hours": "{{value}} hours",
+          "days": "{{value}} days"
+        }
+      },
+      "messages": {
+        "openWalletFirst": "Open a wallet's transactions first, then click again to filter pending withdrawal requests."
+      },
+      "stats": {
+        "totalWallets": "Total wallets",
+        "totalBalance": "Total system balance",
+        "avgBalance": "Average balance",
+        "maxBalance": "Highest balance",
+        "byTypeTitle": "Transactions by type"
+      },
+      "actions": {
+        "viewTransactions": "View transactions",
+        "transactions": "Transactions",
+        "approve": "Approve",
+        "reject": "Reject"
+      },
+      "table": {
+        "user": "User",
+        "role": "Role",
+        "balance": "Balance",
+        "createdAt": "Created at"
+      },
+      "txTable": {
+        "type": "Type",
+        "amount": "Amount",
+        "status": "Status",
+        "description": "Description",
+        "time": "Time",
+        "actions": "Actions"
+      },
+      "txType": {
+        "DEPOSIT": "Deposit",
+        "WITHDRAW": "Withdraw",
+        "TRANSFER": "Transfer",
+        "PREORDER": "Preorder",
+        "REFUND": "Refund",
+        "PAYMENT": "Payment"
+      },
+      "txStatus": {
+        "PENDING": "Pending",
+        "SUCCESS": "Success",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled"
+      },
+      "drawer": {
+        "title": "Transaction history",
+        "owner": "Wallet owner",
+        "email": "Email",
+        "role": "Role",
+        "currentBalance": "Current balance"
+      },
+      "filters": {
+        "pendingWithdraw": "Pending withdrawals",
+        "allTransactions": "All transactions",
+        "byType": "Filter by type",
+        "byStatus": "Filter by status"
+      },
+      "rejectModal": {
+        "title": "Reject withdrawal request",
+        "confirm": "Confirm reject",
+        "cancel": "Cancel",
+        "description": "You can provide a reason to notify the user (optional).",
+        "placeholder": "Example: Destination bank account information is invalid",
+        "templateLabel": "Reason template",
+        "templatePlaceholder": "Choose a quick reason template"
+      },
+      "rejectTemplates": {
+        "bankInfoInvalid": "Destination bank account information is invalid.",
+        "identityMismatch": "Account owner information does not match verification profile.",
+        "riskDetected": "Request has risk signals and needs additional review.",
+        "duplicateRequest": "Request is duplicated with another transaction in progress.",
+        "contactSupport": "Please contact support to update your withdrawal details."
+      }
+    },
+    "users": {
+      "title": "User Management",
+      "totalUsersText": "Total {{total}} users",
+      "table": {
+        "user": "User",
+        "phone": "Phone",
+        "role": "Role",
+        "status": "Status",
+        "createdAt": "Created at",
+        "actions": "Actions"
+      },
+      "filters": {
+        "searchPlaceholder": "Search by name, email, phone...",
+        "rolePlaceholder": "Filter by role",
+        "statusPlaceholder": "Filter by status",
+        "searchButton": "Search"
+      },
+      "actions": {
+        "viewDetail": "View detail",
+        "changeRole": "Change role",
+        "confirmBanTitle": "Ban this user?",
+        "confirmBanDesc": "Are you sure you want to ban \"{{name}}\"?",
+        "ban": "Ban",
+        "cancel": "Cancel",
+        "banUser": "Ban user",
+        "confirmUnbanTitle": "Unban this user?",
+        "confirmUnbanDesc": "Are you sure you want to unban \"{{name}}\"?",
+        "unban": "Unban",
+        "unbanUser": "Unban user"
+      },
+      "roleModal": {
+        "title": "Change role for \"{{name}}\"",
+        "save": "Save",
+        "cancel": "Cancel",
+        "selectNewRole": "Select new role:"
+      },
+      "drawer": {
+        "title": "User details",
+        "vip": "VIP",
+        "id": "ID",
+        "phone": "Phone",
+        "createdAt": "Created at",
+        "lastUpdated": "Last updated",
+        "stats": "Statistics",
+        "rentals": "Posts",
+        "favorites": "Favorites",
+        "preorders": "Preorders",
+        "wallet": "Wallet",
+        "balance": "Balance",
+        "walletCreatedAt": "Wallet created at",
+        "preferences": "Room preferences",
+        "budget": "Budget",
+        "roomType": "Room type",
+        "location": "Location",
+        "lifestyle": "Lifestyle profile",
+        "occupation": "Occupation",
+        "personality": "Personality",
+        "rentalPosts": "Posts ({{count}})",
+        "roomsCount": "{{count}} rooms",
+        "recentPreorders": "Recent preorders",
+        "landlordWarning": "Note: Landlord data may be linked to many posts, rooms, preorders, and transactions. Avoid deleting landlord accounts.",
+        "notFound": "No information found."
+      },
+      "role": {
+        "ADMIN": "Admin",
+        "MODERATOR": "Moderator",
+        "LANDLORD": "Landlord",
+        "TENANT": "Tenant",
+        "GUEST": "Guest"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "INACTIVE": "Inactive",
+        "SUSPENDED": "Suspended",
+        "BANNED": "Banned"
+      },
+      "rentalStatus": {
+        "AVAILABLE": "Available",
+        "UNAVAILABLE": "Unavailable",
+        "HIDDEN": "Hidden",
+        "VIOLATE": "Violation",
+        "PENDING": "Pending",
+        "SUSPEND": "Suspended"
+      }
+    },
+    "rentals": {
+      "title": "Rental Management",
+      "totalText": "Total {{total}} rentals",
+      "messages": {
+        "loadDetailFailed": "Unable to load details"
+      },
+      "table": {
+        "title": "Title",
+        "owner": "Landlord",
+        "roomCount": "Rooms",
+        "location": "Address",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "actions": {
+        "viewDetail": "View detail",
+        "confirmDeleteTitle": "Delete this rental?",
+        "confirmDeleteDescription": "This action cannot be undone!",
+        "delete": "Delete",
+        "cancel": "Cancel"
+      },
+      "stats": {
+        "total": "Total posts"
+      },
+      "filters": {
+        "searchPlaceholder": "Search by title, address...",
+        "statusPlaceholder": "Filter by status",
+        "searchButton": "Search"
+      },
+      "detail": {
+        "owner": "Landlord",
+        "phone": "Phone",
+        "location": "Address",
+        "roomCount": "Rooms",
+        "status": "Status",
+        "description": "Description"
+      },
+      "status": {
+        "AVAILABLE": "Available",
+        "UNAVAILABLE": "Unavailable",
+        "HIDDEN": "Hidden",
+        "VIOLATE": "Violation",
+        "PENDING": "Pending",
+        "SUSPEND": "Suspended"
+      }
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "EZ-Room system overview",
+      "kpis": {
+        "totalUsers": "Total Users",
+        "activeUsers": "Active Users",
+        "totalRentals": "Total Rentals",
+        "thisMonthRentals": "New Rentals This Month",
+        "totalWallets": "Total Wallets",
+        "totalBalance": "Total Balance",
+        "totalFeedback": "Total Feedback",
+        "totalPreorders": "Total Preorders"
+      },
+      "roles": {
+        "admin": "Admin",
+        "moderator": "Moderator",
+        "landlord": "Landlord",
+        "tenant": "Tenant"
+      },
+      "rentalStatus": {
+        "available": "Available",
+        "unavailable": "Unavailable",
+        "hidden": "Hidden",
+        "violate": "Violation",
+        "pending": "Pending",
+        "suspend": "Suspended"
+      },
+      "charts": {
+        "usersByRole": "Users by Role",
+        "rentalsByStatus": "Rentals by Status",
+        "count": "Count"
+      },
+      "systemStatus": {
+        "title": "System Status",
+        "availableRentals": "Available Rentals",
+        "unavailableRentals": "Unavailable Rentals",
+        "hiddenRentals": "Hidden Rentals",
+        "bannedUsers": "Banned Users"
+      }
+    },
+    "locations": {
+      "title": "Location Management",
+      "totalText": "Total {{total}} locations",
+      "table": {
+        "city": "City",
+        "district": "District",
+        "address": "Address",
+        "actions": "Actions",
+        "empty": "-"
+      },
+      "filters": {
+        "byCity": "Filter by city:",
+        "allCities": "All cities"
+      },
+      "actions": {
+        "add": "Add location",
+        "edit": "Edit",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "update": "Update",
+        "create": "Create",
+        "confirmDeleteTitle": "Delete this location?",
+        "confirmDeleteDescription": "Are you sure you want to delete \"{{city}} - {{district}}\"?"
+      },
+      "modal": {
+        "editTitle": "Edit location",
+        "createTitle": "Add new location"
+      },
+      "form": {
+        "addressLabel": "Detailed address",
+        "addressRequired": "Please enter an address",
+        "addressPlaceholder": "e.g. 123 Nguyen Hue, Ben Nghe Ward...",
+        "cityLabel": "City (optional)",
+        "cityPlaceholder": "e.g. Ho Chi Minh, Ha Noi...",
+        "districtLabel": "District (optional)",
+        "districtPlaceholder": "e.g. District 1, Thu Duc..."
+      }
+    }
+  },
   "common": {
     "loading": "Loading..."
   }

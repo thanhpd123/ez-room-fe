@@ -92,7 +92,7 @@ export function SearchForm({ onSearch, onLogin }: SearchFormProps) {
                 />
 
                 {locationsError && (
-                    <Alert type="warning" message={locationsError} showIcon className="rounded-xl" />
+                    <Alert type="warning" title={locationsError} showIcon className="rounded-xl" />
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

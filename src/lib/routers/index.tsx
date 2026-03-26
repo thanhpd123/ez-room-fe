@@ -11,6 +11,7 @@ import { ProfilePage } from '@/app/features/profile';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 import { PageLoader } from '@/app/components/PageLoader';
 import { PayOSResultPage, WalletPaymentResultPage } from '@/app/features/payment-result';
+import { VipPlansPage } from '@/app/features/vip';
 
 /* Lazy-loaded chunks – admin/moderator/rental-mgmt only loaded when visited */
 const BookingHistoryPage = lazy(() => import('@/app/features/booking-history').then((m) => ({ default: m.BookingHistoryPage })));
@@ -41,6 +42,9 @@ const AdminRentalsPage = lazy(() => import('@/app/features/admin').then((m) => (
 const AdminAmenitiesPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminAmenitiesPage })));
 const AdminLocationsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLocationsPage })));
 const AdminWalletsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminWalletsPage })));
+const AdminFinancePage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminFinancePage })));
+const AdminSettingsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminSettingsPage })));
+const AdminModeratorsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminModeratorsPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
 const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
 const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) => ({ default: m.FindRoommatePage })));
@@ -79,6 +83,14 @@ export const router = createBrowserRouter([
     {
         path: '/search',
         element: <SearchPage />,
+    },
+    {
+        path: '/vip-plans',
+        element: <VipPlansPage />,
+    },
+    {
+        path: '/vip/plans',
+        element: <Navigate to="/vip-plans" replace />,
     },
     {
         path: '/browse',
@@ -239,10 +251,13 @@ export const router = createBrowserRouter([
         children: [
             { index: true, element: <Suspense fallback={<PageLoader />}><AdminDashboardPage /></Suspense> },
             { path: 'users', element: <Suspense fallback={<PageLoader />}><AdminUsersPage /></Suspense> },
+            { path: 'finance', element: <Suspense fallback={<PageLoader />}><AdminFinancePage /></Suspense> },
+            { path: 'moderators', element: <Suspense fallback={<PageLoader />}><AdminModeratorsPage /></Suspense> },
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><AdminRentalsPage /></Suspense> },
             { path: 'amenities', element: <Suspense fallback={<PageLoader />}><AdminAmenitiesPage /></Suspense> },
             { path: 'locations', element: <Suspense fallback={<PageLoader />}><AdminLocationsPage /></Suspense> },
             { path: 'wallets', element: <Suspense fallback={<PageLoader />}><AdminWalletsPage /></Suspense> },
+            { path: 'settings', element: <Suspense fallback={<PageLoader />}><AdminSettingsPage /></Suspense> },
         ],
     },
 ]);

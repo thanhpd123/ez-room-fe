@@ -15,5 +15,5 @@ const DEFAULT_REDIRECT = '/home';
 
 export function getRedirectByRole(role?: string): string {
     if (!role) return DEFAULT_REDIRECT;
-    return ROLE_REDIRECTS[role] ?? DEFAULT_REDIRECT;
+    return ROLE_REDIRECTS[role.toUpperCase()] ?? DEFAULT_REDIRECT;
 }

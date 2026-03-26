@@ -153,14 +153,13 @@ function ReviewCard({ review, onReplyClick }: { review: Review; onReplyClick: (r
 
             {/* Status Badge */}
             <div className="flex items-center justify-between">
-                <span className={`text-xs font-medium px-2 py-1 rounded ${
-                    review.status === 'APPROVED' ? 'bg-green-50 text-green-700' :
-                    review.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
-                    'bg-red-50 text-red-700'
-                }`}>
+                <span className={`text-xs font-medium px-2 py-1 rounded ${review.status === 'APPROVED' ? 'bg-green-50 text-green-700' :
+                        review.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
+                            'bg-red-50 text-red-700'
+                    }`}>
                     {review.status === 'APPROVED' ? '✓ Đã duyệt' :
-                     review.status === 'PENDING' ? '⏳ Chờ duyệt' :
-                     '✕ Bị từ chối'}
+                        review.status === 'PENDING' ? '⏳ Chờ duyệt' :
+                            '✕ Bị từ chối'}
                 </span>
             </div>
         </div>
@@ -245,13 +244,12 @@ export function ReviewsPage() {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
+    const limit = 10;
     const [total, setTotal] = useState(0);
     const [hasMore, setHasMore] = useState(false);
     const [sortBy, setSortBy] = useState<'recent' | 'rating'>('recent');
     const [status, setStatus] = useState('APPROVED');
     const [search, setSearch] = useState('');
-    const [selectedReview, setSelectedReview] = useState<Review | null>(null);
     const [replyingTo, setReplyingTo] = useState<Review | null>(null);
     const [replyLoading, setReplyLoading] = useState(false);
 
