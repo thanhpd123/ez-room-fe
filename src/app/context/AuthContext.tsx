@@ -9,7 +9,13 @@ import {
 } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
-import { authFetch, clearStoredAuth, loginWithEmail, setStoredAuth } from '@/lib/api';
+import {
+    authFetch,
+    clearStoredAuth,
+    loginWithEmail,
+    logoutCurrentSessionRequest,
+    setStoredAuth,
+} from '@/lib/api';
 
 export interface AuthUser {
     id: string;
@@ -180,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signInWithEmail = useCallback(async (email: string, password: string) => {
-        const { token, user: u } = await loginWithEmail(email, password);
+        const { accessToken: token, user: u } = await loginWithEmail(email, password);
         setStoredAuth(token, u);
         setUser({
             id: u.id,
@@ -217,6 +223,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [setUserFromBackend]);
 
     const signOut = useCallback(async () => {
+        try {
+            await logoutCurrentSessionRequest();
+        } catch {
+            // Ignore network/logout errors; local sign-out must still proceed.
+        }
         await supabase.auth.signOut();
         clearStoredAuth();
         setUser(null);
