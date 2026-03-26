@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, User, Mail, Phone, Lock, Eye, EyeOff, Loader2, Sparkles, Check, Circle } from 'lucide-react';
-import axios from 'axios';
 import { useAuth } from '@/app/context/AuthContext';
-import { suggestPasswordRequest } from '@/lib/api';
-
-import { getApiUrl } from '@/lib/api-config';
+import { suggestPasswordRequest, registerRequest } from '@/lib/api';
 
 function passwordRequirements(pwd: string) {
     return {
@@ -50,40 +47,18 @@ export function RegisterPage() {
         setLoading(true);
 
         try {
-            const payload = {
+            await registerRequest({
                 fullName: form.fullName.trim(),
                 email: form.email.trim(),
                 phone: form.phone.trim() || undefined,
                 password: form.password,
                 confirmPassword: form.confirmPassword,
-            };
-            const res = await axios.post(getApiUrl('/auth/register'), payload, {
-                timeout: 15000,
-                headers: { 'Content-Type': 'application/json' },
-                validateStatus: () => true,
             });
-            if (res.status >= 200 && res.status < 300 && res.data?.success) {
-                setShowProfileReminder(true);
-                return;
-            }
-            const data = res.data || {};
-            const errMsg = data.error || data.message || 'Đăng ký thất bại';
-            setError(errMsg);
-            if (Array.isArray(data.errors)) setFieldErrors(data.errors);
+            setShowProfileReminder(true);
         } catch (err: unknown) {
-            if (axios.isAxiosError(err)) {
-                if (err.response?.data) {
-                    const data = err.response.data;
-                    setError(data.message || 'Đăng ký thất bại');
-                    if (Array.isArray(data.errors)) setFieldErrors(data.errors);
-                } else if (err.code === 'ERR_NETWORK' || err.message?.includes('Network')) {
-                    setError('Không thể kết nối đến server. Kiểm tra backend đang chạy và CORS.');
-                } else {
-                    setError(err.message || 'Đăng ký thất bại');
-                }
-            } else {
-                setError('Đã xảy ra lỗi. Vui lòng thử lại.');
-            }
+            const e = err as Error & { errors?: unknown[] };
+            setError(e.message || 'Đăng ký thất bại');
+            if (Array.isArray(e.errors)) setFieldErrors(e.errors as string[]);
         } finally {
             setLoading(false);
         }

@@ -333,7 +333,7 @@ export async function listRoomPostModerationItems() {
             max_occupants: post.max_occupants,
             created_at: post.created_at,
             listing_status: post.status,
-            moderation_status: decision?.decision ?? deriveStatus(post.status),
+            moderation_status: decision?.decision ?? post.moderation_status ?? 'pending_review',
             last_moderated_at: decision?.moderated_at,
             last_note: decision?.note,
             images: post.images,

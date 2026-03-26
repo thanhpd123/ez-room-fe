@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useMemo } from 'react';
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { HomePage } from '@/app/features/home';
 import { SearchPage } from '@/app/features/search';
 import { BrowsePage } from '@/app/features/browse';
@@ -44,7 +44,7 @@ const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) =
 const ChatPage = lazy(() => import('@/app/features/chat').then((m) => ({ default: m.ChatPage })));
 const WalletPage = lazy(() => import('@/app/features/wallet').then((m) => ({ default: m.WalletPage })));
 
-export const router = createBrowserRouter([
+const routes = [
     {
         path: '/',
         element: <Navigate to="/home" replace />,
@@ -228,4 +228,10 @@ export const router = createBrowserRouter([
             { path: 'wallets', element: <Suspense fallback={<PageLoader />}><AdminWalletsPage /></Suspense> },
         ],
     },
-]);
+];
+
+/** Single component export for Fast Refresh; router is created once inside. */
+export function AppRouter() {
+    const router = useMemo(() => createBrowserRouter(routes), []);
+    return <RouterProvider router={router} />;
+}

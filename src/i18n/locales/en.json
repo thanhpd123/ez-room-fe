@@ -4,11 +4,14 @@
     "findRoommate": "Find roommate",
     "rentalManagement": "Rental management",
     "blog": "Blog",
+    "browse": "Browse listings",
     "favorites": "Favorites",
     "account": "Account",
     "logout": "Log out",
     "login": "Log in",
-    "register": "Register"
+    "register": "Register",
+    "menu": "Menu",
+    "language": "Language"
   },
   "home": {
     "heroTitle": "Find your ideal room & perfect roommate",

@@ -4,11 +4,14 @@
     "findRoommate": "Tìm bạn ở ghép",
     "rentalManagement": "Quản lý cho thuê",
     "blog": "Blog",
+    "browse": "Duyệt phòng",
     "favorites": "Phòng yêu thích",
     "account": "Tài khoản",
     "logout": "Đăng xuất",
     "login": "Đăng nhập",
-    "register": "Đăng ký"
+    "register": "Đăng ký",
+    "menu": "Menu",
+    "language": "Ngôn ngữ"
   },
   "home": {
     "heroTitle": "Tìm phòng trọ ưng ý & bạn ở ghép lý tưởng",

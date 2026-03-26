@@ -11,10 +11,11 @@ interface SearchResultsProps {
     results: Room[];
     isSearching: boolean;
     hasSearched: boolean;
+    searchError?: string | null;
     onReset?: () => void;
 }
 
-export function SearchResults({ results, isSearching, hasSearched, onReset }: SearchResultsProps) {
+export function SearchResults({ results, isSearching, hasSearched, searchError = null, onReset }: SearchResultsProps) {
     const navigate = useNavigate();
     const [sortBy, setSortBy] = useState<SortOption>('relevant');
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
@@ -83,6 +84,11 @@ export function SearchResults({ results, isSearching, hasSearched, onReset }: Se
                                 Không có phòng trọ nào khớp với tiêu chí tìm kiếm của bạn. Hãy thử
                                 điều chỉnh bộ lọc hoặc tìm kiếm với các tiêu chí khác.
                             </p>
+                            {searchError && (
+                                <p className="text-destructive text-sm max-w-md">
+                                    {searchError}
+                                </p>
+                            )}
                         </div>
                         {onReset && (
                             <button

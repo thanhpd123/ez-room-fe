@@ -4,15 +4,13 @@ import { getRecommendRequest } from '@/lib/api';
 
 export interface RecommendedRoom {
     id: string;
-    rentalId: string;
     title: string;
+    description: string | null;
     price: number;
     area: number | null;
-    roomType: string | null;
     amenities: string[];
     images: string[];
     location: { district: string | null; city: string | null } | null;
-    matchScore: number;
 }
 
 export function useRecommendedRooms() {

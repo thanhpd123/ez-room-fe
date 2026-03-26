@@ -25,6 +25,10 @@ export interface Room {
     matchScore?: number;
     /** Other rooms in the same rental (for "also in this rental"). */
     otherRoomsInRental?: OtherRoomInRental[];
+    /** Distance in km from user's location (only when lat/lng provided). */
+    distanceKm?: number;
+    /** Nearby POI categories (only when Google Maps is enabled). */
+    nearbyPOIs?: Record<string, NearbyPOICategory>;
 }
 
 export interface SearchCriteria {
@@ -40,6 +44,14 @@ export interface SearchCriteria {
     maxArea?: number;
     roomType?: RoomType | '';
     amenities?: string[];
+    lat?: number;
+    lng?: number;
+}
+
+export interface NearbyPOICategory {
+    label: string;
+    places: Array<{ name: string; type: string; distance: number }>;
+    count: number;
 }
 
 export interface AmenityItem {

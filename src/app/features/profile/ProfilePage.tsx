@@ -15,6 +15,10 @@ import {
     MapPin,
     Banknote,
     Users,
+    Lock,
+    Eye,
+    EyeOff,
+    Circle,
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { ImageUpload } from '@/app/components/ImageUpload';
@@ -28,13 +32,23 @@ import {
     getCitizenCardRequest,
     upsertCitizenCardRequest,
     registerLandlordRequest,
+    changePasswordRequest,
     type CitizenCardVerificationResponse,
     type LifestyleProfileResponse,
     type UserPreferenceResponse,
 } from '@/lib/api';
 import type { ProvinceItem, WardItem } from '@/lib/provinces-api';
 
-type Tab = 'profile' | 'lifestyle' | 'preference';
+type Tab = 'profile' | 'lifestyle' | 'preference' | 'landlord' | 'password';
+
+function passwordStrength(pwd: string) {
+    return {
+        length: pwd.length >= 8,
+        upper: /[A-Z]/.test(pwd),
+        number: /[0-9]/.test(pwd),
+        special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pwd),
+    };
+}
 
 const PERSONALITY_OPTIONS = [
     { value: '', label: '— Chọn —' },
@@ -62,6 +76,106 @@ const ROOM_TYPE_OPTIONS = [
     { value: 'STUDIO', label: 'Studio' },
     { value: 'APARTMENT', label: 'Căn hộ' },
 ];
+
+const CLEANLINESS_OPTIONS = ['Rất sạch sẽ', 'Sạch sẽ', 'Bình thường', 'Không quá quan trọng'];
+const NOISE_TOLERANCE_OPTIONS = ['Rất thấp', 'Thấp', 'Trung bình', 'Cao', 'Rất cao'];
+const COOKING_FREQUENCY_OPTIONS = ['Hàng ngày', 'Vài lần/tuần', 'Thỉnh thoảng', 'Hiếm khi', 'Không nấu'];
+const GUEST_FREQUENCY_OPTIONS = ['Thường xuyên', 'Thỉnh thoảng', 'Hiếm khi', 'Không bao giờ'];
+const SOCIAL_LEVEL_OPTIONS = ['Rất ít giao tiếp', 'Ít giao tiếp', 'Trung bình', 'Thích giao tiếp', 'Rất thích giao tiếp'];
+const OCCUPATION_OPTIONS = ['Sinh viên', 'Văn phòng', 'Freelancer', 'Kinh doanh', 'Công nhân', 'Khác'];
+const TEMPERATURE_OPTIONS = ['Thích lạnh', 'Mát mẻ', 'Bình thường', 'Thích ấm'];
+const SLEEP_SCHEDULE_OPTIONS = ['Ngủ sớm dậy sớm', 'Ngủ sớm dậy muộn', 'Ngủ muộn dậy sớm', 'Ngủ muộn dậy muộn', 'Không cố định'];
+const QUIET_HOURS_OPTIONS = ['21h - 6h', '22h - 6h', '22h - 7h', '23h - 7h', '23h - 8h', 'Không yêu cầu'];
+const WAKE_TIME_OPTIONS = ['5:00', '5:30', '6:00', '6:30', '7:00', '7:30', '8:00', '8:30', '9:00', '9:30', '10:00'];
+const BEDTIME_OPTIONS = ['21:00', '21:30', '22:00', '22:30', '23:00', '23:30', '0:00', '0:30', '1:00'];
+
+const INTEREST_OPTIONS = [
+    'Đọc sách', 'Thể thao', 'Nấu ăn', 'Du lịch', 'Âm nhạc', 'Phim ảnh',
+    'Gaming', 'Yoga', 'Chạy bộ', 'Bơi lội', 'Nhiếp ảnh', 'Vẽ tranh',
+    'Cà phê', 'Thú cưng', 'Công nghệ', 'Thời trang',
+];
+const LANGUAGE_OPTIONS = ['Tiếng Việt', 'English', '日本語', '한국어', '中文', 'Français', 'Khác'];
+
+const AMENITY_OPTIONS = [
+    'Điều hòa', 'Wifi', 'Máy giặt', 'Tủ lạnh', 'Nóng lạnh', 'Bếp',
+    'Chỗ để xe', 'Thang máy', 'Ban công', 'Bảo vệ 24/7', 'Camera an ninh',
+    'Tự do giờ giấc', 'Máy sấy', 'Bồn tắm', 'TV', 'Giường', 'Tủ quần áo', 'Bàn làm việc',
+];
+
+function ChipSelect({ options, value, onChange, multiple = false }: {
+    options: string[];
+    value: string | string[];
+    onChange: (val: string | string[]) => void;
+    multiple?: boolean;
+}) {
+    const selected = multiple ? (Array.isArray(value) ? value : []) : [];
+    const singleValue = multiple ? '' : (typeof value === 'string' ? value : '');
+
+    const toggle = (opt: string) => {
+        if (multiple) {
+            const next = selected.includes(opt) ? selected.filter((s) => s !== opt) : [...selected, opt];
+            onChange(next);
+        } else {
+            onChange(singleValue === opt ? '' : opt);
+        }
+    };
+
+    return (
+        <div className="flex flex-wrap gap-2">
+            {options.map((opt) => {
+                const active = multiple ? selected.includes(opt) : singleValue === opt;
+                return (
+                    <button
+                        key={opt}
+                        type="button"
+                        onClick={() => toggle(opt)}
+                        className={`px-3.5 py-2 rounded-full text-sm font-medium transition-all border min-h-[36px] touch-manipulation ${
+                            active
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                : 'bg-muted/50 text-foreground border-border hover:bg-muted hover:border-primary/30'
+                        }`}
+                    >
+                        {active && <Check className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />}
+                        {opt}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+function RangeSlider({ value, onChange, min, max, step, labels }: {
+    value: number | '';
+    onChange: (v: number | '') => void;
+    min: number;
+    max: number;
+    step: number;
+    labels?: { left: string; right: string };
+}) {
+    const numValue = value === '' ? min : value;
+    const pct = ((numValue - min) / (max - min)) * 100;
+    return (
+        <div className="space-y-2">
+            <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={numValue}
+                onChange={(e) => onChange(Number(e.target.value))}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer accent-primary"
+                style={{
+                    background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${pct}%, hsl(var(--muted)) ${pct}%, hsl(var(--muted)) 100%)`,
+                }}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{labels?.left ?? min}</span>
+                <span className="font-semibold text-foreground text-sm">{value === '' ? '—' : value}</span>
+                <span>{labels?.right ?? max}</span>
+            </div>
+        </div>
+    );
+}
 
 type PreferenceFormState = ReturnType<typeof toPreferenceForm>;
 
@@ -269,6 +383,14 @@ export function ProfilePage() {
     const [landlordError, setLandlordError] = useState<string | null>(null);
     const [landlordSuccess, setLandlordSuccess] = useState(false);
 
+    const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+    const [pwSaving, setPwSaving] = useState(false);
+    const [pwError, setPwError] = useState<string | null>(null);
+    const [pwSuccess, setPwSuccess] = useState(false);
+    const [showCurrentPw, setShowCurrentPw] = useState(false);
+    const [showNewPw, setShowNewPw] = useState(false);
+    const [showConfirmPw, setShowConfirmPw] = useState(false);
+
     useEffect(() => {
         if (user) {
             setProfileForm({
@@ -316,7 +438,9 @@ export function ProfilePage() {
                 setCitizenCardStatus(c.status ?? 'NOT_SUBMITTED');
                 setCitizenCardReviewNote(c.reviewNote ?? null);
             })
-            .catch(() => setCitizenCardError('Không tải được trạng thái CCCD'))
+            .catch(() => {
+                setCitizenCardStatus('NOT_SUBMITTED');
+            })
             .finally(() => setCitizenCardLoading(false));
     }, []);
 
@@ -479,11 +603,46 @@ export function ProfilePage() {
         }
     };
 
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setPwError(null);
+        setPwSuccess(false);
+        setPwSaving(true);
+        try {
+            await changePasswordRequest({
+                currentPassword: pwForm.currentPassword,
+                newPassword: pwForm.newPassword,
+                confirmNewPassword: pwForm.confirmNewPassword,
+            });
+            setPwSuccess(true);
+            setPwForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+            setTimeout(() => setPwSuccess(false), 4000);
+        } catch (err) {
+            const e = err as Error & { errors?: string[] };
+            setPwError(e.errors?.length ? e.errors.join('. ') : e.message);
+        } finally {
+            setPwSaving(false);
+        }
+    };
+
+    const pwReqs = passwordStrength(pwForm.newPassword);
+    const isPwFormReady = !!(
+        pwForm.currentPassword.trim() &&
+        pwForm.newPassword.trim() &&
+        pwForm.confirmNewPassword.trim() &&
+        pwReqs.length && pwReqs.upper && pwReqs.number && pwReqs.special &&
+        pwForm.newPassword === pwForm.confirmNewPassword
+    );
+
     const avatarUrl = profileForm.avatarUrl?.trim() || user?.avatarUrl;
+    const [avatarError, setAvatarError] = useState(false);
+    useEffect(() => { setAvatarError(false); }, [avatarUrl]);
     const tabs: { id: Tab; label: string; icon: typeof User }[] = [
         { id: 'profile', label: 'Thông tin cá nhân', icon: User },
         { id: 'lifestyle', label: 'Phong cách sống', icon: Heart },
         { id: 'preference', label: 'Sở thích tìm phòng', icon: Sliders },
+        ...(user?.role !== 'LANDLORD' ? [{ id: 'landlord' as Tab, label: 'Đăng ký chủ nhà', icon: Users }] : []),
+        { id: 'password', label: 'Đổi mật khẩu', icon: Lock },
     ];
 
     return (
@@ -494,11 +653,12 @@ export function ProfilePage() {
                 <div className="bg-card rounded-2xl border border-border shadow-sm p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                         <div className="relative shrink-0">
-                            {avatarUrl ? (
+                            {avatarUrl && !avatarError ? (
                                 <img
                                     src={avatarUrl}
                                     alt=""
                                     className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover ring-2 ring-border"
+                                    onError={() => setAvatarError(true)}
                                 />
                             ) : (
                                 <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -642,106 +802,6 @@ export function ProfilePage() {
                                 {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                 Lưu thay đổi
                             </button>
-
-                            {user?.role !== 'LANDLORD' && (
-                                <div className="mt-3 rounded-xl border border-border bg-muted/20 p-4 space-y-4">
-                                    <div>
-                                        <h4 className="font-semibold text-foreground">Đăng ký trở thành Chủ nhà</h4>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Theo chính sách xác minh, bạn cần hoàn tất hồ sơ cá nhân, phong cách sống, sở thích tìm phòng
-                                            và cung cấp CCCD (Căn Cước Công Dân).
-                                        </p>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                        <div className={isProfileReady ? 'text-primary' : 'text-muted-foreground'}>{isProfileReady ? '✓' : '○'} Hồ sơ cá nhân</div>
-                                        <div className={hasLifestyleProfile ? 'text-primary' : 'text-muted-foreground'}>{hasLifestyleProfile ? '✓' : '○'} Phong cách sống</div>
-                                        <div className={hasPreferenceProfile ? 'text-primary' : 'text-muted-foreground'}>{hasPreferenceProfile ? '✓' : '○'} Sở thích tìm phòng</div>
-                                        <div className={isCitizenCardVerified ? 'text-primary' : 'text-muted-foreground'}>
-                                            {isCitizenCardVerified ? '✓' : '○'} CCCD đã duyệt
-                                        </div>
-                                    </div>
-
-                                    {citizenCardStatus !== 'NOT_SUBMITTED' && (
-                                        <div className="text-xs text-muted-foreground">
-                                            Trạng thái CCCD hiện tại:{' '}
-                                            <span className="font-semibold text-foreground">{citizenCardStatus}</span>
-                                            {citizenCardReviewNote ? ` - Ghi chú: ${citizenCardReviewNote}` : ''}
-                                        </div>
-                                    )}
-
-                                    {citizenCardError && (
-                                        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
-                                            {citizenCardError}
-                                        </div>
-                                    )}
-                                    {citizenCardSuccess && (
-                                        <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm">
-                                            Đã gửi CCCD để xác minh thành công.
-                                        </div>
-                                    )}
-
-                                    {landlordError && (
-                                        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
-                                            {landlordError}
-                                        </div>
-                                    )}
-                                    {landlordSuccess && (
-                                        <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm">
-                                            Đăng ký chủ nhà thành công. Hệ thống đã nâng cấp vai trò của bạn.
-                                        </div>
-                                    )}
-
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className={labelClass}>Số CCCD</label>
-                                            <input
-                                                value={citizenCardForm.citizenCardNumber}
-                                                onChange={(e) => setCitizenCardForm((f) => ({ ...f, citizenCardNumber: e.target.value }))}
-                                                placeholder="12 chữ số"
-                                                className={inputClass}
-                                                maxLength={12}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}>Ảnh CCCD mặt trước (URL)</label>
-                                            <input
-                                                value={citizenCardForm.citizenCardFrontImageUrl}
-                                                onChange={(e) => setCitizenCardForm((f) => ({ ...f, citizenCardFrontImageUrl: e.target.value }))}
-                                                placeholder="https://..."
-                                                className={inputClass}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}>Ảnh CCCD mặt sau (URL)</label>
-                                            <input
-                                                value={citizenCardForm.citizenCardBackImageUrl}
-                                                onChange={(e) => setCitizenCardForm((f) => ({ ...f, citizenCardBackImageUrl: e.target.value }))}
-                                                placeholder="https://..."
-                                                className={inputClass}
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={handleSubmitCitizenCard}
-                                            disabled={citizenCardLoading || citizenCardSaving || !isCitizenCardInputReady}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all"
-                                        >
-                                            {citizenCardSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                            {citizenCardSaving ? 'Đang gửi CCCD...' : 'Gửi CCCD xác minh'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleRegisterLandlord}
-                                            disabled={landlordLoading || !isCitizenCardVerified}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-accent text-accent-foreground rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-60 transition-all"
-                                        >
-                                            {landlordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-                                            {landlordLoading ? 'Đang gửi...' : 'Đăng ký thành Chủ nhà'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                         </form>
                     </div>
                 )}
@@ -809,12 +869,10 @@ export function ProfilePage() {
                                         <Moon className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
                                         Lịch ngủ
                                     </label>
-                                    <input
+                                    <ChipSelect
+                                        options={SLEEP_SCHEDULE_OPTIONS}
                                         value={lifestyle.sleep_schedule}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, sleep_schedule: e.target.value }))}
-                                        placeholder="VD: 22h - 6h, hoặc Sớm / Muộn"
-                                        className={inputClass}
-                                        maxLength={50}
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, sleep_schedule: v as string }))}
                                     />
                                 </div>
                                 <div>
@@ -822,98 +880,86 @@ export function ProfilePage() {
                                         <Sparkles className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
                                         Kiểu tính cách
                                     </label>
-                                    <select
+                                    <ChipSelect
+                                        options={PERSONALITY_OPTIONS.filter((o) => o.value).map((o) => o.label)}
                                         value={lifestyle.personalityType}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, personalityType: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        {PERSONALITY_OPTIONS.map((o) => (
-                                            <option key={o.value || 'empty'} value={o.value}>
-                                                {o.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, personalityType: v as string }))}
+                                    />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className={labelClass}>Giờ thức dậy</label>
-                                        <input
+                                        <select
                                             value={lifestyle.wake_time}
                                             onChange={(e) => setLifestyle((l) => ({ ...l, wake_time: e.target.value }))}
-                                            placeholder="VD: 6h30"
                                             className={inputClass}
-                                            maxLength={50}
-                                        />
+                                        >
+                                            <option value="">— Chọn —</option>
+                                            {WAKE_TIME_OPTIONS.map((t) => (
+                                                <option key={t} value={t}>{t}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div>
                                         <label className={labelClass}>Giờ đi ngủ</label>
-                                        <input
+                                        <select
                                             value={lifestyle.bedtime}
                                             onChange={(e) => setLifestyle((l) => ({ ...l, bedtime: e.target.value }))}
-                                            placeholder="VD: 23h"
                                             className={inputClass}
-                                            maxLength={50}
-                                        />
+                                        >
+                                            <option value="">— Chọn —</option>
+                                            {BEDTIME_OPTIONS.map((t) => (
+                                                <option key={t} value={t}>{t}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                                 <div>
                                     <label className={labelClass}>Độ sạch sẽ</label>
-                                    <input
+                                    <ChipSelect
+                                        options={CLEANLINESS_OPTIONS}
                                         value={lifestyle.cleanliness}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, cleanliness: e.target.value }))}
-                                        placeholder="VD: Rất sạch, Bình thường"
-                                        className={inputClass}
-                                        maxLength={50}
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, cleanliness: v as string }))}
                                     />
                                 </div>
                                 <div>
                                     <label className={labelClass}>Chịu ồn</label>
-                                    <input
+                                    <ChipSelect
+                                        options={NOISE_TOLERANCE_OPTIONS}
                                         value={lifestyle.noise_tolerance}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, noise_tolerance: e.target.value }))}
-                                        placeholder="VD: Thấp, Trung bình"
-                                        className={inputClass}
-                                        maxLength={50}
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, noise_tolerance: v as string }))}
                                     />
                                 </div>
                                 <div>
                                     <label className={labelClass}>Tần suất nấu ăn</label>
-                                    <input
+                                    <ChipSelect
+                                        options={COOKING_FREQUENCY_OPTIONS}
                                         value={lifestyle.cooking_frequency}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, cooking_frequency: e.target.value }))}
-                                        placeholder="VD: Hàng ngày, Ít"
-                                        className={inputClass}
-                                        maxLength={50}
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, cooking_frequency: v as string }))}
                                     />
                                 </div>
                                 <div>
                                     <label className={labelClass}>Khách tới chơi</label>
-                                    <input
+                                    <ChipSelect
+                                        options={GUEST_FREQUENCY_OPTIONS}
                                         value={lifestyle.guest_frequency}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, guest_frequency: e.target.value }))}
-                                        placeholder="VD: Hiếm, Thỉnh thoảng"
-                                        className={inputClass}
-                                        maxLength={50}
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, guest_frequency: v as string }))}
                                     />
                                 </div>
                                 <div>
                                     <label className={labelClass}>Mức độ giao tiếp</label>
-                                    <input
+                                    <ChipSelect
+                                        options={SOCIAL_LEVEL_OPTIONS}
                                         value={lifestyle.social_level}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, social_level: e.target.value }))}
-                                        placeholder="VD: Thấp, Trung bình, Cao"
-                                        className={inputClass}
-                                        maxLength={50}
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, social_level: v as string }))}
                                     />
                                 </div>
                                 <div>
                                     <label className={labelClass}>Nghề nghiệp / loại công việc</label>
-                                    <input
+                                    <ChipSelect
+                                        options={OCCUPATION_OPTIONS}
                                         value={lifestyle.occupation_type}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, occupation_type: e.target.value }))}
-                                        placeholder="VD: Văn phòng, Sinh viên"
-                                        className={inputClass}
-                                        maxLength={50}
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, occupation_type: v as string }))}
                                     />
                                 </div>
                                 <label className="flex items-center gap-3 cursor-pointer group">
@@ -926,33 +972,30 @@ export function ProfilePage() {
                                     <span className="text-foreground group-hover:text-primary transition-colors">Làm việc từ xa (WFH)</span>
                                 </label>
                                 <div>
-                                    <label className={labelClass}>Sở thích (cách nhau bằng dấu phẩy)</label>
-                                    <input
-                                        value={lifestyle.interests}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, interests: e.target.value }))}
-                                        placeholder="VD: Đọc sách, Thể thao, Du lịch"
-                                        className={inputClass}
+                                    <label className={labelClass}>Sở thích</label>
+                                    <ChipSelect
+                                        options={INTEREST_OPTIONS}
+                                        value={lifestyle.interests ? lifestyle.interests.split(',').map((s) => s.trim()).filter(Boolean) : []}
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, interests: (v as string[]).join(', ') }))}
+                                        multiple
                                     />
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Ngôn ngữ (cách nhau bằng dấu phẩy)</label>
-                                    <input
-                                        value={lifestyle.languages}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, languages: e.target.value }))}
-                                        placeholder="VD: Tiếng Việt, English"
-                                        className={inputClass}
+                                    <label className={labelClass}>Ngôn ngữ</label>
+                                    <ChipSelect
+                                        options={LANGUAGE_OPTIONS}
+                                        value={lifestyle.languages ? lifestyle.languages.split(',').map((s) => s.trim()).filter(Boolean) : []}
+                                        onChange={(v) => setLifestyle((l) => ({ ...l, languages: (v as string[]).join(', ') }))}
+                                        multiple
                                     />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className={labelClass}>Thời hạn thuê ưa thích (tháng)</label>
-                                        <input
-                                            type="number"
-                                            value={lifestyle.preferred_lease_months}
-                                            onChange={(e) => setLifestyle((l) => ({ ...l, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                            placeholder="VD: 12"
-                                            min={1}
-                                            className={inputClass}
+                                        <ChipSelect
+                                            options={['3', '6', '12', '24']}
+                                            value={lifestyle.preferred_lease_months === '' ? '' : String(lifestyle.preferred_lease_months)}
+                                            onChange={(v) => setLifestyle((l) => ({ ...l, preferred_lease_months: v ? Number(v) : '' }))}
                                         />
                                     </div>
                                     <div>
@@ -968,22 +1011,18 @@ export function ProfilePage() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className={labelClass}>Nhiệt độ ưa thích</label>
-                                        <input
+                                        <ChipSelect
+                                            options={TEMPERATURE_OPTIONS}
                                             value={lifestyle.temperature_preference}
-                                            onChange={(e) => setLifestyle((l) => ({ ...l, temperature_preference: e.target.value }))}
-                                            placeholder="VD: Mát, Lạnh"
-                                            className={inputClass}
-                                            maxLength={20}
+                                            onChange={(v) => setLifestyle((l) => ({ ...l, temperature_preference: v as string }))}
                                         />
                                     </div>
                                     <div>
                                         <label className={labelClass}>Giờ giữ yên tĩnh</label>
-                                        <input
+                                        <ChipSelect
+                                            options={QUIET_HOURS_OPTIONS}
                                             value={lifestyle.quiet_hours_preference}
-                                            onChange={(e) => setLifestyle((l) => ({ ...l, quiet_hours_preference: e.target.value }))}
-                                            placeholder="VD: 22h - 6h"
-                                            className={inputClass}
-                                            maxLength={30}
+                                            onChange={(v) => setLifestyle((l) => ({ ...l, quiet_hours_preference: v as string }))}
                                         />
                                     </div>
                                 </div>
@@ -1070,59 +1109,54 @@ export function ProfilePage() {
                                 </div>
                                 <div>
                                     <label className={labelClass}>Loại phòng ưa thích</label>
-                                    <select
-                                        value={preference.room_type}
-                                        onChange={(e) => setPreference((p) => ({ ...p, room_type: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        {ROOM_TYPE_OPTIONS.map((o) => (
-                                            <option key={o.value || 'empty'} value={o.value}>
-                                                {o.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <ChipSelect
+                                        options={ROOM_TYPE_OPTIONS.filter((o) => o.value).map((o) => o.label)}
+                                        value={
+                                            ROOM_TYPE_OPTIONS.find((o) => o.value === preference.room_type)?.label ?? ''
+                                        }
+                                        onChange={(v) => {
+                                            const match = ROOM_TYPE_OPTIONS.find((o) => o.label === v);
+                                            setPreference((p) => ({ ...p, room_type: match?.value ?? '' }));
+                                        }}
+                                    />
                                 </div>
                                 <PreferredDistrictsField preference={preference} setPreference={setPreference} labelClass={labelClass} inputClass={inputClass} />
                                 <div>
-                                    <label className={labelClass}>Tiện nghi mong muốn (cách nhau bằng dấu phẩy)</label>
-                                    <input
-                                        value={preference.preferred_amenities}
-                                        onChange={(e) => setPreference((p) => ({ ...p, preferred_amenities: e.target.value }))}
-                                        placeholder="VD: Điều hòa, Wifi, Máy giặt"
-                                        className={inputClass}
+                                    <label className={labelClass}>Tiện nghi mong muốn</label>
+                                    <ChipSelect
+                                        options={AMENITY_OPTIONS}
+                                        value={preference.preferred_amenities ? preference.preferred_amenities.split(',').map((s) => s.trim()).filter(Boolean) : []}
+                                        onChange={(v) => setPreference((p) => ({ ...p, preferred_amenities: (v as string[]).join(', ') }))}
+                                        multiple
                                     />
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Tiện nghi bắt buộc (cách nhau bằng dấu phẩy)</label>
-                                    <input
-                                        value={preference.must_have_amenities}
-                                        onChange={(e) => setPreference((p) => ({ ...p, must_have_amenities: e.target.value }))}
-                                        placeholder="VD: Điều hòa, Chỗ để xe"
-                                        className={inputClass}
+                                    <label className={labelClass}>Tiện nghi bắt buộc</label>
+                                    <ChipSelect
+                                        options={AMENITY_OPTIONS}
+                                        value={preference.must_have_amenities ? preference.must_have_amenities.split(',').map((s) => s.trim()).filter(Boolean) : []}
+                                        onChange={(v) => setPreference((p) => ({ ...p, must_have_amenities: (v as string[]).join(', ') }))}
+                                        multiple
                                     />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className={labelClass}>Thời hạn thuê ưa thích (tháng)</label>
-                                        <input
-                                            type="number"
-                                            value={preference.preferred_lease_months}
-                                            onChange={(e) => setPreference((p) => ({ ...p, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                            placeholder="VD: 12"
-                                            min={1}
-                                            className={inputClass}
+                                        <ChipSelect
+                                            options={['3', '6', '12', '24']}
+                                            value={preference.preferred_lease_months === '' ? '' : String(preference.preferred_lease_months)}
+                                            onChange={(v) => setPreference((p) => ({ ...p, preferred_lease_months: v ? Number(v) : '' }))}
                                         />
                                     </div>
                                     <div>
                                         <label className={labelClass}>Khoảng cách tối đa (km)</label>
-                                        <input
-                                            type="number"
+                                        <RangeSlider
                                             value={preference.max_distance_km}
-                                            onChange={(e) => setPreference((p) => ({ ...p, max_distance_km: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                            placeholder="VD: 5"
-                                            min={0}
-                                            step={0.5}
-                                            className={inputClass}
+                                            onChange={(v) => setPreference((p) => ({ ...p, max_distance_km: v }))}
+                                            min={1}
+                                            max={30}
+                                            step={1}
+                                            labels={{ left: '1 km', right: '30 km' }}
                                         />
                                     </div>
                                 </div>
@@ -1192,27 +1226,25 @@ export function ProfilePage() {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className={labelClass}>Trọng số khớp phong cách (0–1)</label>
-                                        <input
-                                            type="number"
+                                        <label className={labelClass}>Trọng số khớp phong cách sống</label>
+                                        <RangeSlider
                                             value={preference.lifestyle_match_weight}
-                                            onChange={(e) => setPreference((p) => ({ ...p, lifestyle_match_weight: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                            placeholder="VD: 0.5"
+                                            onChange={(v) => setPreference((p) => ({ ...p, lifestyle_match_weight: v }))}
                                             min={0}
                                             max={1}
                                             step={0.1}
-                                            className={inputClass}
+                                            labels={{ left: 'Không quan trọng', right: 'Rất quan trọng' }}
                                         />
                                     </div>
                                     <div>
-                                        <label className={labelClass}>Mức ưu tiên an ninh (số)</label>
-                                        <input
-                                            type="number"
+                                        <label className={labelClass}>Mức ưu tiên an ninh</label>
+                                        <RangeSlider
                                             value={preference.safety_priority}
-                                            onChange={(e) => setPreference((p) => ({ ...p, safety_priority: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                            placeholder="VD: 5"
-                                            min={0}
-                                            className={inputClass}
+                                            onChange={(v) => setPreference((p) => ({ ...p, safety_priority: v }))}
+                                            min={1}
+                                            max={10}
+                                            step={1}
+                                            labels={{ left: 'Thấp', right: 'Cao' }}
                                         />
                                     </div>
                                 </div>
@@ -1226,6 +1258,239 @@ export function ProfilePage() {
                                 </button>
                             </form>
                         )}
+                    </div>
+                )}
+
+                {tab === 'landlord' && user?.role !== 'LANDLORD' && (
+                    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-border bg-muted/30">
+                            <h3 className="font-heading font-semibold text-foreground flex items-center gap-2">
+                                <Users className="w-4 h-4 text-primary" />
+                                Đăng ký trở thành Chủ nhà
+                            </h3>
+                            <p className="text-muted-foreground text-xs mt-0.5">
+                                Hoàn tất hồ sơ và cung cấp CCCD để trở thành chủ nhà cho thuê
+                            </p>
+                        </div>
+                        <div className="p-6 space-y-5">
+                            <div className="rounded-xl border border-border bg-muted/30 p-4">
+                                <p className="text-sm font-medium text-foreground mb-3">Yêu cầu để đăng ký chủ nhà:</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                    <div className={`flex items-center gap-2 ${isProfileReady ? 'text-primary' : 'text-muted-foreground'}`}>
+                                        {isProfileReady ? <Check className="w-4 h-4 shrink-0" /> : <Circle className="w-4 h-4 shrink-0" />}
+                                        Hồ sơ cá nhân
+                                    </div>
+                                    <div className={`flex items-center gap-2 ${hasLifestyleProfile ? 'text-primary' : 'text-muted-foreground'}`}>
+                                        {hasLifestyleProfile ? <Check className="w-4 h-4 shrink-0" /> : <Circle className="w-4 h-4 shrink-0" />}
+                                        Phong cách sống
+                                    </div>
+                                    <div className={`flex items-center gap-2 ${hasPreferenceProfile ? 'text-primary' : 'text-muted-foreground'}`}>
+                                        {hasPreferenceProfile ? <Check className="w-4 h-4 shrink-0" /> : <Circle className="w-4 h-4 shrink-0" />}
+                                        Sở thích tìm phòng
+                                    </div>
+                                    <div className={`flex items-center gap-2 ${isCitizenCardVerified ? 'text-primary' : 'text-muted-foreground'}`}>
+                                        {isCitizenCardVerified ? <Check className="w-4 h-4 shrink-0" /> : <Circle className="w-4 h-4 shrink-0" />}
+                                        CCCD đã duyệt
+                                    </div>
+                                </div>
+                            </div>
+
+                            {citizenCardStatus !== 'NOT_SUBMITTED' && (
+                                <div className="text-sm text-muted-foreground">
+                                    Trạng thái CCCD hiện tại:{' '}
+                                    <span className="font-semibold text-foreground">{citizenCardStatus}</span>
+                                    {citizenCardReviewNote ? ` — Ghi chú: ${citizenCardReviewNote}` : ''}
+                                </div>
+                            )}
+
+                            {citizenCardError && (
+                                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">{citizenCardError}</div>
+                            )}
+                            {citizenCardSuccess && (
+                                <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2">
+                                    <Check className="w-4 h-4 shrink-0" />
+                                    Đã gửi CCCD để xác minh thành công.
+                                </div>
+                            )}
+                            {landlordError && (
+                                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">{landlordError}</div>
+                            )}
+                            {landlordSuccess && (
+                                <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2">
+                                    <Check className="w-4 h-4 shrink-0" />
+                                    Đăng ký chủ nhà thành công! Hệ thống đã nâng cấp vai trò của bạn.
+                                </div>
+                            )}
+
+                            <div>
+                                <label className={labelClass}>Số CCCD</label>
+                                <input
+                                    value={citizenCardForm.citizenCardNumber}
+                                    onChange={(e) => setCitizenCardForm((f) => ({ ...f, citizenCardNumber: e.target.value }))}
+                                    placeholder="12 chữ số"
+                                    className={inputClass}
+                                    maxLength={12}
+                                />
+                            </div>
+                            <div>
+                                <ImageUpload
+                                    label="Ảnh CCCD mặt trước"
+                                    value={citizenCardForm.citizenCardFrontImageUrl}
+                                    onChange={(url) => setCitizenCardForm((f) => ({ ...f, citizenCardFrontImageUrl: url }))}
+                                    placeholder="Chọn ảnh mặt trước CCCD"
+                                    previewClassName="w-48 h-28 rounded-xl object-cover border border-border"
+                                />
+                            </div>
+                            <div>
+                                <ImageUpload
+                                    label="Ảnh CCCD mặt sau"
+                                    value={citizenCardForm.citizenCardBackImageUrl}
+                                    onChange={(url) => setCitizenCardForm((f) => ({ ...f, citizenCardBackImageUrl: url }))}
+                                    placeholder="Chọn ảnh mặt sau CCCD"
+                                    previewClassName="w-48 h-28 rounded-xl object-cover border border-border"
+                                />
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleSubmitCitizenCard}
+                                    disabled={citizenCardLoading || citizenCardSaving || !isCitizenCardInputReady}
+                                    className="flex items-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm"
+                                >
+                                    {citizenCardSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    {citizenCardSaving ? 'Đang gửi CCCD...' : 'Gửi CCCD xác minh'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleRegisterLandlord}
+                                    disabled={landlordLoading || !isCitizenCardVerified}
+                                    className="flex items-center gap-2 px-5 py-3 bg-accent text-accent-foreground rounded-xl font-semibold text-sm hover:opacity-90 disabled:opacity-60 transition-all shadow-sm"
+                                >
+                                    {landlordLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                                    {landlordLoading ? 'Đang gửi...' : 'Đăng ký thành Chủ nhà'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'password' && (
+                    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-border bg-muted/30">
+                            <h3 className="font-heading font-semibold text-foreground flex items-center gap-2">
+                                <Lock className="w-4 h-4 text-primary" />
+                                Đổi mật khẩu
+                            </h3>
+                            <p className="text-muted-foreground text-xs mt-0.5">
+                                Nhập mật khẩu hiện tại và mật khẩu mới để thay đổi
+                            </p>
+                        </div>
+                        <form onSubmit={handleChangePassword} className="p-6 space-y-5">
+                            {pwError && (
+                                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
+                                    {pwError}
+                                </div>
+                            )}
+                            {pwSuccess && (
+                                <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2">
+                                    <Check className="w-4 h-4 shrink-0" />
+                                    Đổi mật khẩu thành công
+                                </div>
+                            )}
+
+                            <div>
+                                <label className={labelClass}>Mật khẩu hiện tại</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                    <input
+                                        type={showCurrentPw ? 'text' : 'password'}
+                                        value={pwForm.currentPassword}
+                                        onChange={(e) => setPwForm((f) => ({ ...f, currentPassword: e.target.value }))}
+                                        placeholder="Nhập mật khẩu hiện tại"
+                                        className={`${inputClass} pl-11 pr-11`}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCurrentPw(!showCurrentPw)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        {showCurrentPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className={labelClass}>Mật khẩu mới</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                    <input
+                                        type={showNewPw ? 'text' : 'password'}
+                                        value={pwForm.newPassword}
+                                        onChange={(e) => setPwForm((f) => ({ ...f, newPassword: e.target.value }))}
+                                        placeholder="Nhập mật khẩu mới"
+                                        className={`${inputClass} pl-11 pr-11`}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewPw(!showNewPw)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        {showNewPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                                {pwForm.newPassword && (
+                                    <div className="mt-2 space-y-1">
+                                        {[
+                                            { ok: pwReqs.length, text: 'Ít nhất 8 ký tự' },
+                                            { ok: pwReqs.upper, text: 'Ít nhất 1 chữ in hoa' },
+                                            { ok: pwReqs.number, text: 'Ít nhất 1 chữ số' },
+                                            { ok: pwReqs.special, text: 'Ít nhất 1 ký tự đặc biệt (!@#$%...)' },
+                                        ].map((r) => (
+                                            <div key={r.text} className={`flex items-center gap-2 text-xs ${r.ok ? 'text-primary' : 'text-muted-foreground'}`}>
+                                                {r.ok ? <Check className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                                                {r.text}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className={labelClass}>Xác nhận mật khẩu mới</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                    <input
+                                        type={showConfirmPw ? 'text' : 'password'}
+                                        value={pwForm.confirmNewPassword}
+                                        onChange={(e) => setPwForm((f) => ({ ...f, confirmNewPassword: e.target.value }))}
+                                        placeholder="Nhập lại mật khẩu mới"
+                                        className={`${inputClass} pl-11 pr-11`}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPw(!showConfirmPw)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        {showConfirmPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                                {pwForm.confirmNewPassword && pwForm.newPassword !== pwForm.confirmNewPassword && (
+                                    <p className="mt-1.5 text-xs text-destructive">Mật khẩu xác nhận không khớp</p>
+                                )}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={pwSaving || !isPwFormReady}
+                                className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm"
+                            >
+                                {pwSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                {pwSaving ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                            </button>
+                        </form>
                     </div>
                 )}
             </main>

@@ -55,7 +55,7 @@ export function LandlordProfileHeader({ landlordId, user, stats }: LandlordProfi
     const joinDuration = getJoinDuration(user.createdAt);
     const [reportModalOpen, setReportModalOpen] = useState(false);
     const [reportStep, setReportStep] = useState<1 | 2>(1);
-    const [selectedReason, setSelectedReason] = useState('');
+    const [_selectedReason, setSelectedReason] = useState('');
     const [reportDesc, setReportDesc] = useState('');
     const [isSubmittingReport, setIsSubmittingReport] = useState(false);
     const [messageApi, contextHolder] = message.useMessage();

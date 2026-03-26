@@ -1,8 +1,18 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Maximize, Star, Heart, CheckCircle, Target } from 'lucide-react';
+import { MapPin, Maximize, Star, Heart, CheckCircle, Target, Navigation, School, Utensils, Hospital, ShoppingBag, Bus, Trees, Shield } from 'lucide-react';
 import type { Room } from '../types';
 import { formatPrice, getRoomTypeLabel } from '../utils';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+
+const POI_ICONS: Record<string, React.ReactNode> = {
+    education: <School className="w-3 h-3" />,
+    food: <Utensils className="w-3 h-3" />,
+    healthcare: <Hospital className="w-3 h-3" />,
+    shopping: <ShoppingBag className="w-3 h-3" />,
+    transport: <Bus className="w-3 h-3" />,
+    park: <Trees className="w-3 h-3" />,
+    safety: <Shield className="w-3 h-3" />,
+};
 
 interface SearchResultCardProps {
     room: Room;
@@ -65,10 +75,18 @@ export function SearchResultCard({
                     {room.title}
                 </h3>
 
-                {/* Location */}
+                {/* Location + Distance */}
                 <div className="flex items-center gap-2 text-muted-foreground">
                     <MapPin className="w-4 h-4 shrink-0" strokeWidth={2} />
                     <span className="text-sm truncate">{room.location}</span>
+                    {room.distanceKm != null && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-medium shrink-0">
+                            <Navigation className="w-3 h-3" />
+                            {room.distanceKm < 1
+                                ? `${Math.round(room.distanceKm * 1000)}m`
+                                : `${room.distanceKm.toFixed(1)}km`}
+                        </span>
+                    )}
                 </div>
 
                 {/* Details */}
@@ -105,6 +123,22 @@ export function SearchResultCard({
                         </div>
                     )}
                 </div>
+
+                {/* Nearby POIs */}
+                {room.nearbyPOIs && Object.keys(room.nearbyPOIs).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(room.nearbyPOIs).map(([key, cat]) => (
+                            <span
+                                key={key}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/5 text-xs text-primary"
+                                title={`${cat.label}: ${cat.count} địa điểm`}
+                            >
+                                {POI_ICONS[key] || <MapPin className="w-3 h-3" />}
+                                {cat.label} ({cat.count})
+                            </span>
+                        ))}
+                    </div>
+                )}
 
                 {/* Other rooms in same rental */}
                 {room.otherRoomsInRental && room.otherRoomsInRental.length > 0 && (

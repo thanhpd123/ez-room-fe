@@ -7,13 +7,20 @@ const EZROOM_TOKEN_KEY = 'ezroom_token';
 
 /**
  * Get current auth token for backend (Supabase OAuth or email/password JWT).
+ * Prefer localStorage (backend JWT) first so email/password users are not blocked by Supabase.
  */
 export async function getAccessToken(): Promise<string | null> {
-    const {
-        data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) return session.access_token;
-    return localStorage.getItem(EZROOM_TOKEN_KEY);
+    const stored = localStorage.getItem(EZROOM_TOKEN_KEY);
+    if (stored) return stored;
+    try {
+        const {
+            data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.access_token) return session.access_token;
+    } catch {
+        // Supabase unreachable (e.g. timeout) – we already checked localStorage above
+    }
+    return null;
 }
 
 export function getStoredToken(): string | null {
@@ -28,6 +35,7 @@ export function setStoredAuth(token: string, user: Record<string, unknown>): voi
 export function clearStoredAuth(): void {
     localStorage.removeItem(EZROOM_TOKEN_KEY);
     localStorage.removeItem('ezroom_user');
+    localStorage.removeItem('ezroom_session_expires_at');
 }
 
 /**
@@ -36,7 +44,7 @@ export function clearStoredAuth(): void {
 export async function loginWithEmail(
     email: string,
     password: string
-): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; gender?: string | null } }> {
+): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; gender?: string | null; isVip?: boolean } }> {
     const url = getApiUrl('/auth/login');
     const res = await fetch(url, {
         method: 'POST',
@@ -89,6 +97,30 @@ export async function resetPasswordRequest(
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Đặt lại mật khẩu thất bại');
     return { success: data.success, message: data.message };
+}
+
+/**
+ * POST /auth/register – email/password registration. Returns the new user.
+ */
+export async function registerRequest(payload: {
+    fullName: string;
+    email: string;
+    phone?: string;
+    password: string;
+    confirmPassword: string;
+}): Promise<{ success: boolean; user: Record<string, unknown>; message: string }> {
+    const res = await fetch(getApiUrl('/auth/register'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        const err = new Error(data?.message || 'Đăng ký thất bại') as Error & { errors?: unknown[] };
+        if (Array.isArray(data?.errors)) err.errors = data.errors;
+        throw err;
+    }
+    return data;
 }
 
 /**
@@ -175,6 +207,27 @@ export async function upsertCitizenCardRequest(body: {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Gửi CCCD thất bại');
+    return data;
+}
+
+/**
+ * PATCH /auth/change-password – change current user's password.
+ */
+export async function changePasswordRequest(body: {
+    currentPassword: string;
+    newPassword: string;
+    confirmNewPassword: string;
+}): Promise<{ success: boolean; message: string }> {
+    const res = await authFetch('/auth/change-password', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const err = new Error(data?.message || 'Đổi mật khẩu thất bại') as Error & { errors?: string[] };
+        if (Array.isArray(data?.errors)) err.errors = data.errors;
+        throw err;
+    }
     return data;
 }
 
@@ -311,35 +364,42 @@ export async function upsertPreferenceRequest(body: {
     return data;
 }
 
+/** Options for authFetch; pass `token` to use a specific token (e.g. from auth state). */
+export type AuthFetchOptions = RequestInit & { token?: string | null };
+
 /**
  * Fetch from the backend with Authorization: Bearer <access_token>.
  * Use for any protected API route.
+ * If no token is available (and none passed), returns a 401 Response without hitting the server.
  */
 export async function authFetch(
     path: string,
-    options: RequestInit = {}
+    options: AuthFetchOptions = {}
 ): Promise<Response> {
-    const token = await getAccessToken();
+    const { token: explicitToken, ...init } = options;
+    const token = explicitToken !== undefined && explicitToken !== null
+        ? explicitToken
+        : await getAccessToken();
+    if (!token) {
+        return new Response(
+            JSON.stringify({ success: false, message: 'Chưa đăng nhập' }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+    }
     const url = getApiUrl(path);
-
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...init.headers,
+        Authorization: `Bearer ${token}`,
     };
-    if (token) {
-        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-    }
-
-    return fetch(url, {
-        ...options,
-        headers,
-    });
+    return fetch(url, { ...init, headers });
 }
 
 /**
  * GET /favorites – list current user's favorite rooms (auth required).
+ * Pass token when available from auth context to avoid 401 from stale getAccessToken().
  */
-export async function getMyFavoritesRequest(): Promise<{
+export async function getMyFavoritesRequest(options?: { token?: string | null }): Promise<{
     success: boolean;
     data: Array<{
         id: string;
@@ -354,7 +414,7 @@ export async function getMyFavoritesRequest(): Promise<{
         available: boolean;
     }>;
 }> {
-    const res = await authFetch('/favorites');
+    const res = await authFetch('/favorites', { token: options?.token });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách yêu thích');
     return data;
@@ -373,8 +433,8 @@ export async function getFavoriteIdsRequest(): Promise<{ success: boolean; data:
 /**
  * POST /favorites/:roomId – add room to favorites (auth required).
  */
-export async function addFavoriteRequest(roomId: string): Promise<{ success: boolean; data: { roomId: string } }> {
-    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'POST' });
+export async function addFavoriteRequest(roomId: string, options?: { token?: string | null }): Promise<{ success: boolean; data: { roomId: string } }> {
+    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'POST', token: options?.token });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Không thể thêm yêu thích');
     return data;
@@ -383,8 +443,8 @@ export async function addFavoriteRequest(roomId: string): Promise<{ success: boo
 /**
  * DELETE /favorites/:roomId – remove room from favorites (auth required).
  */
-export async function removeFavoriteRequest(roomId: string): Promise<{ success: boolean; data: { roomId: string } }> {
-    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+export async function removeFavoriteRequest(roomId: string, options?: { token?: string | null }): Promise<{ success: boolean; data: { roomId: string } }> {
+    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'DELETE', token: options?.token });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Không thể bỏ yêu thích');
     return data;
@@ -1016,6 +1076,7 @@ export async function getPublicRentalByIdRequest(rentalId: string): Promise<{
 
 /**
  * GET /rooms/:roomId – room detail (public, no auth).
+ * Tip: when showing this room to a logged-in user, call recordRoomView(roomId) to improve recommendations.
  */
 export async function getRoomByIdRequest(roomId: string): Promise<{
     success: boolean;
@@ -1067,6 +1128,8 @@ export interface SmartSearchParams {
     amenities?: string[];
     page?: number;
     limit?: number;
+    lat?: number;
+    lng?: number;
 }
 
 /** Room-level search result (recommendation system). */
@@ -1122,9 +1185,70 @@ export async function smartSearchRequest(
 }
 
 /**
- * GET /search/recommend – recommend rentals by user profile (tenant/VIP, auth required).
+ * GET /search/advanced – AI-powered search for logged-in users.
+ * Uses embeddings, preferences, lifestyle, and ratings for multi-factor scoring.
  */
-export async function getRecommendRequest(): Promise<{
+export async function advancedSearchRequest(
+    params?: SmartSearchParams,
+    options?: { token?: string | null }
+): Promise<{
+    success: boolean;
+    data: SmartSearchRoomItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+    searchMode?: string;
+}> {
+    const search = new URLSearchParams();
+    if (params?.q) search.set('q', params.q);
+    if (params?.city) search.set('city', params.city);
+    if (params?.district) search.set('district', params.district);
+    if (params?.address) search.set('address', params.address);
+    if (params?.minPrice != null) search.set('minPrice', String(params.minPrice));
+    if (params?.maxPrice != null) search.set('maxPrice', String(params.maxPrice));
+    if (params?.roomType) search.set('roomType', params.roomType);
+    if (params?.minArea != null) search.set('minArea', String(params.minArea));
+    if (params?.maxArea != null) search.set('maxArea', String(params.maxArea));
+    if (params?.amenities?.length) search.set('amenities', params.amenities.join(','));
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    if (params?.lat != null) search.set('lat', String(params.lat));
+    if (params?.lng != null) search.set('lng', String(params.lng));
+    const res = await authFetch(`/search/advanced?${search.toString()}`, { token: options?.token });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tìm kiếm nâng cao');
+    return json;
+}
+
+/**
+ * GET /search/nearby – find rooms near user's location (auth required).
+ */
+export async function nearbySearchRequest(
+    params: { lat: number; lng: number; radius?: number; page?: number; limit?: number },
+    options?: { token?: string | null }
+): Promise<{
+    success: boolean;
+    data: SmartSearchRoomItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+    searchMode?: string;
+    radius?: number;
+    googleMapsEnabled?: boolean;
+}> {
+    const search = new URLSearchParams();
+    search.set('lat', String(params.lat));
+    search.set('lng', String(params.lng));
+    if (params.radius != null) search.set('radius', String(params.radius));
+    if (params.page) search.set('page', String(params.page));
+    if (params.limit) search.set('limit', String(params.limit));
+    const res = await authFetch(`/search/nearby?${search.toString()}`, { token: options?.token });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tìm kiếm gần bạn');
+    return json;
+}
+
+/**
+ * GET /search/recommend – recommend rentals by user profile (tenant/VIP, auth required).
+ * Pass token when available from auth context.
+ */
+export async function getRecommendRequest(options?: { token?: string | null }): Promise<{
     success: boolean;
     data: Array<{
         id: string;
@@ -1138,19 +1262,84 @@ export async function getRecommendRequest(): Promise<{
     }>;
     hint?: string;
 }> {
-    const res = await authFetch('/search/recommend');
+    const res = await authFetch('/search/recommend', { token: options?.token });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || 'Lỗi tải gợi ý');
     return json;
 }
 
 /**
- * POST /search/by-image – image search (tenant: limited, VIP: unlimited). Auth required.
- * TODO: Send imageFile via FormData for actual image-based search.
+ * POST /interactions – record user–room interaction for behavior learning (auth required).
+ * Call when user views a room (view), favorites (favorite), contacts landlord (contact_landlord), or shares (share).
+ */
+export async function recordInteractionRequest(
+    roomId: string,
+    interactionType: 'view' | 'favorite' | 'contact_landlord' | 'share' = 'view'
+): Promise<{ success: boolean; message?: string }> {
+    const res = await authFetch('/interactions', {
+        method: 'POST',
+        body: JSON.stringify({ roomId, interactionType }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi ghi nhận');
+    return data;
+}
+
+/**
+ * Fire-and-forget: record a room view for ranking/popularity. Call when opening room detail.
+ * Does not throw; safe to call without await.
+ */
+export function recordRoomView(roomId: string): void {
+    if (!roomId) return;
+    recordInteractionRequest(roomId, 'view').catch(() => {});
+}
+
+/**
+ * GET /search/by-text – text-to-image search (auth required).
+ * Describe the room in text (e.g. "phòng có cửa sổ lớn") and get visually similar rooms.
+ */
+export async function searchByTextRequest(
+    q: string
+): Promise<{
+    success: boolean;
+    data: Array<{
+        id: string;
+        title: string;
+        location: { district: string | null; city: string | null } | null;
+        images: string[];
+        price: number;
+        matchScore?: number;
+    }>;
+    message?: string;
+    searchMode?: string;
+}> {
+    const res = await authFetch(`/search/by-text?${new URLSearchParams({ q: q.trim() }).toString()}`);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Lỗi tìm kiếm bằng mô tả');
+    return json;
+}
+
+/**
+ * POST /search/by-image – image search (VIP only). Auth required.
+ * Uses OpenAI Vision + CLIP embeddings for visual room similarity matching.
  */
 export async function searchByImageRequest(
-    _imageFile: File,
-    options?: { district?: string; area?: string }
+    imageFile: File,
+    options?: {
+        token?: string | null;
+        q?: string;
+        city?: string;
+        district?: string;
+        address?: string;
+        minPrice?: number;
+        maxPrice?: number;
+        roomType?: string;
+        minArea?: number;
+        maxArea?: number;
+        amenities?: string[];
+        lat?: number;
+        lng?: number;
+    }
 ): Promise<{
     success: boolean;
     data: Array<{
@@ -1161,15 +1350,30 @@ export async function searchByImageRequest(
         price: number;
     }>;
     message?: string;
+    searchMode?: string;
 }> {
-    const token = await getAccessToken();
+    const token = options?.token ?? (await getAccessToken());
     if (!token) throw new Error('Cần đăng nhập để tìm kiếm bằng ảnh');
-    const res = await authFetch('/search/by-image', {
+
+    const form = new FormData();
+    form.append('file', imageFile);
+    if (options?.q) form.append('q', options.q);
+    if (options?.city) form.append('city', options.city);
+    if (options?.district) form.append('district', options.district);
+    if (options?.address) form.append('address', options.address);
+    if (options?.minPrice != null) form.append('minPrice', String(options.minPrice));
+    if (options?.maxPrice != null) form.append('maxPrice', String(options.maxPrice));
+    if (options?.roomType) form.append('roomType', options.roomType);
+    if (options?.minArea != null) form.append('minArea', String(options.minArea));
+    if (options?.maxArea != null) form.append('maxArea', String(options.maxArea));
+    if (options?.amenities?.length) form.append('amenities', options.amenities.join(','));
+    if (options?.lat != null) form.append('lat', String(options.lat));
+    if (options?.lng != null) form.append('lng', String(options.lng));
+
+    const res = await fetch(getApiUrl('/search/by-image'), {
         method: 'POST',
-        body: JSON.stringify({
-            district: options?.district,
-            area: options?.area,
-        }),
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || 'Lỗi tìm kiếm ảnh');
