@@ -88,6 +88,7 @@ export function FloatingChatBox() {
     }, []);
 
     const loadThread = useCallback((peerId: string) => {
+        if (peerId === user?.id) return;
         setLoadingThread(true);
         getThreadRequest(peerId, { limit: 50 })
             .then((r) => {
@@ -99,7 +100,7 @@ export function FloatingChatBox() {
                 setPeer(null);
             })
             .finally(() => setLoadingThread(false));
-    }, []);
+    }, [user?.id]);
 
     useEffect(() => {
         if (!chatBox?.isOpen || !user) return;
@@ -128,7 +129,7 @@ export function FloatingChatBox() {
     }, [selectedPeerId, loadThread]);
 
     useEffect(() => {
-        if (!selectedPeerId) return;
+        if (!selectedPeerId || selectedPeerId === user?.id) return;
         const id = setInterval(() => {
             getThreadRequest(selectedPeerId, { limit: 50 })
                 .then((r) => setMessages(r.data.messages || []))
@@ -138,7 +139,7 @@ export function FloatingChatBox() {
         }, POLL_INTERVAL_MS);
         pollRef.current = id;
         return () => clearInterval(id);
-    }, [selectedPeerId]);
+    }, [selectedPeerId, user?.id]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
