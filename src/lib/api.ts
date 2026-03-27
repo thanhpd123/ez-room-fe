@@ -287,10 +287,18 @@ export async function authFetch(
 ): Promise<Response> {
     const fetchWithToken = async (token: string | null): Promise<Response> => {
         const url = getApiUrl(path);
-        const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        };
+        const headers: HeadersInit = {};
+        
+        // Only set Content-Type if body is not FormData (let browser handle FormData)
+        if (!(options.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+        }
+        
+        // Merge with any custom headers
+        if (options.headers) {
+            Object.assign(headers, options.headers);
+        }
+        
         if (token) {
             (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
         }
@@ -946,7 +954,7 @@ export async function uploadRentalImage(file: File): Promise<{ url: string }> {
 }
 
 /**
- * POST /rentals – create a new rental listing.
+ * POST /rentals – create a new rental listing with files and image URLs.
  */
 export async function createRentalRequest(body: {
     title: string;
@@ -954,14 +962,36 @@ export async function createRentalRequest(body: {
     city: string;
     district: string;
     address: string;
-    images?: string[];
+    imageUrls?: string[];     // URLs từ MultiImageUpload
+    documentFiles?: File[];    // Files để upload Supabase
 }): Promise<{ success: boolean; data: Record<string, unknown>; message: string }> {
     const token = await getAccessToken();
     if (!token) throw new Error('Cần đăng nhập để tạo bài đăng');
 
+    // Create FormData for multipart upload
+    const formData = new FormData();
+    formData.append('title', body.title);
+    formData.append('description', body.description || '');
+    formData.append('city', body.city);
+    formData.append('district', body.district);
+    formData.append('address', body.address);
+
+    // Add image URLs (as JSON, separate từ files)
+    if (body.imageUrls && body.imageUrls.length > 0) {
+        formData.append('images', JSON.stringify(body.imageUrls));
+    }
+
+    // Add document files
+    if (body.documentFiles && body.documentFiles.length > 0) {
+        for (const file of body.documentFiles) {
+            formData.append('file', file);
+        }
+    }
+
     const res = await authFetch('/rentals', {
         method: 'POST',
-        body: JSON.stringify(body),
+        body: formData,
+        // Don't set Content-Type header - browser will set it with boundary
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Tạo bài đăng thất bại');
@@ -1785,6 +1815,21 @@ export interface LandlordDashboardStats {
     };
 }
 
+export interface LandlordPerformanceMetrics {
+    occupancyRate: number;
+    revenue: {
+        thisMonth: number;
+        total: number;
+    };
+    cancellationRate: number;
+    conversionRate: number;
+    bookingStats: {
+        active: number;
+        cancelled: number;
+        total: number;
+    };
+}
+
 export async function getLandlordDashboardStatsRequest(): Promise<{
     success: boolean;
     data: LandlordDashboardStats;
@@ -1795,6 +1840,42 @@ export async function getLandlordDashboardStatsRequest(): Promise<{
     return data;
 }
 
+
+export async function getLandlordPerformanceMetricsRequest(): Promise<{
+    success: boolean;
+    data: LandlordPerformanceMetrics;
+}> {
+    const res = await authFetch('/rentals/performance');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải chỉ số hiệu suất');
+    return data;
+}
+
+export interface TopSearchedRoom {
+    id: string;
+    name: string;
+    price: number;
+    searchCount: number;
+    image: string | null;
+    rentalTitle: string;
+    location: {
+        address: string;
+        district: string;
+        city: string;
+    };
+}
+
+export async function getTopSearchedRoomsRequest(limit: number = 5): Promise<{
+    success: boolean;
+    data: {
+        rooms: TopSearchedRoom[];
+    };
+}> {
+    const res = await authFetch(`/rentals/top-searched?limit=${limit}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải phòng được tìm kiếm');
+    return data;
+}
 /** Notifications */
 
 export interface NotificationItem {
@@ -1854,5 +1935,6 @@ export async function markAllNotificationsReadRequest(): Promise<{
     const res = await authFetch('/notifications/read-all', { method: 'PATCH' });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Lỗi đánh dấu đã đọc');
+
     return data;
 }

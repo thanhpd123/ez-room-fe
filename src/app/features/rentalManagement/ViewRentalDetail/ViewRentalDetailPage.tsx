@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getRentalByIdRequest, deleteRentalRequest, getRejectionInfoRequest } from '@/lib/api';
+import { getSupabasePublicUrl, filterOutDocuments } from '@/lib/supabase-urls';
 import { findOldAddress, type OldAddressInfo } from '@/app/constants/v1-v2-mapping';
 import { RENTAL_STATUS_OPTIONS } from '../shared/types';
 
@@ -279,38 +280,53 @@ export function ViewRentalDetailPage() {
                             {/* Hero image or gallery */}
                 {rental.images && rental.images.length > 0 ? (
                     <div>
-                        <img
-                            src={rental.images[selectedImageIndex]}
-                            alt={rental.title}
-                            className="h-64 w-full object-cover sm:h-80"
-                        />
-                        {rental.images.length > 1 && (
-                            <div className="flex gap-2 overflow-x-auto p-3 bg-slate-50">
-                                {rental.images.map((url, i) => (
-                                    <button
-                                        key={url}
-                                        type="button"
-                                        onClick={() => setSelectedImageIndex(i)}
-                                        className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${
-                                            selectedImageIndex === i
-                                                ? 'border-slate-900'
-                                                : 'border-slate-200 hover:border-slate-400'
-                                        }`}
-                                    >
-                                        <img
-                                            src={url}
-                                            alt={`Ảnh ${i + 1}`}
-                                            className="h-full w-full object-cover"
-                                        />
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                        {rental.images.length > 1 && (
-                            <p className="text-center text-xs text-slate-500 pb-2">
-                                {selectedImageIndex + 1} / {rental.images.length}
-                            </p>
-                        )}
+                        {/* Filter out documents before rendering */}
+                        {(() => {
+                            const filteredImages = filterOutDocuments(rental.images);
+                            if (filteredImages.length === 0) {
+                                return <img
+                                    src={DEFAULT_THUMB}
+                                    alt={rental.title}
+                                    className="h-64 w-full object-cover sm:h-80"
+                                />;
+                            }
+                            return (
+                                <>
+                                    <img
+                                        src={getSupabasePublicUrl(filteredImages[selectedImageIndex])}
+                                        alt={rental.title}
+                                        className="h-64 w-full object-cover sm:h-80"
+                                    />
+                                    {filteredImages.length > 1 && (
+                                        <div className="flex gap-2 overflow-x-auto p-3 bg-slate-50">
+                                            {filteredImages.map((url, i) => (
+                                                <button
+                                                    key={url}
+                                                    type="button"
+                                                    onClick={() => setSelectedImageIndex(i)}
+                                                    className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${
+                                                        selectedImageIndex === i
+                                                            ? 'border-slate-900'
+                                                            : 'border-slate-200 hover:border-slate-400'
+                                                    }`}
+                                                >
+                                                    <img
+                                                        src={getSupabasePublicUrl(url)}
+                                                        alt={`Ảnh ${i + 1}`}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {filteredImages.length > 1 && (
+                                        <p className="text-center text-xs text-slate-500 pb-2">
+                                            {selectedImageIndex + 1} / {filteredImages.length}
+                                        </p>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 ) : (
                     <img

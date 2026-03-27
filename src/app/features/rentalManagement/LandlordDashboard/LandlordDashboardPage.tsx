@@ -7,6 +7,9 @@ import {
     DollarOutlined,
     StarOutlined,
     ShoppingCartOutlined,
+    LineChartOutlined,
+    PercentageOutlined,
+    FireOutlined,
 } from '@ant-design/icons';
 import {
     PieChart,
@@ -21,7 +24,7 @@ import {
     Legend,
     ResponsiveContainer,
 } from 'recharts';
-import { getLandlordDashboardStatsRequest, type LandlordDashboardStats } from '@/lib/api';
+import { getLandlordDashboardStatsRequest, getLandlordPerformanceMetricsRequest, getTopSearchedRoomsRequest, type LandlordDashboardStats, type LandlordPerformanceMetrics, type TopSearchedRoom } from '@/lib/api';
 
 const { Title, Text } = Typography;
 
@@ -29,23 +32,31 @@ const COLORS = ['#52c41a', '#1677ff', '#faad14', '#ff4d4f', '#722ed1', '#d9d9d9'
 
 export function LandlordDashboardPage() {
     const [stats, setStats] = useState<LandlordDashboardStats | null>(null);
+    const [performance, setPerformance] = useState<LandlordPerformanceMetrics | null>(null);
+    const [topSearchedRooms, setTopSearchedRooms] = useState<TopSearchedRoom[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const loadStats = async () => {
+        const loadData = async () => {
             setLoading(true);
             setError(null);
             try {
-                const response = await getLandlordDashboardStatsRequest();
-                setStats(response.data);
+                const [statsRes, perfRes, topSearchRes] = await Promise.all([
+                    getLandlordDashboardStatsRequest(),
+                    getLandlordPerformanceMetricsRequest(),
+                    getTopSearchedRoomsRequest(5),
+                ]);
+                setStats(statsRes.data);
+                setPerformance(perfRes.data);
+                setTopSearchedRooms(topSearchRes.data.rooms);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
             } finally {
                 setLoading(false);
             }
         };
-        loadStats();
+        loadData();
     }, []);
 
     if (loading) {
@@ -190,6 +201,122 @@ export function LandlordDashboardPage() {
                     </Card>
                 </Col>
             </Row>
+
+            {/* Performance Metrics */}
+            {performance && (
+                <>
+                    <Title level={4} style={{ marginTop: 24 }}>Chỉ số Hiệu suất Thuê phòng</Title>
+                    <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={12} lg={6}>
+                            <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                                <Statistic
+                                    title="Tỷ lệ chiếm dụng"
+                                    value={performance.occupancyRate}
+                                    suffix="%"
+                                    prefix={<PercentageOutlined style={{ color: '#1677ff' }} />}
+                                    valueStyle={{ fontSize: 20 }}
+                                />
+                            </Card>
+                        </Col>
+                        <Col xs={24} sm={12} lg={6}>
+                            <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                                <Statistic
+                                    title="Doanh thu tháng này"
+                                    value={Number(performance.revenue.thisMonth).toLocaleString('vi-VN')}
+                                    suffix="đ"
+                                    prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
+                                    styles={{ content: { color: '#52c41a', fontSize: 16 } }}
+                                />
+                            </Card>
+                        </Col>
+                        <Col xs={24} sm={12} lg={6}>
+                            <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                                <Statistic
+                                    title="Tỷ lệ hủy đơn"
+                                    value={performance.cancellationRate}
+                                    suffix="%"
+                                    prefix={<LineChartOutlined style={{ color: '#ff4d4f' }} />}
+                                    valueStyle={{ fontSize: 20, color: '#ff4d4f' }}
+                                />
+                            </Card>
+                        </Col>
+                        <Col xs={24} sm={12} lg={6}>
+                            <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                                <Statistic
+                                    title="Tỷ lệ xác nhận đặt cọc"
+                                    value={performance.conversionRate}
+                                    suffix="%"
+                                    prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
+                                    valueStyle={{ fontSize: 20, color: '#722ed1' }}
+                                />
+                            </Card>
+                        </Col>
+                    </Row>
+                    <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                        <Col xs={24}>
+                            <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                                <Text strong>Tổng doanh thu: </Text>
+                                <Text style={{ fontSize: 18, color: '#52c41a', fontWeight: 'bold' }}>
+                                    {Number(performance.revenue.total).toLocaleString('vi-VN')} đ
+                                </Text>
+                                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+                                    <Text>
+                                        Đơn đang cho thuê: <strong>{performance.bookingStats.active}</strong> | 
+                                        Đơn đã hủy: <strong>{performance.bookingStats.cancelled}</strong> | 
+                                        Tổng cộng: <strong>{performance.bookingStats.total}</strong>
+                                    </Text>
+                                </div>
+                            </Card>
+                        </Col>
+                    </Row>
+                </>
+            )}
+
+            {/* Top Searched Rooms */}
+            {topSearchedRooms.length > 0 && (
+                <>
+                    <Title level={4} style={{ marginTop: 24 }}>🔥 Phòng Được Tìm Kiếm Nhiều</Title>
+                    <Row gutter={[16, 16]}>
+                        {topSearchedRooms.map((room, idx) => (
+                            <Col xs={24} sm={12} lg={8} key={room.id}>
+                                <Card
+                                    hoverable
+                                    cover={
+                                        room.image ? (
+                                            <div style={{ height: 200, overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
+                                                <img
+                                                    alt={room.name}
+                                                    src={room.image}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div style={{ height: 200, backgroundColor: '#e8e8e8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <HomeOutlined style={{ fontSize: 40, color: '#bfbfbf' }} />
+                                            </div>
+                                        )
+                                    }
+                                    style={{ position: 'relative' }}
+                                >
+                                    <div style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#ff4d4f', color: 'white', padding: '4px 8px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                                        <FireOutlined />
+                                        {room.searchCount} lượt tìm
+                                    </div>
+                                    <Text strong>{room.name}</Text>
+                                    <p style={{ margin: '8px 0', fontSize: 12, color: '#999' }}>
+                                        {room.location.address}, {room.location.district}
+                                    </p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 14, color: '#1677ff', fontWeight: 'bold' }}>
+                                            {Number(room.price).toLocaleString('vi-VN')} đ
+                                        </Text>
+                                    </div>
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row>
+                </>
+            )}
 
             {/* Charts */}
             <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
