@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { HomePage } from '@/app/features/home';
 import { SearchPage } from '@/app/features/search';
+import { RoomsPage } from '@/app/features/rooms';
 import { BrowsePage } from '@/app/features/browse';
 import { RentalDetailPage } from '@/app/features/rental-detail';
 import { RoomDetailPage } from '@/app/features/room-detail';
@@ -91,6 +92,10 @@ export const router = createBrowserRouter([
     {
         path: '/vip/plans',
         element: <Navigate to="/vip-plans" replace />,
+    },
+    {
+        path: '/rooms',
+        element: <RoomsPage />,
     },
     {
         path: '/browse',

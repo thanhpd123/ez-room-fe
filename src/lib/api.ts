@@ -690,6 +690,7 @@ export interface RoommateMatchItem {
     status: string;
     createdAt: string;
     isRequester: boolean;
+    roomId: string | null;
     otherUser: { id: string; fullName: string; avatarUrl: string | null; gender: string | null } | null;
 }
 
@@ -773,6 +774,78 @@ export async function getRoommateProfileRequest(userId: string): Promise<{
     const res = await authFetch(`/roommate/profile/${encodeURIComponent(userId)}`);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải hồ sơ');
+    return data;
+}
+
+/** Danh sách phòng đang thuê (để mời roommate) */
+export interface MyActiveRoomItem {
+    rentalPeriodId: string;
+    roomId: string;
+    roomName: string;
+    propertyName: string;
+    price: number | null;
+    address: string;
+    image: string | null;
+    startDate: string;
+    endDate: string | null;
+}
+
+export async function getMyActiveRoomsRequest(): Promise<{
+    success: boolean;
+    data: MyActiveRoomItem[];
+}> {
+    const res = await authFetch('/roommate/my-active-rooms');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách phòng đang thuê');
+    return data;
+}
+
+export async function inviteRoommateRequest(
+    targetUserId: string,
+    roomId: string
+): Promise<{ success: boolean; message: string }> {
+    const res = await authFetch(`/roommate/invite-room/${encodeURIComponent(targetUserId)}`, {
+        method: 'POST',
+        body: JSON.stringify({ roomId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi lời mời ở ghép thất bại');
+    return data;
+}
+
+/** AI Roommate Search (VIP only) */
+export interface RoommateSearchResultItem {
+    user: { id: string; fullName: string; avatarUrl: string | null; gender: string | null };
+    lifestyle: {
+        smoking: boolean | null;
+        drinking: boolean | null;
+        pets_allowed: boolean | null;
+        sleep_schedule: string | null;
+        work_from_home: boolean | null;
+        personalityType: string | null;
+        social_level: string | null;
+        interests: string[];
+    } | null;
+    preference: {
+        preferred_districts: string[];
+        room_type: string | null;
+        budget_min: number | null;
+        budget_max: number | null;
+        preferredLocation: string | null;
+    } | null;
+    similarityScore: number;
+    aiReason: string | null;
+}
+
+export async function searchRoommatesRequest(
+    query: string,
+    limit?: number
+): Promise<{ success: boolean; data: RoommateSearchResultItem[] }> {
+    const params = new URLSearchParams({ q: query });
+    if (limit != null) params.set('limit', String(limit));
+    const res = await authFetch(`/roommate/search?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tìm kiếm AI');
     return data;
 }
 
@@ -1140,6 +1213,66 @@ export async function getRoomsAmenitiesRequest(): Promise<{
     const res = await fetch(getApiUrl('/rooms/amenities'), { cache: 'default' });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tải tiện nghi');
+    return json;
+}
+
+/**
+ * Room item returned from GET /rooms
+ */
+export interface PublicRoomItem {
+    id: string;
+    rentalId: string;
+    roomName: string | null;
+    description: string | null;
+    roomType: string;
+    price: number;
+    sizeM2: number | null;
+    maxPeople: number;
+    status: string;
+    createdAt: string;
+    images: string[];
+    amenities: Array<{ id: string; name: string }>;
+    rental: {
+        id: string;
+        title: string;
+        status: string;
+        location: { address: string; district: string | null; city: string | null } | null;
+    } | null;
+    // flattened fields from backend
+    title?: string;
+    area?: number;
+    thumbnail_url?: string | null;
+}
+
+/**
+ * GET /rooms – list rooms (public, no auth).
+ */
+export async function getPublicRoomsRequest(params?: {
+    page?: number;
+    limit?: number;
+    roomType?: string;
+    minPrice?: number;
+    maxPrice?: number;
+}): Promise<{
+    success: boolean;
+    data: PublicRoomItem[];
+    pagination: { page: number; limit: number; total: number; pages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    if (params?.roomType) search.set('roomType', params.roomType);
+    if (params?.minPrice) search.set('minPrice', String(params.minPrice));
+    if (params?.maxPrice) search.set('maxPrice', String(params.maxPrice));
+    const qs = search.toString();
+    const url = getApiUrl(`/rooms${qs ? `?${qs}` : ''}`);
+    const res = await fetch(url, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const msg = json?.message || json?.error || `HTTP ${res.status}`;
+        console.error('[getPublicRooms]', url, res.status, msg);
+        throw new Error(msg);
+    }
     return json;
 }
 
@@ -1707,6 +1840,7 @@ export async function getLandlordDashboardStatsRequest(): Promise<{
     return data;
 }
 
+
 export async function getLandlordPerformanceMetricsRequest(): Promise<{
     success: boolean;
     data: LandlordPerformanceMetrics;
@@ -1740,5 +1874,67 @@ export async function getTopSearchedRoomsRequest(limit: number = 5): Promise<{
     const res = await authFetch(`/rentals/top-searched?limit=${limit}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải phòng được tìm kiếm');
+    return data;
+}
+/** Notifications */
+
+export interface NotificationItem {
+    id: string;
+    type: string;
+    status: string;
+    title: string | null;
+    body: string | null;
+    roomId: string | null;
+    createdAt: string;
+}
+
+export async function getNotificationsRequest(params?: {
+    page?: number;
+    limit?: number;
+}): Promise<{
+    success: boolean;
+    data: NotificationItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    const qs = search.toString();
+    const res = await authFetch(`/notifications${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải thông báo');
+    return data;
+}
+
+export async function getUnreadCountRequest(): Promise<{
+    success: boolean;
+    unreadCount: number;
+}> {
+    const res = await authFetch('/notifications/unread-count');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi đếm thông báo');
+    return data;
+}
+
+export async function markNotificationReadRequest(id: string): Promise<{
+    success: boolean;
+    message: string;
+}> {
+    const res = await authFetch(`/notifications/${encodeURIComponent(id)}/read`, {
+        method: 'PATCH',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi đánh dấu đã đọc');
+    return data;
+}
+
+export async function markAllNotificationsReadRequest(): Promise<{
+    success: boolean;
+    message: string;
+}> {
+    const res = await authFetch('/notifications/read-all', { method: 'PATCH' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi đánh dấu đã đọc');
+
     return data;
 }
