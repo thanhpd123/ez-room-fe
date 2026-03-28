@@ -44,28 +44,65 @@ import {
 const AVATAR_PLACEHOLDER = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
 
 function LifestyleTags({ item }: { item: RoommateSuggestionItem }) {
-    const tags: string[] = [];
+    const tags: { label: string; color?: string }[] = [];
     const L = item.lifestyle;
-    if (L?.work_from_home) tags.push('Làm việc tại nhà');
-    if (L?.smoking === false && L?.drinking === false) tags.push('Không hút thuốc, không rượu');
-    else if (L?.smoking === false) tags.push('Không hút thuốc');
-    else if (L?.smoking === true) tags.push('Hút thuốc');
-    if (L?.pets_allowed) tags.push('Nuôi thú cưng');
-    if (L?.sleep_schedule) tags.push(`Ngủ: ${L.sleep_schedule}`);
-    if (L?.personalityType) tags.push(L.personalityType);
-    if (L?.social_level) tags.push(L.social_level);
-    if (item.preference?.preferred_districts?.length) {
-        tags.push(item.preference.preferred_districts.slice(0, 2).join(', '));
+
+    // Habits
+    if (L?.smoking === false && L?.drinking === false) tags.push({ label: 'Không thuốc/rượu' });
+    else if (L?.smoking === false) tags.push({ label: 'Không hút thuốc' });
+    else if (L?.smoking === true) tags.push({ label: 'Hút thuốc', color: 'warning' });
+    if (L?.pets_allowed) tags.push({ label: 'Nuôi thú cưng' });
+
+    // Core lifestyle
+    if (L?.sleep_schedule) tags.push({ label: `Ngủ: ${L.sleep_schedule}` });
+    if (L?.personalityType) tags.push({ label: L.personalityType });
+    if (L?.cleanliness) tags.push({ label: `Sạch sẽ: ${L.cleanliness}` });
+    if (L?.noise_tolerance) tags.push({ label: `Chịu ồn: ${L.noise_tolerance}` });
+    if (L?.guest_frequency) tags.push({ label: `Khách: ${L.guest_frequency}` });
+
+    // ★ Interests (key factor)
+    const interests = (L as Record<string, unknown>)?.interests as string[] | undefined;
+    if (interests && interests.length > 0) {
+        interests.slice(0, 3).forEach((i) => tags.push({ label: i, color: 'interest' }));
     }
+
+    // ★ Deal-breakers (key factor)
+    const dealBreakers = (L as Record<string, unknown>)?.deal_breakers as string | null | undefined;
+    if (dealBreakers) {
+        const dbItems = dealBreakers.split(/[,，、]+/).map((s) => s.trim()).filter(Boolean);
+        if (dbItems.length > 0) {
+            tags.push({ label: `⚠ ${dbItems.slice(0, 2).join(', ')}`, color: 'danger' });
+        }
+    }
+
+    // Location
+    if (item.preference?.preferred_districts?.length) {
+        tags.push({ label: item.preference.preferred_districts.slice(0, 2).join(', ') });
+    }
+
     if (tags.length === 0) return null;
+
+    const getTagStyle = (color?: string) => {
+        switch (color) {
+            case 'interest':
+                return 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+            case 'danger':
+                return 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300';
+            case 'warning':
+                return 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+            default:
+                return 'bg-muted text-muted-foreground';
+        }
+    };
+
     return (
         <div className="flex flex-wrap gap-1.5 mt-2">
-            {tags.slice(0, 5).map((t) => (
+            {tags.slice(0, 6).map((t, idx) => (
                 <span
-                    key={t}
-                    className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
+                    key={`${t.label}-${idx}`}
+                    className={`text-xs px-2 py-0.5 rounded-full ${getTagStyle(t.color)}`}
                 >
-                    {t}
+                    {t.label}
                 </span>
             ))}
         </div>
@@ -412,31 +449,36 @@ export function FindRoommatePage() {
                                                             {r.lifestyle.personalityType}
                                                         </span>
                                                     )}
-                                                    {r.lifestyle.social_level && (
-                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                                            {r.lifestyle.social_level}
-                                                        </span>
-                                                    )}
                                                     {r.lifestyle.smoking === false && (
                                                         <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                                                             Không hút thuốc
                                                         </span>
                                                     )}
-                                                    {r.lifestyle.drinking === false && (
-                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                                            Không rượu bia
+                                                    {r.lifestyle.smoking === true && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                            Hút thuốc
                                                         </span>
                                                     )}
-                                                    {r.lifestyle.work_from_home && (
+                                                    {r.lifestyle.cleanliness && (
                                                         <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                                            WFH
+                                                            Sạch sẽ: {r.lifestyle.cleanliness}
+                                                        </span>
+                                                    )}
+                                                    {r.lifestyle.noise_tolerance && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                            Chịu ồn: {r.lifestyle.noise_tolerance}
                                                         </span>
                                                     )}
                                                     {r.lifestyle.interests.slice(0, 3).map((i) => (
-                                                        <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                        <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                                                             {i}
                                                         </span>
                                                     ))}
+                                                    {r.lifestyle.deal_breakers && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300">
+                                                            ⚠ {r.lifestyle.deal_breakers.split(/[,，、]+/)[0]?.trim()}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             )}
 
