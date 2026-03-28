@@ -180,6 +180,7 @@ export interface LifestyleProfileResponse {
     move_in_date?: string | null;
     temperature_preference?: string | null;
     quiet_hours_preference?: string | null;
+    deal_breakers?: string | null;
 }
 
 /** User preference – matches backend/DB (UserPreference). Roommate matching uses profile gender (same gender). */
@@ -235,6 +236,7 @@ export async function upsertLifestyleRequest(body: {
     move_in_date?: string | null;
     temperature_preference?: string | null;
     quiet_hours_preference?: string | null;
+    deal_breakers?: string | null;
 }) {
     const res = await authFetch('/auth/lifestyle', { method: 'PUT', body: JSON.stringify(body) });
     const data = await res.json();
@@ -667,7 +669,11 @@ export interface RoommateSuggestionItem {
         work_from_home: boolean | null;
         personalityType: string | null;
         social_level: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
         interests: string[];
+        deal_breakers: string | null;
     } | null;
     preference: { preferred_districts: string[]; room_type: string | null; budget_min: number | null; budget_max: number | null; preferredLocation: string | null } | null;
     matchScore: number;
@@ -751,6 +757,7 @@ export interface RoommatePublicProfile {
         temperature_preference: string | null;
         quiet_hours_preference: string | null;
         interests: string[];
+        deal_breakers: string | null;
         languages: string[];
         preferred_lease_months: number | null;
     } | null;
@@ -824,7 +831,11 @@ export interface RoommateSearchResultItem {
         work_from_home: boolean | null;
         personalityType: string | null;
         social_level: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
         interests: string[];
+        deal_breakers: string | null;
     } | null;
     preference: {
         preferred_districts: string[];

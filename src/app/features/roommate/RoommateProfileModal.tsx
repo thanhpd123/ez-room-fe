@@ -6,22 +6,11 @@ import {
     Wine,
     PawPrint,
     Moon,
-    Sun,
-    Briefcase,
-    Home,
     Sparkles,
     Users,
-    MapPin,
-    DoorOpen,
-    Banknote,
-    Clock,
-    ThermometerSun,
     Volume2,
-    UtensilsCrossed,
     UserCheck,
-    CalendarDays,
     Shield,
-    Bus,
     Eye,
 } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
@@ -37,19 +26,7 @@ function boolLabel(val: boolean | null | undefined): string {
     return '—';
 }
 
-function formatBudget(min: number | null, max: number | null): string {
-    const fmt = (n: number) => {
-        if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace('.0', '')} tr`;
-        if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
-        return String(n);
-    };
-    if (min && max) return `${fmt(min)} – ${fmt(max)} VND`;
-    if (min) return `từ ${fmt(min)} VND`;
-    if (max) return `đến ${fmt(max)} VND`;
-    return '—';
-}
 
-/* ────────────────── sub-components ────────────────── */
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
     if (value === null || value === undefined || value === '' || value === '—') return null;
@@ -122,7 +99,6 @@ export function RoommateProfileModal({ userId, matchScore, onClose }: RoommatePr
     if (!userId) return null;
 
     const L = profile?.lifestyle;
-    const P = profile?.preference;
     const U = profile?.user;
 
     return (
@@ -213,33 +189,26 @@ export function RoommateProfileModal({ userId, matchScore, onClose }: RoommatePr
                                         <InfoRow icon={Cigarette} label="Hút thuốc" value={boolLabel(L.smoking)} />
                                         <InfoRow icon={Wine} label="Uống rượu/bia" value={boolLabel(L.drinking)} />
                                         <InfoRow icon={PawPrint} label="Nuôi thú cưng" value={boolLabel(L.pets_allowed)} />
-                                        <InfoRow icon={Home} label="Làm việc tại nhà" value={boolLabel(L.work_from_home)} />
                                         <InfoRow icon={Moon} label="Lịch ngủ" value={L.sleep_schedule} />
-                                        <InfoRow icon={Sun} label="Giờ dậy" value={L.wake_time} />
-                                        <InfoRow icon={Moon} label="Giờ ngủ" value={L.bedtime} />
+                                        <InfoRow icon={UserCheck} label="Tính cách" value={L.personalityType} />
                                         <InfoRow icon={Shield} label="Sạch sẽ" value={L.cleanliness} />
                                         <InfoRow icon={Volume2} label="Chịu ồn" value={L.noise_tolerance} />
                                         <InfoRow icon={Users} label="Khách đến chơi" value={L.guest_frequency} />
-                                        <InfoRow icon={UtensilsCrossed} label="Nấu ăn" value={L.cooking_frequency} />
-                                        <InfoRow icon={UserCheck} label="Tính cách" value={L.personalityType} />
-                                        <InfoRow icon={Users} label="Mức xã giao" value={L.social_level} />
-                                        <InfoRow icon={Briefcase} label="Nghề nghiệp" value={L.occupation_type} />
-                                        <InfoRow icon={ThermometerSun} label="Nhiệt độ" value={L.temperature_preference} />
-                                        <InfoRow icon={Clock} label="Giờ yên tĩnh" value={L.quiet_hours_preference} />
-                                        <InfoRow icon={CalendarDays} label="Thời hạn thuê mong muốn" value={L.preferred_lease_months ? `${L.preferred_lease_months} tháng` : null} />
                                     </div>
 
+                                    {/* ★ Interests – highlighted */}
                                     {L.interests.length > 0 && (
-                                        <div className="mt-3">
-                                            <span className="text-xs text-muted-foreground block mb-1.5">Sở thích</span>
+                                        <div className="mt-4 p-3 rounded-xl bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200/50 dark:border-blue-800/30">
+                                            <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">★ Sở thích</span>
                                             <TagList items={L.interests} color="primary" />
                                         </div>
                                     )}
 
-                                    {L.languages.length > 0 && (
-                                        <div className="mt-3">
-                                            <span className="text-xs text-muted-foreground block mb-1.5">Ngôn ngữ</span>
-                                            <TagList items={L.languages} color="accent" />
+                                    {/* ★ Deal-breakers – highlighted */}
+                                    {L.deal_breakers && (
+                                        <div className="mt-3 p-3 rounded-xl bg-red-50/80 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30">
+                                            <span className="text-xs font-semibold text-red-600 dark:text-red-300 block mb-2">★ Điều không chấp nhận</span>
+                                            <p className="text-sm text-red-700 dark:text-red-200">{L.deal_breakers}</p>
                                         </div>
                                     )}
                                 </Section>
@@ -251,35 +220,12 @@ export function RoommateProfileModal({ userId, matchScore, onClose }: RoommatePr
                                 </Section>
                             )}
 
-                            <hr className="border-border" />
+                            {/* Preferences – hidden temporarily */}
+                            {/* <hr className="border-border" />
 
-                            {/* Preferences */}
                             {P && (
                                 <Section title="Sở thích tìm phòng">
-                                    <div className="grid grid-cols-1 gap-0.5">
-                                        {P.preferred_districts.length > 0 && (
-                                            <InfoRow icon={MapPin} label="Khu vực ưu tiên" value={P.preferred_districts.join(', ')} />
-                                        )}
-                                        <InfoRow icon={DoorOpen} label="Loại phòng" value={P.room_type} />
-                                        <InfoRow icon={Banknote} label="Ngân sách" value={formatBudget(P.budget_min, P.budget_max)} />
-                                        <InfoRow icon={CalendarDays} label="Thời hạn thuê" value={P.preferred_lease_months ? `${P.preferred_lease_months} tháng` : null} />
-                                        <InfoRow icon={PawPrint} label="Cho phép thú cưng" value={boolLabel(P.pet_friendly)} />
-                                        <InfoRow icon={Bus} label="Gần phương tiện" value={boolLabel(P.transport_nearby)} />
-                                    </div>
-
-                                    {P.preferred_amenities.length > 0 && (
-                                        <div className="mt-3">
-                                            <span className="text-xs text-muted-foreground block mb-1.5">Tiện nghi ưu tiên</span>
-                                            <TagList items={P.preferred_amenities} color="primary" />
-                                        </div>
-                                    )}
-
-                                    {P.must_have_amenities.length > 0 && (
-                                        <div className="mt-3">
-                                            <span className="text-xs text-muted-foreground block mb-1.5">Tiện nghi bắt buộc</span>
-                                            <TagList items={P.must_have_amenities} color="accent" />
-                                        </div>
-                                    )}
+                                    ...
                                 </Section>
                             )}
 
@@ -287,7 +233,7 @@ export function RoommateProfileModal({ userId, matchScore, onClose }: RoommatePr
                                 <Section title="Sở thích tìm phòng">
                                     <p className="text-sm text-muted-foreground italic">Chưa cập nhật sở thích tìm phòng.</p>
                                 </Section>
-                            )}
+                            )} */}
                         </div>
                     )}
                 </div>
