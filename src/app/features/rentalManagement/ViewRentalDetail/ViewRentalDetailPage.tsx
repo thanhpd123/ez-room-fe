@@ -205,7 +205,7 @@ export function ViewRentalDetailPage() {
             {rental.status === 'HIDDEN' && rejectionInfo?.hasRejection && (
                 <div className="mb-4 rounded-2xl border border-rose-300 bg-rose-50 p-4">
                     <div className="flex items-start gap-3">
-                        <span className="text-xl">⚠️</span>
+                        <span className="text-xl"></span>
                         <div className="flex-1">
                             <h3 className="font-semibold text-rose-800">Bài đăng bị từ chối bởi Moderator</h3>
                             {rejectionInfo.reason && (
@@ -227,7 +227,7 @@ export function ViewRentalDetailPage() {
                                 onClick={() => navigate(`/rental-management/rentals/${rentalId}/edit`)}
                                 className="mt-3 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 transition-colors"
                             >
-                                ✏️ Chỉnh sửa & Gửi lại
+                                Chỉnh sửa & Gửi lại
                             </button>
                         </div>
                     </div>
