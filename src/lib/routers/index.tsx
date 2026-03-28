@@ -13,6 +13,7 @@ import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 import { PageLoader } from '@/app/components/PageLoader';
 import { PayOSResultPage, WalletPaymentResultPage } from '@/app/features/payment-result';
 import { VipPlansPage } from '@/app/features/vip';
+import { BlogListPage, BlogDetailPage } from '@/app/features/blog';
 
 /* Lazy-loaded chunks – admin/moderator/rental-mgmt only loaded when visited */
 const BookingHistoryPage = lazy(() => import('@/app/features/booking-history').then((m) => ({ default: m.BookingHistoryPage })));
@@ -46,6 +47,7 @@ const AdminWalletsPage = lazy(() => import('@/app/features/admin').then((m) => (
 const AdminFinancePage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminFinancePage })));
 const AdminSettingsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminSettingsPage })));
 const AdminModeratorsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminModeratorsPage })));
+const AdminBlogPostsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminBlogPostsPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
 const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
 const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) => ({ default: m.FindRoommatePage })));
@@ -80,6 +82,14 @@ export const router = createBrowserRouter([
     {
         path: '/home',
         element: <HomePage />,
+    },
+    {
+        path: '/blog',
+        element: <BlogListPage />,
+    },
+    {
+        path: '/blog/:slug',
+        element: <BlogDetailPage />,
     },
     {
         path: '/search',
@@ -263,6 +273,7 @@ export const router = createBrowserRouter([
             { path: 'locations', element: <Suspense fallback={<PageLoader />}><AdminLocationsPage /></Suspense> },
             { path: 'wallets', element: <Suspense fallback={<PageLoader />}><AdminWalletsPage /></Suspense> },
             { path: 'settings', element: <Suspense fallback={<PageLoader />}><AdminSettingsPage /></Suspense> },
+            { path: 'blogs', element: <Suspense fallback={<PageLoader />}><AdminBlogPostsPage /></Suspense> },
         ],
     },
 ]);

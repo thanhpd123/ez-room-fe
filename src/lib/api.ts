@@ -1305,6 +1305,127 @@ export async function getPublicRentalsRequest(params?: {
     return json;
 }
 
+export interface BlogPostItem {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt: string | null;
+    content: string;
+    coverImageUrl: string | null;
+    status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+    publishedAt: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+    author: { id: string; fullName: string | null; email: string | null; avatarUrl: string | null } | null;
+    category: { id: string; name: string; slug: string } | null;
+    tags: Array<{ id: string; name: string; slug: string }>;
+}
+
+export async function getPublicBlogPostsRequest(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    tag?: string;
+}): Promise<{
+    success: boolean;
+    data: BlogPostItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.tag) searchParams.set('tag', params.tag);
+    const qs = searchParams.toString();
+    const url = getApiUrl(`/blogs${qs ? `?${qs}` : ''}`);
+    const res = await fetch(url, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const msg = json?.message || json?.error || `HTTP ${res.status}`;
+        throw new Error(msg);
+    }
+    return json;
+}
+
+export async function getPublicBlogPostBySlugRequest(slug: string): Promise<{
+    success: boolean;
+    data: BlogPostItem;
+}> {
+    const url = getApiUrl(`/blogs/${encodeURIComponent(slug)}`);
+    const res = await fetch(url, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const msg = json?.message || json?.error || `HTTP ${res.status}`;
+        throw new Error(msg);
+    }
+    return json;
+}
+
+export interface BlogPostPayload {
+    title: string;
+    slug?: string;
+    excerpt?: string;
+    content: string;
+    coverImageUrl?: string;
+    status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+    publishedAt?: string | null;
+    categoryName?: string | null;
+    tagNames?: string[];
+}
+
+export async function getAdminBlogPostsRequest(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+}): Promise<{
+    success: boolean;
+    data: BlogPostItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.status) searchParams.set('status', params.status);
+    const qs = searchParams.toString();
+    const res = await authFetch(`/blogs/admin/posts${qs ? `?${qs}` : ''}`);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Không tải được danh sách bài viết');
+    return json;
+}
+
+export async function createBlogPostRequest(payload: BlogPostPayload): Promise<{ success: boolean; data: BlogPostItem; message?: string }> {
+    const res = await authFetch('/blogs/admin/posts', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Tạo bài viết thất bại');
+    return json;
+}
+
+export async function updateBlogPostRequest(postId: string, payload: Partial<BlogPostPayload>): Promise<{ success: boolean; data: BlogPostItem; message?: string }> {
+    const res = await authFetch(`/blogs/admin/posts/${encodeURIComponent(postId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Cập nhật bài viết thất bại');
+    return json;
+}
+
+export async function deleteBlogPostRequest(postId: string): Promise<{ success: boolean; message?: string }> {
+    const res = await authFetch(`/blogs/admin/posts/${encodeURIComponent(postId)}`, {
+        method: 'DELETE',
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Xóa bài viết thất bại');
+    return json;
+}
+
 /**
  * GET /public/rentals/:id – rental detail (no auth).
  */

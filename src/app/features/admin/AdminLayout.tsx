@@ -17,6 +17,7 @@ import {
     LogoutOutlined,
     SettingOutlined,
     LockOutlined,
+    BookOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/app/context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -49,6 +50,7 @@ export function AdminLayout() {
         getItem(t('admin.menu.dashboard'), '/admin', <DashboardOutlined />),
         getItem(t('admin.menu.users'), '/admin/users', <UserOutlined />),
         getItem(t('admin.menu.rentals'), '/admin/rentals', <HomeOutlined />),
+        getItem(t('admin.menu.blogs'), '/admin/blogs', <BookOutlined />),
         getItem(t('admin.menu.wallets'), '/admin/wallets', <WalletOutlined />),
         getItem(t('admin.menu.reportsGroup'), 'reports-group', <DollarCircleOutlined />, [
             getItem(t('admin.menu.finance'), '/admin/finance', <DollarCircleOutlined />),
@@ -99,6 +101,8 @@ export function AdminLayout() {
                 ? '/admin/moderators'
                 : location.pathname.startsWith('/admin/rentals')
                     ? '/admin/rentals'
+                    : location.pathname.startsWith('/admin/blogs')
+                        ? '/admin/blogs'
                     : location.pathname.startsWith('/admin/wallets')
                         ? '/admin/wallets'
                         : location.pathname.startsWith('/admin/locations')

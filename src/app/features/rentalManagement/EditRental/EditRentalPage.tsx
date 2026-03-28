@@ -205,7 +205,7 @@ export function EditRentalPage() {
                 {isRejected && (
                     <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-4">
                         <div className="flex items-start gap-3">
-                            <span className="text-xl">⚠️</span>
+                            <span className="text-xl"></span>
                             <div className="flex-1">
                                 <h3 className="font-semibold text-rose-800">Bài đăng bị từ chối</h3>
                                 {rejectionInfo?.reason && (
@@ -224,7 +224,7 @@ export function EditRentalPage() {
                 {isEditApproved && !isRejected && (
                     <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
                         <div className="flex items-start gap-3">
-                            <span className="text-xl">ℹ️</span>
+                            <span className="text-xl">ℹ</span>
                             <div className="flex-1">
                                 <h3 className="font-semibold text-blue-800">Lưu ý</h3>
                                 <p className="mt-1 text-sm text-blue-700">
