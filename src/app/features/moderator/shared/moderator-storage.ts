@@ -460,9 +460,8 @@ export async function handleViolationReport(input: HandleReportInput) {
     let backendStatus: Exclude<ReportStatusEnum, 'PENDING'>;
     if (input.action === 'dismiss_report') {
         backendStatus = 'DISMISSED';
-    } else if (input.action === 'remove_content' || input.action === 'restrict_content') {
-        backendStatus = 'REJECTED';
     } else {
+        // Any other corrective action implies the violation was verified
         backendStatus = 'APPROVED';
     }
 
@@ -471,6 +470,7 @@ export async function handleViolationReport(input: HandleReportInput) {
             method: 'PATCH',
             body: JSON.stringify({
                 status: backendStatus,
+                actionTaken: input.action,
                 moderatorNote: input.note?.trim() || undefined,
             }),
         });

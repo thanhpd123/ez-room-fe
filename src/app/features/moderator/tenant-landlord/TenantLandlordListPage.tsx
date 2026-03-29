@@ -9,6 +9,7 @@ interface UserItem {
     avatarUrl: string | null;
     role: string;
     status: string;
+    warningCount: number;
     createdAt: string;
 }
 
@@ -531,6 +532,7 @@ export function TenantLandlordListPage() {
                                     <th className="px-4 py-3 font-semibold text-slate-700">Số điện thoại</th>
                                     <th className="px-4 py-3 font-semibold text-slate-700">Vai trò</th>
                                     <th className="px-4 py-3 font-semibold text-slate-700">Trạng thái</th>
+                                    <th className="px-4 py-3 font-semibold text-slate-700 text-center">Cảnh cáo</th>
                                     <th className="px-4 py-3 font-semibold text-slate-700">Ngày tham gia</th>
                                     <th className="px-4 py-3 font-semibold text-slate-700 text-center">Hành động</th>
                                 </tr>
@@ -559,6 +561,15 @@ export function TenantLandlordListPage() {
                                             <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadge[user.status] ?? 'bg-slate-100 text-slate-600'}`}>
                                                 {statusLabel[user.status] ?? user.status}
                                             </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            {user.warningCount > 0 ? (
+                                                <span className="inline-flex items-center justify-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">
+                                                    {user.warningCount}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-400">0</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-slate-600">{formatDate(user.createdAt)}</td>
                                         <td className="px-4 py-3">
