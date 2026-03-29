@@ -860,7 +860,55 @@ export async function searchRoommatesRequest(
     return data;
 }
 
+/** Top searchers by area (based on actual behavior) */
+
+export interface AreaSearcherActivity {
+    views: number;
+    favorites: number;
+    preorders: number;
+    totalScore: number;
+}
+
+export interface AreaSearcherItem {
+    user: { id: string; fullName: string; avatarUrl: string | null; gender: string | null };
+    lifestyle: {
+        smoking: boolean;
+        drinking: boolean;
+        pets_allowed: boolean;
+        sleep_schedule: string | null;
+        personalityType: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
+        interests: string[];
+        deal_breakers: string | null;
+    } | null;
+    preference: {
+        preferred_districts: string[];
+        room_type: string | null;
+        budget_min: number | null;
+        budget_max: number | null;
+        preferredLocation: string | null;
+    } | null;
+    matchScore: number;
+    isSameGender: boolean;
+    activityInArea: AreaSearcherActivity;
+}
+
+export async function getTopSearchersByAreaRequest(
+    area: string,
+    limit?: number
+): Promise<{ success: boolean; data: AreaSearcherItem[]; area: string; totalRoomsInArea: number }> {
+    const params = new URLSearchParams({ area });
+    if (limit != null) params.set('limit', String(limit));
+    const res = await authFetch(`/roommate/top-searchers-by-area?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tìm kiếm theo khu vực');
+    return data;
+}
+
 /** Chat / messages */
+
 
 export interface ConversationItem {
     peer: { id: string; fullName: string; avatarUrl: string | null };
@@ -1493,6 +1541,26 @@ export async function getRoomByIdRequest(roomId: string): Promise<{
     data: Record<string, unknown>;
 }> {
     const res = await fetch(getApiUrl(`/rooms/${roomId}`));
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Không tìm thấy phòng');
+    return json;
+}
+
+/**
+ * GET /rooms/:roomId/search-roommate – room detail with tracking.
+ */
+export async function getRoomByIdForSearchRoomateRequest(roomId: string): Promise<{
+    success: boolean;
+    data: Record<string, unknown>;
+}> {
+    const token = await getAccessToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const url = getApiUrl(`/rooms/${roomId}/search-roommate`);
+    const res = await fetch(url, { headers });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || json?.error || 'Không tìm thấy phòng');
     return json;

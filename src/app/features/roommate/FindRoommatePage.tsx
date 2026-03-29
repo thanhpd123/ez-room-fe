@@ -26,6 +26,7 @@ import {
     Link2,
     Copy,
     ExternalLink,
+    TrendingUp,
 } from 'lucide-react';
 import {
     getRoommateSuggestionsRequest,
@@ -35,10 +36,13 @@ import {
     getMyActiveRoomsRequest,
     inviteRoommateRequest,
     searchRoommatesRequest,
+    getTopSearchersByAreaRequest,
+    getRoommateProfileRequest,
     type RoommateSuggestionItem,
     type RoommateMatchItem,
     type MyActiveRoomItem,
     type RoommateSearchResultItem,
+    type AreaSearcherItem,
 } from '@/lib/api';
 
 const AVATAR_PLACEHOLDER = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
@@ -138,30 +142,81 @@ export function FindRoommatePage() {
     const [aiError, setAiError] = useState<string | null>(null);
     const [aiActive, setAiActive] = useState(false);
 
-    // Filter state
+    // Area searcher state
+    const [areaSearchResults, setAreaSearchResults] = useState<AreaSearcherItem[]>([]);
+    const [areaSearching, setAreaSearching] = useState(false);
+    const [areaSearchArea, setAreaSearchArea] = useState('');
+    const [areaSearchTotalRooms, setAreaSearchTotalRooms] = useState(0);
+    const [areaSearchActive, setAreaSearchActive] = useState(false);
+
+    // Current user's preferred districts (for quick-select chips)
+    const [myPreferredDistricts, setMyPreferredDistricts] = useState<string[]>([]);
+
+    // Filter state (live inputs)
     const [filterArea, setFilterArea] = useState('');
     const [filterBudgetMax, setFilterBudgetMax] = useState<number | ''>('');
     const [filterRoomType, setFilterRoomType] = useState('');
     const [filterGender, setFilterGender] = useState('');
     const [showFilters, setShowFilters] = useState(true);
 
+    // Applied filter state (only set when user clicks Search)
+    const [appliedFilter, setAppliedFilter] = useState<{
+        area: string; budgetMax: number | ''; roomType: string; gender: string;
+    }>({ area: '', budgetMax: '', roomType: '', gender: '' });
+
     const hasGender = user?.gender && String(user.gender).trim() && String(user.gender).toLowerCase() !== 'không tiết lộ';
 
     const hasActiveFilter = !!filterArea || filterBudgetMax !== '' || !!filterRoomType || !!filterGender;
+    const hasAppliedFilter = !!appliedFilter.area || appliedFilter.budgetMax !== '' || !!appliedFilter.roomType || !!appliedFilter.gender;
 
     const resetFilters = () => {
         setFilterArea('');
         setFilterBudgetMax('');
         setFilterRoomType('');
         setFilterGender('');
+        setAppliedFilter({ area: '', budgetMax: '', roomType: '', gender: '' });
+        setAreaSearchActive(false);
+        setAreaSearchResults([]);
+    };
+
+    const handleSearch = async () => {
+        // 1. Apply client-side filters
+        setAppliedFilter({
+            area: filterArea.trim(),
+            budgetMax: filterBudgetMax,
+            roomType: filterRoomType,
+            gender: filterGender,
+        });
+
+        // 2. If area is set, also call area searcher API
+        const area = filterArea.trim();
+        if (area) {
+            setAreaSearching(true);
+            setAreaSearchActive(true);
+            try {
+                const r = await getTopSearchersByAreaRequest(area, 10);
+                setAreaSearchResults(r.data || []);
+                setAreaSearchArea(r.area || area);
+                setAreaSearchTotalRooms(r.totalRoomsInArea || 0);
+            } catch {
+                setAreaSearchResults([]);
+                setAreaSearchArea(area);
+                setAreaSearchTotalRooms(0);
+            } finally {
+                setAreaSearching(false);
+            }
+        } else {
+            setAreaSearchActive(false);
+            setAreaSearchResults([]);
+        }
     };
 
     const filteredSuggestions = useMemo(() => {
-        if (!hasActiveFilter) return suggestions;
+        if (!hasAppliedFilter) return suggestions;
         return suggestions.filter((item) => {
             // Area filter
-            if (filterArea) {
-                const q = filterArea.toLowerCase();
+            if (appliedFilter.area) {
+                const q = appliedFilter.area.toLowerCase();
                 const districts = item.preference?.preferred_districts ?? [];
                 const location = item.preference?.preferredLocation ?? '';
                 const areaMatch =
@@ -170,24 +225,24 @@ export function FindRoommatePage() {
                 if (!areaMatch) return false;
             }
             // Budget filter
-            if (filterBudgetMax !== '') {
+            if (appliedFilter.budgetMax !== '') {
                 const candidateBudgetMax = item.preference?.budget_max;
-                if (candidateBudgetMax != null && candidateBudgetMax > Number(filterBudgetMax)) {
+                if (candidateBudgetMax != null && candidateBudgetMax > Number(appliedFilter.budgetMax)) {
                     return false;
                 }
             }
             // Room type filter
-            if (filterRoomType) {
-                if (item.preference?.room_type !== filterRoomType) return false;
+            if (appliedFilter.roomType) {
+                if (item.preference?.room_type !== appliedFilter.roomType) return false;
             }
             // Gender filter
-            if (filterGender) {
+            if (appliedFilter.gender) {
                 const g = (item.user.gender ?? '').toLowerCase();
-                if (g !== filterGender.toLowerCase()) return false;
+                if (g !== appliedFilter.gender.toLowerCase()) return false;
             }
             return true;
         });
-    }, [suggestions, filterArea, filterBudgetMax, filterRoomType, filterGender, hasActiveFilter]);
+    }, [suggestions, appliedFilter, hasAppliedFilter]);
 
     const loadSuggestions = () => {
         setLoadingSuggestions(true);
@@ -207,6 +262,20 @@ export function FindRoommatePage() {
 
     useEffect(() => {
         loadSuggestions();
+    }, [user?.id]);
+
+    // Fetch current user's preferred_districts for quick-select chips
+    useEffect(() => {
+        if (!user?.id) return;
+        getRoommateProfileRequest(user.id)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .then((r: any) => {
+                const districts = r.data?.preference?.preferred_districts;
+                if (Array.isArray(districts) && districts.length > 0) {
+                    setMyPreferredDistricts(districts);
+                }
+            })
+            .catch(() => {/* silent — chips are optional */});
     }, [user?.id]);
 
     useEffect(() => {
@@ -547,9 +616,11 @@ export function FindRoommatePage() {
                             </button>
                         </div>
                         <p className="text-muted-foreground text-sm mb-4">
-                            {hasGender
-                                ? 'Ưu tiên người cùng giới và có phong cách sống phù hợp với bạn'
-                                : 'Tenant phù hợp được sắp xếp theo điểm match cao đến thấp'}
+                            {areaSearchActive
+                                ? <>Ưu tiên người đang tìm phòng ở <strong className="text-primary">{areaSearchArea}</strong> — xếp hạng theo lượt tương tác từ cao đến thấp</>
+                                : hasGender
+                                    ? 'Ưu tiên người cùng giới và có phong cách sống phù hợp với bạn'
+                                    : 'Tenant phù hợp được sắp xếp theo điểm match cao đến thấp'}
                         </p>
 
                         {/* Filter bar */}
@@ -568,6 +639,7 @@ export function FindRoommatePage() {
                                                 type="text"
                                                 value={filterArea}
                                                 onChange={(e) => setFilterArea(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                                 placeholder="VD: Quận 1, Bình Thạnh..."
                                                 className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                             />
@@ -624,111 +696,409 @@ export function FindRoommatePage() {
                                         </select>
                                     </div>
                                 </div>
-                                {hasActiveFilter && (
-                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                                        <p className="text-sm text-muted-foreground">
-                                            Tìm thấy <span className="font-semibold text-foreground">{filteredSuggestions.length}</span> roommate phù hợp
-                                        </p>
+                                {/* Search button + result count */}
+                                <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border">
+                                    <button
+                                        type="button"
+                                        onClick={handleSearch}
+                                        disabled={!hasActiveFilter || areaSearching}
+                                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                                    >
+                                        {areaSearching ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Search className="w-4 h-4" />
+                                        )}
+                                        Tìm kiếm
+                                    </button>
+                                    {hasAppliedFilter && (
                                         <button
                                             type="button"
                                             onClick={resetFilters}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition-colors"
                                         >
                                             <RotateCcw className="w-3.5 h-3.5" />
                                             Xóa bộ lọc
                                         </button>
+                                    )}
+                                    {hasAppliedFilter && !areaSearchActive && (
+                                        <p className="text-sm text-muted-foreground ml-auto">
+                                            Tìm thấy <span className="font-semibold text-foreground">{filteredSuggestions.length}</span> roommate phù hợp
+                                        </p>
+                                    )}
+                                    {areaSearchActive && (
+                                        <p className="text-sm text-muted-foreground ml-auto">
+                                            Tìm thấy <span className="font-semibold text-foreground">{areaSearchResults.length}</span> roommate ở <span className="font-semibold text-primary">{areaSearchArea}</span>
+                                            <span className="text-xs ml-1">({areaSearchTotalRooms} phòng trong khu vực)</span>
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Quick-select: preferred districts from user's profile */}
+                                {myPreferredDistricts.length > 0 && (
+                                    <div className="mt-3 flex items-center gap-2 flex-wrap">
+                                        <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+                                            <MapPin className="w-3 h-3" />
+                                            Khu vực ưa thích của bạn:
+                                        </span>
+                                        {myPreferredDistricts.map((district) => (
+                                            <button
+                                                key={district}
+                                                type="button"
+                                                onClick={async () => {
+                                                    setFilterArea(district);
+                                                    // Apply & search immediately
+                                                    setAppliedFilter({ area: district, budgetMax: filterBudgetMax, roomType: filterRoomType, gender: filterGender });
+                                                    setAreaSearching(true);
+                                                    setAreaSearchActive(true);
+                                                    try {
+                                                        const r = await getTopSearchersByAreaRequest(district, 10);
+                                                        setAreaSearchResults(r.data || []);
+                                                        setAreaSearchArea(r.area || district);
+                                                        setAreaSearchTotalRooms(r.totalRoomsInArea || 0);
+                                                    } catch {
+                                                        setAreaSearchResults([]);
+                                                        setAreaSearchArea(district);
+                                                        setAreaSearchTotalRooms(0);
+                                                    } finally {
+                                                        setAreaSearching(false);
+                                                    }
+                                                }}
+                                                className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border transition-all font-medium ${
+                                                    filterArea === district
+                                                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                                        : 'bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5'
+                                                }`}
+                                            >
+                                                <MapPin className="w-2.5 h-2.5" />
+                                                {district}
+                                            </button>
+                                        ))}
                                     </div>
                                 )}
                             </div>
                         )}
-                        {loadingSuggestions ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {[1, 2, 3].map((i) => (
-                                    <div key={i} className="bg-card rounded-2xl border border-border p-6 animate-pulse">
-                                        <div className="flex gap-4">
-                                            <div className="w-16 h-16 rounded-full bg-muted" />
-                                            <div className="flex-1 space-y-2">
-                                                <div className="h-5 bg-muted rounded w-2/3" />
-                                                <div className="h-4 bg-muted rounded w-1/2" />
-                                                <div className="h-10 bg-muted rounded-xl w-full mt-4" />
+
+                        {/* ── Main Results: Area-based OR general suggestions ── */}
+                        {areaSearchActive ? (
+                            /* Area-based: show users ranked by activity in area */
+                            areaSearching ? (
+                                <div className="flex items-center justify-center py-16">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                    <span className="ml-3 text-muted-foreground">Đang tìm người cùng khu vực...</span>
+                                </div>
+                            ) : areaSearchResults.length === 0 ? (
+                                <div className="rounded-2xl border-2 border-dashed border-orange-300 bg-orange-50/50 dark:bg-orange-950/20 p-12 text-center">
+                                    <TrendingUp className="w-10 h-10 mx-auto mb-3 text-orange-400 opacity-60" />
+                                    <p className="text-muted-foreground">
+                                        Chưa có ai tương tác với phòng ở khu vực "<strong>{areaSearchArea}</strong>". Thử khu vực khác.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {areaSearchResults.map((item, index) => (
+                                        <div
+                                            key={item.user.id}
+                                            className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="flex items-stretch">
+                                                {/* Rank badge */}
+                                                <div className={`flex items-center justify-center px-4 shrink-0 ${
+                                                    index === 0 ? 'bg-gradient-to-b from-amber-400 to-orange-500 text-white' :
+                                                    index === 1 ? 'bg-gradient-to-b from-slate-300 to-slate-400 text-white' :
+                                                    index === 2 ? 'bg-gradient-to-b from-amber-600 to-amber-700 text-white' :
+                                                    'bg-muted/50 text-muted-foreground'
+                                                }`}>
+                                                    <span className="text-lg font-bold">{index + 1}</span>
+                                                </div>
+
+                                                {/* Main content */}
+                                                <div className="flex-1 p-5">
+                                                    <div className="flex gap-4">
+                                                        <button
+                                                            type="button"
+                                                            className="shrink-0 group relative"
+                                                            onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                            title="Xem hồ sơ"
+                                                        >
+                                                            <ImageWithFallback
+                                                                src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
+                                                                alt={item.user.fullName}
+                                                                className="w-14 h-14 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors"
+                                                            />
+                                                            <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Eye className="w-5 h-5 text-white" />
+                                                            </span>
+                                                        </button>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-left"
+                                                                    onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                                    title="Xem hồ sơ"
+                                                                >
+                                                                    {item.user.fullName}
+                                                                </button>
+                                                                <div className="flex items-center gap-2 shrink-0">
+                                                                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                                        {item.matchScore}% phù hợp
+                                                                    </span>
+                                                                    {item.isSameGender && (
+                                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">Cùng giới</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Activity badges - the core info for area search */}
+                                                            <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                                                    <TrendingUp className="w-3 h-3" />
+                                                                    {item.activityInArea.totalScore} điểm tương tác
+                                                                </span>
+                                                                {item.activityInArea.views > 0 && (
+                                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-sky-50 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400">
+                                                                        👁️ {item.activityInArea.views} lượt xem
+                                                                    </span>
+                                                                )}
+                                                                {item.activityInArea.favorites > 0 && (
+                                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400">
+                                                                        ❤️ {item.activityInArea.favorites} lưu
+                                                                    </span>
+                                                                )}
+                                                                {item.activityInArea.preorders > 0 && (
+                                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                                                                        📝 {item.activityInArea.preorders} đặt cọc
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Gender info */}
+                                                            {item.user.gender && (
+                                                                <p className="text-xs text-muted-foreground mt-1">
+                                                                    {item.user.gender}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Action buttons */}
+                                                <div className="flex items-center gap-2 px-5 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                        className="py-2.5 px-4 rounded-xl font-medium text-sm border border-border hover:bg-muted flex items-center justify-center gap-1.5 transition-colors"
+                                                    >
+                                                        <Eye className="w-4 h-4" /> Hồ sơ
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={!!sendingId}
+                                                        onClick={() => handleSendRequest(item.user.id)}
+                                                        className="py-2.5 px-4 rounded-xl font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-1.5 transition-colors"
+                                                    >
+                                                        {sendingId === item.user.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <UserPlus className="w-4 h-4" />
+                                                        )}
+                                                        Gửi lời mời
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
+                                    ))}
+                                </div>
+                            )
+                        ) : null}
+
+                        {/* Secondary section: people whose preferred_districts matches the area */}
+                        {areaSearchActive && !areaSearching && (() => {
+                            const areaLower = areaSearchArea.toLowerCase();
+                            const activityIds = new Set(areaSearchResults.map((r) => r.user.id));
+                            const matched = suggestions.filter((s) => {
+                                if (activityIds.has(s.user.id)) return false; // already shown above
+                                const districts: string[] = s.preference?.preferred_districts ?? [];
+                                return districts.some((d) => d.toLowerCase().includes(areaLower) || areaLower.includes(d.toLowerCase()));
+                            });
+                            if (matched.length === 0) return null;
+                            return (
+                                <div className="mt-6">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <MapPin className="w-4 h-4 text-primary" />
+                                        <h3 className="font-semibold text-foreground text-sm">
+                                            Người có sở thích khu vực <span className="text-primary">"{areaSearchArea}"</span>
+                                        </h3>
+                                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                                            {matched.length} người
+                                        </span>
                                     </div>
-                                ))}
-                            </div>
-                        ) : filteredSuggestions.length === 0 ? (
-                            <div className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-12 text-center text-muted-foreground">
-                                {hasActiveFilter
-                                    ? 'Không tìm thấy roommate phù hợp với bộ lọc. Thử thay đổi tiêu chí lọc.'
-                                    : 'Chưa có gợi ý phù hợp. Hãy cập nhật Phong cách sống và Sở thích tìm phòng trong Hồ sơ để nhận gợi ý tốt hơn.'}
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                                {filteredSuggestions.map((item) => (
-                                    <div
-                                        key={item.user.id}
-                                        className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                                    >
-                                        <div className="p-5 flex gap-4">
-                                            <button
-                                                type="button"
-                                                className="shrink-0 group relative"
-                                                onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
-                                                title="Xem hồ sơ"
+                                    <p className="text-xs text-muted-foreground mb-3">
+                                        Những người này đã khai báo <strong>{areaSearchArea}</strong> là khu vực ưa thích trong hồ sơ tìm phòng — chưa có tương tác thực tế nhưng đang tìm cùng khu vực với bạn.
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {matched.map((item) => (
+                                            <div
+                                                key={item.user.id}
+                                                className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
                                             >
-                                                <ImageWithFallback
-                                                    src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
-                                                    alt={item.user.fullName}
-                                                    className="w-16 h-16 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors"
-                                                />
-                                                <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Eye className="w-5 h-5 text-white" />
-                                                </span>
-                                            </button>
-                                            <div className="min-w-0 flex-1">
+                                                <div className="p-5 flex gap-4">
+                                                    <button
+                                                        type="button"
+                                                        className="shrink-0 group relative"
+                                                        onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                        title="Xem hồ sơ"
+                                                    >
+                                                        <ImageWithFallback
+                                                            src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
+                                                            alt={item.user.fullName}
+                                                            className="w-14 h-14 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors"
+                                                        />
+                                                        <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Eye className="w-4 h-4 text-white" />
+                                                        </span>
+                                                    </button>
+                                                    <div className="min-w-0 flex-1">
+                                                        <button
+                                                            type="button"
+                                                            className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-left text-sm"
+                                                            onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                        >
+                                                            {item.user.fullName}
+                                                        </button>
+                                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                                {item.matchScore}% phù hợp
+                                                            </span>
+                                                            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                                                                <MapPin className="w-2.5 h-2.5" />
+                                                                Sở thích khu vực
+                                                            </span>
+                                                        </div>
+                                                        <LifestyleTags item={item} />
+                                                    </div>
+                                                </div>
+                                                <div className="px-5 pb-5 flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                        className="flex-1 py-2 rounded-xl font-medium border border-border hover:bg-muted flex items-center justify-center gap-1.5 text-sm transition-colors"
+                                                    >
+                                                        <Eye className="w-3.5 h-3.5" /> Hồ sơ
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={!!sendingId}
+                                                        onClick={() => handleSendRequest(item.user.id)}
+                                                        className="flex-1 py-2 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-1.5 text-sm transition-colors"
+                                                    >
+                                                        {sendingId === item.user.id ? (
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        ) : (
+                                                            <UserPlus className="w-3.5 h-3.5" />
+                                                        )}
+                                                        Gửi lời mời
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {/* General suggestions (no area filter) */}
+                        {!areaSearchActive ? (
+                            loadingSuggestions ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {[1, 2, 3].map((i) => (
+                                        <div key={i} className="bg-card rounded-2xl border border-border p-6 animate-pulse">
+                                            <div className="flex gap-4">
+                                                <div className="w-16 h-16 rounded-full bg-muted" />
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="h-5 bg-muted rounded w-2/3" />
+                                                    <div className="h-4 bg-muted rounded w-1/2" />
+                                                    <div className="h-10 bg-muted rounded-xl w-full mt-4" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : filteredSuggestions.length === 0 ? (
+                                <div className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-12 text-center text-muted-foreground">
+                                    {hasActiveFilter
+                                        ? 'Không tìm thấy roommate phù hợp với bộ lọc. Thử thay đổi tiêu chí lọc.'
+                                        : 'Chưa có gợi ý phù hợp. Hãy cập nhật Phong cách sống và Sở thích tìm phòng trong Hồ sơ để nhận gợi ý tốt hơn.'}
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                                    {filteredSuggestions.map((item) => (
+                                        <div
+                                            key={item.user.id}
+                                            className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="p-5 flex gap-4">
                                                 <button
                                                     type="button"
-                                                    className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-left"
+                                                    className="shrink-0 group relative"
                                                     onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
                                                     title="Xem hồ sơ"
                                                 >
-                                                    {item.user.fullName}
-                                                </button>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                                        {item.matchScore}% phù hợp
+                                                    <ImageWithFallback
+                                                        src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
+                                                        alt={item.user.fullName}
+                                                        className="w-16 h-16 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors"
+                                                    />
+                                                    <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Eye className="w-5 h-5 text-white" />
                                                     </span>
+                                                </button>
+                                                <div className="min-w-0 flex-1">
+                                                    <button
+                                                        type="button"
+                                                        className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-left"
+                                                        onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                        title="Xem hồ sơ"
+                                                    >
+                                                        {item.user.fullName}
+                                                    </button>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                            {item.matchScore}% phù hợp
+                                                        </span>
+                                                    </div>
+                                                    <LifestyleTags item={item} />
                                                 </div>
-                                                <LifestyleTags item={item} />
+                                            </div>
+                                            <div className="px-5 pb-5 flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                    className="flex-1 py-2.5 rounded-xl font-medium border border-border hover:bg-muted flex items-center justify-center gap-2 transition-colors"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    Xem hồ sơ
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={!!sendingId}
+                                                    onClick={() => handleSendRequest(item.user.id)}
+                                                    className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
+                                                >
+                                                    {sendingId === item.user.id ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <UserPlus className="w-4 h-4" />
+                                                    )}
+                                                    Gửi lời mời
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="px-5 pb-5 flex gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
-                                                className="flex-1 py-2.5 rounded-xl font-medium border border-border hover:bg-muted flex items-center justify-center gap-2 transition-colors"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                                Xem hồ sơ
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={!!sendingId}
-                                                onClick={() => handleSendRequest(item.user.id)}
-                                                className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
-                                            >
-                                                {sendingId === item.user.id ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                ) : (
-                                                    <UserPlus className="w-4 h-4" />
-                                                )}
-                                                Gửi lời mời
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                                    ))}
+                                </div>
+                            )
+                        ) : null}
                     </section>
 
                     {/* My matches */}
