@@ -264,16 +264,6 @@ export function ModeratorDashboardPage() {
     }
 
     // Chart data
-    const rentalStatusData = [
-        { name: 'Đã duyệt', value: overview.approvedRentalCount, fill: '#52c41a' },
-        { name: 'Chờ duyệt', value: overview.pendingRentalCount, fill: '#722ed1' },
-    ];
-
-    const roomPostStatusData = [
-        { name: 'Đã duyệt', value: overview.approvedRoomPostCount, fill: '#52c41a' },
-        { name: 'Chờ duyệt', value: overview.pendingRoomPostCount, fill: '#13c2c2' },
-    ];
-
     const reportStatusData = [
         { name: 'Đang mở', value: overview.openReportCount, fill: '#ff4d4f' },
         { name: 'Đã giải quyết', value: overview.resolvedReportCount, fill: '#52c41a' },
@@ -574,14 +564,14 @@ export function ModeratorDashboardPage() {
                                             style={{
                                                 backgroundColor:
                                                     item.target_type === 'rental' ? '#e6f4ff' :
-                                                    item.target_type === 'room_post' ? '#e6fffb' :
-                                                    item.target_type === 'report' ? '#fff2f0' :
-                                                    item.target_type === 'review' ? '#fffbe6' : '#f0f0ff',
+                                                        item.target_type === 'room_post' ? '#e6fffb' :
+                                                            item.target_type === 'report' ? '#fff2f0' :
+                                                                item.target_type === 'review' ? '#fffbe6' : '#f0f0ff',
                                                 color:
                                                     item.target_type === 'rental' ? '#1677ff' :
-                                                    item.target_type === 'room_post' ? '#13c2c2' :
-                                                    item.target_type === 'report' ? '#ff4d4f' :
-                                                    item.target_type === 'review' ? '#faad14' : '#722ed1',
+                                                        item.target_type === 'room_post' ? '#13c2c2' :
+                                                            item.target_type === 'report' ? '#ff4d4f' :
+                                                                item.target_type === 'review' ? '#faad14' : '#722ed1',
                                                 flexShrink: 0,
                                             }}
                                         />

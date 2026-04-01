@@ -1042,3 +1042,208 @@ export async function getModeratorKpis(params: DateRangeParams = {}): Promise<Mo
         return null;
     }
 }
+
+// ==================== VIP Admin API ====================
+
+export interface AdminVipPackage {
+    id: string;
+    name: string;
+    description: string | null;
+    durationDays: number;
+    price: number;
+    targetRole: 'TENANT' | 'LANDLORD' | string;
+    isActive: boolean;
+    createdAt: string | null;
+}
+
+export interface GetAdminVipPackagesParams {
+    page?: number;
+    limit?: number;
+    status?: 'ACTIVE' | 'INACTIVE';
+    targetRole?: 'TENANT' | 'LANDLORD';
+    search?: string;
+}
+
+export interface AdminVipPurchase {
+    id: string;
+    orderCode: string;
+    userId: string;
+    amount: number;
+    status: string;
+    purpose: string;
+    packageId: string | null;
+    package: AdminVipPackage | null;
+    refund: {
+        status: string;
+        amount: number | null;
+        reason: string | null;
+        requestedAt: string | null;
+        completedAt: string | null;
+        requestedBy: string | null;
+        refundTxnRef: string | null;
+        refundTransactionNo: string | null;
+    };
+    createdAt: string | null;
+    updatedAt: string | null;
+    user: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone: string | null;
+        role: string;
+        isVip: boolean;
+        vipExpiresAt: string | null;
+    } | null;
+}
+
+export interface GetAdminVipPurchasesParams {
+    page?: number;
+    limit?: number;
+    status?: string;
+    refundStatus?: string;
+    userId?: string;
+    packageId?: string;
+    search?: string;
+    createdFrom?: string;
+    createdTo?: string;
+}
+
+export interface AdminVipPurchasesSummary {
+    revenueSuccessAmount: number;
+    refundSuccessCount: number;
+    activeVipUsers: number;
+}
+
+export async function getAdminVipPackages(params: GetAdminVipPackagesParams = {}): Promise<{
+    data: AdminVipPackage[];
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/vip/packages'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            data: res.data.data || [],
+            pagination: res.data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+        };
+    } catch (error) {
+        console.error('getAdminVipPackages error:', error);
+        return {
+            data: [],
+            pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function createAdminVipPackage(payload: {
+    name: string;
+    durationDays: number;
+    price: number;
+    description?: string;
+    targetRole: 'TENANT' | 'LANDLORD';
+    isActive?: boolean;
+}): Promise<{ success: boolean; message: string }> {
+    try {
+        const res = await axios.post(getApiUrl('/admin/vip/packages'), payload, {
+            headers: getAuthHeader(),
+        });
+        return {
+            success: true,
+            message: res.data?.message || 'Tạo gói VIP thành công',
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Không thể tạo gói VIP',
+        };
+    }
+}
+
+export async function updateAdminVipPackage(
+    packageId: string,
+    payload: {
+        name?: string;
+        durationDays?: number;
+        price?: number;
+        description?: string | null;
+        targetRole?: 'TENANT' | 'LANDLORD';
+        isActive?: boolean;
+    }
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const res = await axios.patch(getApiUrl(`/admin/vip/packages/${packageId}`), payload, {
+            headers: getAuthHeader(),
+        });
+        return {
+            success: true,
+            message: res.data?.message || 'Cập nhật gói VIP thành công',
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Không thể cập nhật gói VIP',
+        };
+    }
+}
+
+export async function getAdminVipPurchases(params: GetAdminVipPurchasesParams = {}): Promise<{
+    data: AdminVipPurchase[];
+    summary: AdminVipPurchasesSummary;
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/vip/purchases'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            data: res.data.data || [],
+            summary: res.data.summary || {
+                revenueSuccessAmount: 0,
+                refundSuccessCount: 0,
+                activeVipUsers: 0,
+            },
+            pagination: res.data.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    } catch (error) {
+        console.error('getAdminVipPurchases error:', error);
+        return {
+            data: [],
+            summary: {
+                revenueSuccessAmount: 0,
+                refundSuccessCount: 0,
+                activeVipUsers: 0,
+            },
+            pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function refundAdminVipPurchase(
+    orderId: string,
+    payload: {
+        reasonCode: 'CUSTOMER_REQUEST' | 'DUPLICATE_PAYMENT' | 'SYSTEM_ERROR' | 'FRAUD_SUSPECT' | 'OTHER';
+        reason: string;
+        amount?: number;
+        revokeVip?: boolean;
+    }
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const res = await axios.patch(getApiUrl(`/admin/vip/purchases/${orderId}/refund`), payload, {
+            headers: getAuthHeader(),
+        });
+        return {
+            success: true,
+            message: res.data?.message || 'Hoàn tiền thành công',
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Không thể hoàn tiền giao dịch VIP',
+        };
+    }
+}
