@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MultiImageUpload } from '@/app/components/MultiImageUpload';
+import { MultiFileSelect } from '@/app/components/MultiFileSelect';
 import { createRentalRequest } from '@/lib/api';
 import { useProvinces } from '@/app/hooks/useProvinces';
 import { findOldAddress, type OldAddressInfo } from '@/app/constants/v1-v2-mapping';
@@ -19,10 +20,10 @@ interface CreateRentalFormState {
 }
 
 interface DocumentsState {
-    cccd: string[];      // Căn cước công dân (2 ảnh: mặt trước + mặt sau)
-    soDo: string[];      // Sổ đỏ / Giấy CN quyền sử dụng đất
-    gpkd: string[];      // Giấy phép kinh doanh
-    other: string[];     // Giấy tờ khác (hợp đồng thuê, ủy quyền...)
+    cccd: File[];      // Căn cước công dân (2 ảnh: mặt trước + mặt sau)
+    soDo: File[];      // Sổ đỏ / Giấy CN quyền sử dụng đất
+    gpkd: File[];      // Giấy phép kinh doanh
+    other: File[];     // Giấy tờ khác (hợp đồng thuê, ủy quyền...)
 }
 
 const DOCUMENT_LABELS: Record<keyof DocumentsState, { label: string; required: boolean; description: string; minImages: number; maxImages: number }> = {
@@ -71,7 +72,7 @@ export function CreateRentalPage() {
         if (!form.city.trim()) nextErrors.city = 'Thành phố là bắt buộc.';
         if (!form.district.trim()) nextErrors.district = 'Phường/xã là bắt buộc.';
         if (!form.address.trim()) nextErrors.address = 'Địa chỉ là bắt buộc.';
-        
+
         // Validation giấy tờ bắt buộc
         if (documents.cccd.length < 2) {
             nextErrors.cccd = 'Cần upload đủ 2 ảnh CCCD (mặt trước + mặt sau).';
@@ -82,7 +83,7 @@ export function CreateRentalPage() {
         if (documents.gpkd.length < 1) {
             nextErrors.gpkd = 'Giấy phép kinh doanh là bắt buộc.';
         }
-        
+
         if (!Number.isFinite(availableRoomNumber) || availableRoomNumber < 0) {
             nextErrors.available_room = 'Số phòng phải là số nguyên dương.';
         }
@@ -91,7 +92,7 @@ export function CreateRentalPage() {
         return Object.keys(nextErrors).length === 0;
     };
 
-    const { provinces, getWardsFor, loading: locationsLoading } = useProvinces();
+    const { getWardsFor, loading: locationsLoading } = useProvinces();
     const wardOptions = form.city ? getWardsFor(form.city) : [];
 
     // Auto-detect old address when district/city changes
@@ -121,23 +122,24 @@ export function CreateRentalPage() {
         setSubmitError(null);
         setIsSubmitting(true);
 
-        const payload = {
-            title: form.title,
-            description: form.description || undefined,
-            city: form.city,
-            district: form.district,
-            address: form.address,
-            images: form.images.length > 0 ? form.images : undefined,
-            documents: [
-                ...documents.cccd.map(url => ({ documentType: 'CCCD', imageUrl: url })),
-                ...documents.soDo.map(url => ({ documentType: 'SO_DO', imageUrl: url })),
-                ...documents.gpkd.map(url => ({ documentType: 'GPKD', imageUrl: url })),
-                ...documents.other.map(url => ({ documentType: 'OTHER', imageUrl: url })),
-            ],
-        };
+        // Collect all document files
+        const allDocumentFiles = [
+            ...documents.cccd,
+            ...documents.soDo,
+            ...documents.gpkd,
+            ...documents.other,
+        ];
 
         try {
-            await createRentalRequest(payload);
+            await createRentalRequest({
+                title: form.title,
+                description: form.description || undefined,
+                city: form.city,
+                district: form.district,
+                address: form.address,
+                imageUrls: form.images.length > 0 ? form.images : undefined,
+                documentFiles: allDocumentFiles.length > 0 ? allDocumentFiles : undefined,
+            });
 
             navigate('/rental-management/rentals');
         } catch (err) {
@@ -160,8 +162,8 @@ export function CreateRentalPage() {
                 {oldAddress && (
                     <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
                         <p className="text-sm text-blue-900">
-                            <strong> Cập nhật địa chỉ hành chính:</strong><br/>
-                            Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br/>
+                            <strong> Cập nhật địa chỉ hành chính:</strong><br />
+                            Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br />
                             Bây giờ: <strong>{form.district}, {form.city}</strong>
                         </p>
                     </div>
@@ -280,17 +282,17 @@ export function CreateRentalPage() {
                                     const hasError = errors[key];
                                     return (
                                         <div key={key} className={`bg-white rounded-lg p-3 border ${hasError ? 'border-rose-300' : 'border-slate-200'}`}>
-                                            <MultiImageUpload
+                                            <MultiFileSelect
                                                 label={`${label}${required ? ' *' : ''}`}
                                                 value={documents[key]}
-                                                onChange={(urls) => {
-                                                    setDocuments(prev => ({ ...prev, [key]: urls }));
+                                                onChange={(files) => {
+                                                    setDocuments(prev => ({ ...prev, [key]: files }));
                                                     setErrors(prev => ({ ...prev, [key]: undefined }));
                                                 }}
-                                                maxImages={maxImages}
+                                                maxFiles={maxImages}
                                             />
                                             <p className="mt-1 text-xs text-slate-500">
-                                                {description} {minImages > 0 ? `(tối thiểu ${minImages} ảnh)` : ''}
+                                                {description} {minImages > 0 ? `(tối thiểu ${minImages} file)` : ''}
                                             </p>
                                             {hasError && <p className="mt-1 text-xs text-rose-600">{hasError}</p>}
                                         </div>

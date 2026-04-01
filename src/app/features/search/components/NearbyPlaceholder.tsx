@@ -35,15 +35,6 @@ export function NearbyPlaceholder({ onSearchNearby, isSearching, isLoggedIn }: N
 
     if (!isLoggedIn) return null;
 
-    const handleFindNearby = () => {
-        if (geo.hasLocation) {
-            onSearchNearby(geo.latitude!, geo.longitude!, radius);
-        } else {
-            geo.requestLocation();
-        }
-    };
-
-    // Auto-search after getting location
     const handleGetLocationAndSearch = () => {
         if (geo.hasLocation) {
             onSearchNearby(geo.latitude!, geo.longitude!, radius);

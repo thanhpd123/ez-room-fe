@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Room, SearchCriteria } from '../types';
 import { smartSearchRequest, advancedSearchRequest, searchByImageRequest, nearbySearchRequest } from '@/lib/api';
-import type { SmartSearchRoomItem } from '@/lib/api';
+import type { SmartSearchRoomItem, ApiErrorWithCode } from '@/lib/api';
 import { useAuth } from '@/app/context/useAuth';
 
 function smartSearchItemToRoom(r: SmartSearchRoomItem): Room {
@@ -22,9 +22,14 @@ function smartSearchItemToRoom(r: SmartSearchRoomItem): Room {
         rentalId: r.rentalId,
         matchScore: r.matchScore,
         otherRoomsInRental: r.otherRoomsInRental,
-        distanceKm: (r as Record<string, unknown>).distanceKm as number | undefined,
-        nearbyPOIs: (r as Record<string, unknown>).nearbyPOIs as Room['nearbyPOIs'],
+        distanceKm: (r as unknown as Record<string, unknown>).distanceKm as number | undefined,
+        nearbyPOIs: (r as unknown as Record<string, unknown>).nearbyPOIs as Room['nearbyPOIs'],
     };
+}
+
+function isVipFilterError(err: unknown): err is ApiErrorWithCode {
+    const e = err as ApiErrorWithCode;
+    return e?.code === 'VIP_REQUIRED_FOR_ADVANCED_FILTERS';
 }
 
 interface UseSearchReturn {
@@ -38,6 +43,8 @@ interface UseSearchReturn {
     imageSearchError: string | null;
     searchError: string | null;
     searchMode: string | null;
+    textSearchError: string | null;
+    vipUpgradePath: string | null;
 }
 
 export function useSearch(isLoggedIn = false): UseSearchReturn {
@@ -49,79 +56,112 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
     const [imageSearchError, setImageSearchError] = useState<string | null>(null);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [searchMode, setSearchMode] = useState<string | null>(null);
+    const [textSearchError, setTextSearchError] = useState<string | null>(null);
+    const [vipUpgradePath, setVipUpgradePath] = useState<string | null>(null);
     const [lastCriteria, setLastCriteria] = useState<SearchCriteria | null>(null);
 
-    const searchByText = useCallback(async (criteria: SearchCriteria) => {
-        setIsSearching(true);
-        setHasSearched(false);
-        setImageSearchError(null);
-        setSearchError(null);
-        setSearchMode(null);
+    const searchByText = useCallback(
+        async (criteria: SearchCriteria) => {
+            setIsSearching(true);
+            setHasSearched(false);
+            setImageSearchError(null);
+            setSearchError(null);
+            setSearchMode(null);
+            setTextSearchError(null);
+            setVipUpgradePath(null);
 
-        const params = {
-            q: criteria.q || undefined,
-            city: criteria.city?.trim() || undefined,
-            district: criteria.district?.trim() || criteria.location?.trim() || undefined,
-            address: criteria.address?.trim() || undefined,
-            minPrice: criteria.minPrice,
-            maxPrice: criteria.maxPrice,
-            roomType: criteria.roomType || undefined,
-            minArea: criteria.minArea,
-            maxArea: criteria.maxArea,
-            amenities: criteria.amenities?.length ? criteria.amenities : undefined,
-            limit: 500,
-            lat: criteria.lat,
-            lng: criteria.lng,
-        };
+            const params = {
+                q: criteria.q || undefined,
+                city: criteria.city?.trim() || undefined,
+                district: criteria.district?.trim() || criteria.location?.trim() || undefined,
+                address: criteria.address?.trim() || undefined,
+                minPrice: criteria.minPrice,
+                maxPrice: criteria.maxPrice,
+                roomType: criteria.roomType || undefined,
+                minArea: criteria.minArea,
+                maxArea: criteria.maxArea,
+                amenities: criteria.amenities?.length ? criteria.amenities : undefined,
+                limit: 500,
+                lat: criteria.lat,
+                lng: criteria.lng,
+            };
 
-        try {
-            let res;
-            if (isLoggedIn) {
-                try {
-                    res = await advancedSearchRequest(params, { token: accessToken });
-                    setSearchMode((res as { searchMode?: string }).searchMode || 'advanced');
-                } catch {
-                    // Fallback to public smart search when auth token is stale or advanced search is unavailable.
-                    res = await smartSearchRequest(params);
+            try {
+                let res;
+                if (isLoggedIn) {
+                    try {
+                        res = await advancedSearchRequest(params, { token: accessToken });
+                        setSearchMode((res as { searchMode?: string }).searchMode || 'advanced');
+                    } catch {
+                        try {
+                            res = await smartSearchRequest(params);
+                        } catch (err: unknown) {
+                            if (isVipFilterError(err)) {
+                                const e = err as ApiErrorWithCode;
+                                setTextSearchError(e.message || 'Bộ lọc nâng cao yêu cầu tài khoản VIP');
+                                setVipUpgradePath(e.upgradePath || '/vip-plans');
+                                setResults([]);
+                                return;
+                            }
+                            throw err;
+                        }
+                        setSearchMode('basic');
+                        setSearchError('Tìm kiếm nâng cao tạm thời không khả dụng, đã chuyển sang tìm kiếm thường.');
+                    }
+                } else {
+                    try {
+                        res = await smartSearchRequest(params);
+                    } catch (err: unknown) {
+                        if (isVipFilterError(err)) {
+                            const e = err as ApiErrorWithCode;
+                            setTextSearchError(e.message || 'Bộ lọc nâng cao yêu cầu tài khoản VIP');
+                            setVipUpgradePath(e.upgradePath || '/vip-plans');
+                            setResults([]);
+                            return;
+                        }
+                        throw err;
+                    }
                     setSearchMode('basic');
-                    setSearchError('Tìm kiếm nâng cao tạm thời không khả dụng, đã chuyển sang tìm kiếm thường.');
                 }
-            } else {
-                res = await smartSearchRequest(params);
-                setSearchMode('basic');
+                setResults((res.data || []).map(smartSearchItemToRoom));
+                setLastCriteria(criteria);
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm';
+                setSearchError(message);
+                setResults([]);
+            } finally {
+                setIsSearching(false);
+                setHasSearched(true);
             }
-            setResults((res.data || []).map(smartSearchItemToRoom));
-            setLastCriteria(criteria);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm';
-            setSearchError(message);
-            setResults([]);
-        } finally {
-            setIsSearching(false);
-            setHasSearched(true);
-        }
-    }, [isLoggedIn, accessToken]);
+        },
+        [isLoggedIn, accessToken]
+    );
 
-    const searchNearby = useCallback(async (lat: number, lng: number, radius?: number) => {
-        setIsSearching(true);
-        setHasSearched(false);
-        setImageSearchError(null);
-        setSearchError(null);
-        setSearchMode(null);
+    const searchNearby = useCallback(
+        async (lat: number, lng: number, radius?: number) => {
+            setIsSearching(true);
+            setHasSearched(false);
+            setImageSearchError(null);
+            setSearchError(null);
+            setSearchMode(null);
+            setTextSearchError(null);
+            setVipUpgradePath(null);
 
-        try {
-            const res = await nearbySearchRequest({ lat, lng, radius, limit: 100 }, { token: accessToken });
-            setSearchMode('nearby');
-            setResults((res.data || []).map(smartSearchItemToRoom));
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm gần bạn';
-            setSearchError(message);
-            setResults([]);
-        } finally {
-            setIsSearching(false);
-            setHasSearched(true);
-        }
-    }, [accessToken]);
+            try {
+                const res = await nearbySearchRequest({ lat, lng, radius, limit: 100 }, { token: accessToken });
+                setSearchMode('nearby');
+                setResults((res.data || []).map(smartSearchItemToRoom));
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm gần bạn';
+                setSearchError(message);
+                setResults([]);
+            } finally {
+                setIsSearching(false);
+                setHasSearched(true);
+            }
+        },
+        [accessToken]
+    );
 
     const searchByImage = useCallback(
         (imageFile: File, options?: { district?: string }) => {
@@ -130,9 +170,9 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
             setImageSearchError(null);
             setSearchError(null);
             setSearchMode(null);
+            setTextSearchError(null);
+            setVipUpgradePath(null);
 
-            // Reuse last advanced criteria so image becomes just one more factor,
-            // falling back to district from options if no previous criteria.
             const base = lastCriteria || {};
             const paramsForImage = {
                 q: base.q || undefined,
@@ -193,9 +233,10 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
         setImageSearchError(null);
         setSearchError(null);
         setSearchMode(null);
+        setTextSearchError(null);
+        setVipUpgradePath(null);
     }, []);
 
-    // Auto-search from URL params (re-runs when auth level resolves or URL changes)
     useEffect(() => {
         const district = searchParams.get('district');
         const city = searchParams.get('city');
@@ -242,5 +283,7 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
         imageSearchError,
         searchError,
         searchMode,
+        textSearchError,
+        vipUpgradePath,
     };
 }

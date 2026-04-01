@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/app/context/AuthContext';
 import {
+    checkQueueStatus,
     getReviewDetail,
     listModeratedReviews,
     moderateReviewStatus,
     type FeedbackStatusEnum,
     type ModeratorReviewDetail,
     type ModeratorReviewItem,
+    type QueueLockStatus,
 } from '../shared/moderator-storage';
 
 const TAB_ALL = 'all';
@@ -48,18 +52,26 @@ function formatDate(dateString?: string | null) {
 }
 
 export function ModerateReviewsPage() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const highlightId = searchParams.get('highlight');
+    const highlightApplied = useRef(false);
+
     const [items, setItems] = useState<ModeratorReviewItem[]>([]);
-    const [pagination, setPagination] = useState({ page: 1, limit: 100, total: 0, totalPages: 0 });
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<string>('PENDING');
-    const [selectedId, setSelectedId] = useState<string>('');
+    const [activeTab, setActiveTab] = useState<string>(highlightId ? TAB_ALL : 'PENDING');
+    const [selectedId, setSelectedId] = useState<string>(highlightId ?? '');
     const [detail, setDetail] = useState<ModeratorReviewDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [moderatorNote, setModeratorNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [queueLock, setQueueLock] = useState<QueueLockStatus>({ hasQueue: false });
+    const { user } = useAuth();
 
     const statusFilter = activeTab === TAB_ALL ? undefined : (activeTab as FeedbackStatusEnum);
+    const selectedIdRef = useRef(selectedId);
+    selectedIdRef.current = selectedId;
+    const detailCache = useRef<Record<string, ModeratorReviewDetail | null>>({});
 
     const loadList = useCallback(async () => {
         setIsLoading(true);
@@ -67,11 +79,11 @@ export function ModerateReviewsPage() {
         try {
             const res = await listModeratedReviews({
                 status: statusFilter,
-                limit: 100,
+                limit: 50,
             });
             setItems(res.items);
-            setPagination(res.pagination);
-            if (res.items.length > 0 && !res.items.some((i) => i.id === selectedId)) {
+            const currentSelected = selectedIdRef.current;
+            if (res.items.length > 0 && !res.items.some((i) => i.id === currentSelected)) {
                 setSelectedId(res.items[0].id);
             } else if (res.items.length === 0) {
                 setSelectedId('');
@@ -83,22 +95,45 @@ export function ModerateReviewsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [statusFilter, selectedId]);
+    }, [statusFilter]);
 
     useEffect(() => {
         void loadList();
     }, [loadList]);
+
+    // Auto-select highlighted item from queue navigation
+    useEffect(() => {
+        if (highlightId && !highlightApplied.current && items.length > 0) {
+            const exists = items.some((item) => item.id === highlightId);
+            if (exists) {
+                setSelectedId(highlightId);
+            }
+            highlightApplied.current = true;
+            setSearchParams({}, { replace: true });
+        }
+    }, [items, highlightId, setSearchParams]);
+
+    useEffect(() => {
+        detailCache.current = {};
+    }, [statusFilter]);
 
     useEffect(() => {
         if (!selectedId) {
             setDetail(null);
             return;
         }
+        const cached = detailCache.current[selectedId];
+        if (cached !== undefined) {
+            setDetail(cached);
+            return;
+        }
         let cancelled = false;
         setDetailLoading(true);
         getReviewDetail(selectedId).then((d) => {
             if (!cancelled) {
-                setDetail(d ?? null);
+                const value = d ?? null;
+                detailCache.current[selectedId] = value;
+                setDetail(value);
             }
             setDetailLoading(false);
         });
@@ -107,10 +142,30 @@ export function ModerateReviewsPage() {
         };
     }, [selectedId]);
 
+    // Check queue lock status when selection changes
+    useEffect(() => {
+        if (!selectedId) { setQueueLock({ hasQueue: false }); return; }
+        checkQueueStatus('FEEDBACK', selectedId).then(setQueueLock);
+    }, [selectedId]);
+
+    const invalidateDetailCache = useCallback((id: string) => {
+        delete detailCache.current[id];
+    }, []);
+
+    const refreshDetailForSelection = useCallback(async () => {
+        if (!selectedId) return;
+        const d = await getReviewDetail(selectedId);
+        detailCache.current[selectedId] = d ?? null;
+        setDetail(d ?? null);
+    }, [selectedId]);
+
     const selectedItem = items.find((i) => i.id === selectedId) ?? null;
-    const canApprove = selectedItem?.status === 'PENDING';
-    const canReject = selectedItem?.status === 'PENDING';
-    const canHide = selectedItem?.status === 'APPROVED';
+
+    const isLocked = queueLock.hasQueue && (queueLock.status === 'OPEN' || (queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id));
+
+    const canApprove = selectedItem?.status === 'PENDING' && !isLocked;
+    const canReject = selectedItem?.status === 'PENDING' && !isLocked;
+    const canHide = selectedItem?.status === 'APPROVED' && !isLocked;
     const alreadyProcessed = selectedItem?.status !== 'PENDING' && selectedItem?.status !== undefined;
 
     const handleApprove = async () => {
@@ -120,7 +175,8 @@ export function ModerateReviewsPage() {
         try {
             await moderateReviewStatus(selectedId, 'APPROVED', moderatorNote);
             setModeratorNote('');
-            await loadList();
+            invalidateDetailCache(selectedId);
+            await Promise.all([loadList(), refreshDetailForSelection()]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Duyệt thất bại');
         } finally {
@@ -140,7 +196,8 @@ export function ModerateReviewsPage() {
         try {
             await moderateReviewStatus(selectedId, 'REJECTED', note);
             setModeratorNote('');
-            await loadList();
+            invalidateDetailCache(selectedId);
+            await Promise.all([loadList(), refreshDetailForSelection()]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Từ chối thất bại');
         } finally {
@@ -160,7 +217,8 @@ export function ModerateReviewsPage() {
         try {
             await moderateReviewStatus(selectedId, 'HIDDEN', note);
             setModeratorNote('');
-            await loadList();
+            invalidateDetailCache(selectedId);
+            await Promise.all([loadList(), refreshDetailForSelection()]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Ẩn thất bại');
         } finally {
@@ -182,12 +240,16 @@ export function ModerateReviewsPage() {
                     <button
                         key={tab.value}
                         type="button"
-                        onClick={() => setActiveTab(tab.value)}
-                        className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-                            activeTab === tab.value
+                        onClick={() => {
+                            if (tab.value !== activeTab) {
+                                setIsLoading(true);
+                                setActiveTab(tab.value);
+                            }
+                        }}
+                        className={`rounded-xl px-4 py-2 text-sm font-medium transition ${activeTab === tab.value
                                 ? 'bg-slate-900 text-white'
                                 : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
-                        }`}
+                            }`}
                     >
                         {tab.label}
                     </button>
@@ -209,7 +271,7 @@ export function ModerateReviewsPage() {
                     <div className="rounded-2xl border border-slate-200 bg-white">
                         {items.length === 0 ? (
                             <div className="p-8 text-center text-slate-600">
-                                Không có đánh giá nào trong tab này.
+                                Is loading...
                             </div>
                         ) : (
                             <ul className="divide-y divide-slate-100">
@@ -218,9 +280,8 @@ export function ModerateReviewsPage() {
                                         <button
                                             type="button"
                                             onClick={() => setSelectedId(item.id)}
-                                            className={`w-full px-4 py-3 text-left transition ${
-                                                selectedId === item.id ? 'bg-slate-50' : 'hover:bg-slate-50'
-                                            }`}
+                                            className={`w-full px-4 py-3 text-left transition ${selectedId === item.id ? 'bg-slate-50' : 'hover:bg-slate-50'
+                                                }`}
                                         >
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0 flex-1">
@@ -349,8 +410,18 @@ export function ModerateReviewsPage() {
                                     </div>
                                 )}
 
-                                {(canApprove || canReject || canHide) && (
+                                {(canApprove || canReject || canHide || (selectedItem?.status === 'PENDING' && isLocked) || (selectedItem?.status === 'APPROVED' && isLocked)) && (
                                     <>
+                                        {queueLock.hasQueue && queueLock.status === 'OPEN' && (
+                                            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                                ⚠ Bạn cần nhận task từ <strong>Moderation Queue</strong> trước khi xử lý mục này.
+                                            </div>
+                                        )}
+                                        {queueLock.hasQueue && queueLock.status === 'IN_PROGRESS' && queueLock.assignedTo !== user?.id && (
+                                            <div className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                                                🔒 Task này đang được <strong>{queueLock.assignedToName || 'moderator khác'}</strong> xử lý.
+                                            </div>
+                                        )}
                                         <div>
                                             <label className="mb-1 block text-sm font-medium text-slate-700">
                                                 Ghi chú {canReject || canHide ? '(bắt buộc khi từ chối/ẩn)' : '(không bắt buộc)'}

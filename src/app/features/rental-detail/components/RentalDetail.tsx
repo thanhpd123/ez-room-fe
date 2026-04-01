@@ -43,6 +43,11 @@ export function RentalDetail({ rental, onBack, onViewRoom }: RentalDetailProps) 
       navigate('/login');
       return;
     }
+    // Prevent landlord from chatting with themselves
+    if (rental.landlord.id === user.id) {
+      alert('Bạn không thể nhắn tin với chính mình');
+      return;
+    }
     if (chatBox && rental.landlord.id) {
       chatBox.openChatWith(rental.landlord.id);
     }

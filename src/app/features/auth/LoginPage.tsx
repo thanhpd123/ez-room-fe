@@ -25,7 +25,11 @@ export function LoginPage() {
         if (!isLoading && user) {
             const from = loginState?.from?.pathname;
             const postLoginRedirect = loginState?.postLoginRedirect;
-            const destination = from || postLoginRedirect || getRedirectByRole(user.role);
+            const roleDestination = getRedirectByRole(user.role);
+            const destination =
+                user.role === 'ADMIN'
+                    ? roleDestination
+                    : from || postLoginRedirect || roleDestination;
             navigate(destination, { replace: true });
         }
     }, [user, isLoading, navigate, loginState]);
@@ -68,11 +72,11 @@ export function LoginPage() {
                     </div>
 
                     {success && (
-                        <Alert message={success} type="success" showIcon className="mb-5 rounded-xl" />
+                        <Alert title={success} type="success" showIcon className="mb-5 rounded-xl" />
                     )}
 
                     {error && (
-                        <Alert message={error} type="error" showIcon className="mb-5 rounded-xl" role="alert" />
+                        <Alert title={error} type="error" showIcon className="mb-5 rounded-xl" role="alert" />
                     )}
 
                     <Form

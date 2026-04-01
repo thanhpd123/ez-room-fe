@@ -27,11 +27,13 @@ import {
     deleteLocation,
     type Location,
 } from './shared/admin-api';
+import { useTranslation } from 'react-i18next';
 
 const { Title } = Typography;
 const { Option } = Select;
 
 export function AdminLocationsPage() {
+    const { t } = useTranslation();
     const [locations, setLocations] = useState<Location[]>([]);
     const [cities, setCities] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
@@ -136,25 +138,25 @@ export function AdminLocationsPage() {
 
     const columns: ColumnsType<Location> = [
         {
-            title: 'Thành phố',
+            title: t('admin.locations.table.city'),
             dataIndex: 'city',
             key: 'city',
-            render: (city) => city ? <Tag color="blue">{city}</Tag> : '-',
+            render: (city) => city ? <Tag color="blue">{city}</Tag> : t('admin.locations.table.empty'),
         },
         {
-            title: 'Quận/Huyện',
+            title: t('admin.locations.table.district'),
             dataIndex: 'district',
             key: 'district',
-            render: (district) => district ? <Tag color="green">{district}</Tag> : '-',
+            render: (district) => district ? <Tag color="green">{district}</Tag> : t('admin.locations.table.empty'),
         },
         {
-            title: 'Địa chỉ',
+            title: t('admin.locations.table.address'),
             dataIndex: 'address',
             key: 'address',
-            render: (address) => address || '-',
+            render: (address) => address || t('admin.locations.table.empty'),
         },
         {
-            title: 'Hành động',
+            title: t('admin.locations.table.actions'),
             key: 'actions',
             width: 120,
             render: (_, record) => (
@@ -163,21 +165,24 @@ export function AdminLocationsPage() {
                         type="text"
                         icon={<EditOutlined />}
                         onClick={() => openEditModal(record)}
-                        title="Sửa"
+                        title={t('admin.locations.actions.edit')}
                     />
                     <Popconfirm
-                        title="Xóa địa điểm này?"
-                        description={`Bạn có chắc muốn xóa "${record.city} - ${record.district}"?`}
+                        title={t('admin.locations.actions.confirmDeleteTitle')}
+                        description={t('admin.locations.actions.confirmDeleteDescription', {
+                            city: record.city || t('admin.locations.table.empty'),
+                            district: record.district || t('admin.locations.table.empty'),
+                        })}
                         onConfirm={() => handleDelete(record)}
-                        okText="Xóa"
-                        cancelText="Hủy"
+                        okText={t('admin.locations.actions.delete')}
+                        cancelText={t('admin.locations.actions.cancel')}
                         okButtonProps={{ danger: true }}
                     >
                         <Button
                             type="text"
                             danger
                             icon={<DeleteOutlined />}
-                            title="Xóa"
+                            title={t('admin.locations.actions.delete')}
                         />
                     </Popconfirm>
                 </Space>
@@ -188,18 +193,18 @@ export function AdminLocationsPage() {
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Title level={2} style={{ margin: 0 }}>Quản lý Địa điểm</Title>
+                <Title level={2} style={{ margin: 0 }}>{t('admin.locations.title')}</Title>
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-                    Thêm địa điểm
+                    {t('admin.locations.actions.add')}
                 </Button>
             </div>
 
             {/* Filter */}
             <Card style={{ marginBottom: 16 }}>
                 <Space>
-                    <span>Lọc theo thành phố:</span>
+                    <span>{t('admin.locations.filters.byCity')}</span>
                     <Select
-                        placeholder="Tất cả thành phố"
+                        placeholder={t('admin.locations.filters.allCities')}
                         value={cityFilter}
                         onChange={setCityFilter}
                         style={{ width: 200 }}
@@ -222,14 +227,14 @@ export function AdminLocationsPage() {
                     loading={loading}
                     pagination={{
                         pageSize: 10,
-                        showTotal: (total) => `Tổng ${total} địa điểm`,
+                        showTotal: (total) => t('admin.locations.totalText', { total }),
                     }}
                 />
             </Card>
 
             {/* Create/Edit Modal */}
             <Modal
-                title={editingLocation ? 'Sửa địa điểm' : 'Thêm địa điểm mới'}
+                title={editingLocation ? t('admin.locations.modal.editTitle') : t('admin.locations.modal.createTitle')}
                 open={modalOpen}
                 onCancel={() => setModalOpen(false)}
                 footer={null}
@@ -242,31 +247,31 @@ export function AdminLocationsPage() {
                 >
                     <Form.Item
                         name="address"
-                        label="Địa chỉ chi tiết"
-                        rules={[{ required: true, message: 'Vui lòng nhập địa chỉ' }]}
+                        label={t('admin.locations.form.addressLabel')}
+                        rules={[{ required: true, message: t('admin.locations.form.addressRequired') }]}
                     >
-                        <Input placeholder="VD: 123 Nguyễn Huệ, Phường Bến Nghé..." />
+                        <Input placeholder={t('admin.locations.form.addressPlaceholder')} />
                     </Form.Item>
 
                     <Form.Item
                         name="city"
-                        label="Thành phố (tùy chọn)"
+                        label={t('admin.locations.form.cityLabel')}
                     >
-                        <Input placeholder="VD: Hồ Chí Minh, Hà Nội..." />
+                        <Input placeholder={t('admin.locations.form.cityPlaceholder')} />
                     </Form.Item>
 
                     <Form.Item
                         name="district"
-                        label="Quận/Huyện (tùy chọn)"
+                        label={t('admin.locations.form.districtLabel')}
                     >
-                        <Input placeholder="VD: Quận 1, Thủ Đức..." />
+                        <Input placeholder={t('admin.locations.form.districtPlaceholder')} />
                     </Form.Item>
 
                     <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
                         <Space>
-                            <Button onClick={() => setModalOpen(false)}>Hủy</Button>
+                            <Button onClick={() => setModalOpen(false)}>{t('admin.locations.actions.cancel')}</Button>
                             <Button type="primary" htmlType="submit" loading={modalLoading}>
-                                {editingLocation ? 'Cập nhật' : 'Tạo mới'}
+                                {editingLocation ? t('admin.locations.actions.update') : t('admin.locations.actions.create')}
                             </Button>
                         </Space>
                     </Form.Item>

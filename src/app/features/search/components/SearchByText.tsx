@@ -1,12 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw, Navigation, Loader2 } from 'lucide-react';
+import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw, Mic } from 'lucide-react';
 import type { SearchCriteria, RoomType } from '../types';
 import { useProvinces } from '@/app/hooks/useProvinces';
 import { useAmenities } from '@/app/hooks/useAmenities';
 import { useRoomTypes } from '@/app/hooks/useRoomTypes';
-import { VoiceSearchButton } from '@/app/components/VoiceSearchButton';
-import { useGeolocation } from '@/app/hooks/useGeolocation';
 
 interface SearchByTextProps {
     onSearch: (criteria: SearchCriteria) => void;
@@ -15,8 +13,10 @@ interface SearchByTextProps {
     basicOnly?: boolean;
     /** Voice search: callback with transcribed text to fill q. */
     onVoiceResult?: (text: string) => void;
-    /** Called when "use my location" toggle changes. Used to show/hide nearby search block. */
-    onUseMyLocationChange?: (enabled: boolean) => void;
+    /** Server-side search error (e.g., VIP required for advanced filters). */
+    backendError?: string | null;
+    vipUpgradePath?: string | null;
+    onUpgradeVip?: (path: string) => void;
 }
 
 interface FormState {
@@ -45,12 +45,70 @@ const initialFormState: FormState = {
     selectedAmenities: [],
 };
 
-export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoiceResult, onUseMyLocationChange }: SearchByTextProps) {
+type SpeechRecognitionInstance = {
+    lang: string;
+    continuous: boolean;
+    interimResults: boolean;
+    onresult: ((e: Event & { results?: ArrayLike<ArrayLike<{ transcript?: string }>> }) => void) | null;
+    onend: (() => void) | null;
+    onerror: (() => void) | null;
+    start: () => void;
+};
+
+function VoiceSearchButton({
+    onResult,
+    disabled,
+}: {
+    onResult: (text: string) => void;
+    disabled?: boolean;
+}) {
+    const [listening, setListening] = useState(false);
+    const startListening = useCallback(() => {
+        const Rec = (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).SpeechRecognition
+            || (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).webkitSpeechRecognition;
+        if (!Rec) {
+            onResult('');
+            return;
+        }
+        const rec = new Rec();
+        rec.lang = 'vi-VN';
+        rec.continuous = false;
+        rec.interimResults = false;
+        rec.onresult = (e) => {
+            const ev = e as Event & { results?: ArrayLike<ArrayLike<{ transcript?: string }>> };
+            const t = ev.results?.[0]?.[0]?.transcript ?? '';
+            onResult(t);
+        };
+        rec.onend = () => setListening(false);
+        rec.onerror = () => setListening(false);
+        setListening(true);
+        rec.start();
+    }, [onResult]);
+    return (
+        <button
+            type="button"
+            onClick={startListening}
+            disabled={disabled || listening}
+            className="p-3 rounded-xl border border-border bg-background hover:bg-muted transition-all disabled:opacity-50 flex items-center justify-center"
+            title="Tìm kiếm bằng giọng nói"
+        >
+            <Mic className={`w-5 h-5 ${listening ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
+        </button>
+    );
+}
+
+export function SearchByText({
+    onSearch,
+    isSearching,
+    basicOnly = false,
+    onVoiceResult,
+    backendError = null,
+    vipUpgradePath = null,
+    onUpgradeVip,
+}: SearchByTextProps) {
     const [searchParams] = useSearchParams();
     const [formState, setFormState] = useState<FormState>(initialFormState);
     const [error, setError] = useState('');
-    const [useMyLocation, setUseMyLocation] = useState(false);
-    const geo = useGeolocation();
     const { provinces, getWardsFor, loading: locationsLoading } = useProvinces();
     const { amenities: amenitiesList } = useAmenities();
     const { options: roomTypeOptions } = useRoomTypes();
@@ -167,8 +225,6 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
             maxArea: basicOnly ? undefined : (formState.maxArea ? Number(formState.maxArea) : undefined),
             roomType: formState.roomType || undefined,
             amenities: basicOnly ? undefined : (formState.selectedAmenities.length > 0 ? formState.selectedAmenities : undefined),
-            lat: useMyLocation && geo.hasLocation ? geo.latitude! : undefined,
-            lng: useMyLocation && geo.hasLocation ? geo.longitude! : undefined,
         };
 
         onSearch(criteria);
@@ -179,25 +235,6 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
         setError('');
     };
 
-    const handleVoiceResult = useCallback((transcript: string) => {
-        setFormState((prev) => ({ ...prev, q: transcript }));
-        onVoiceResult?.(transcript);
-        // Auto-submit with voice transcript
-        const criteria: SearchCriteria = {
-            q: transcript.trim() || undefined,
-            city: formState.city.trim() || undefined,
-            district: formState.district.trim() || undefined,
-            address: formState.address.trim() || undefined,
-            minPrice: formState.minPrice ? Number(formState.minPrice) : undefined,
-            maxPrice: formState.maxPrice ? Number(formState.maxPrice) : undefined,
-            minArea: basicOnly ? undefined : (formState.minArea ? Number(formState.minArea) : undefined),
-            maxArea: basicOnly ? undefined : (formState.maxArea ? Number(formState.maxArea) : undefined),
-            roomType: formState.roomType || undefined,
-            amenities: basicOnly ? undefined : (formState.selectedAmenities.length > 0 ? formState.selectedAmenities : undefined),
-        };
-        onSearch(criteria);
-    }, [formState, basicOnly, onSearch, onVoiceResult]);
-
     return (
         <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 max-w-4xl mx-auto">
             {error && (
@@ -207,8 +244,26 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
                 </div>
             )}
 
+            {backendError && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
+                        <p className="text-amber-900 text-sm">{backendError}</p>
+                    </div>
+                    {onUpgradeVip && (
+                        <button
+                            type="button"
+                            onClick={() => onUpgradeVip(vipUpgradePath || '/vip-plans')}
+                            className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors"
+                        >
+                            Nâng cấp VIP
+                        </button>
+                    )}
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Search query (name, description) + Voice */}
+                {/* Search query (name, description) */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
                         <Search className="w-4 h-4 text-primary" />
@@ -223,12 +278,9 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
                             disabled={isSearching}
                             className="flex-1 px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                         />
-                        <VoiceSearchButton
-                            onResult={handleVoiceResult}
-                            onInterim={(text) => setFormState((prev) => ({ ...prev, q: text }))}
-                            disabled={isSearching}
-                            size="md"
-                        />
+                        {onVoiceResult && (
+                            <VoiceSearchButton onResult={(t) => { handleInputChange('q', t); onVoiceResult(t); }} disabled={isSearching} />
+                        )}
                     </div>
                 </div>
 
@@ -272,47 +324,6 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
                     </div>
                 </div>
 
-                {/* Use My Location toggle */}
-                {!basicOnly && (
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30">
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={useMyLocation}
-                            onChange={(e) => {
-                                const checked = e.target.checked;
-                                setUseMyLocation(checked);
-                                onUseMyLocationChange?.(checked);
-                                if (checked && !geo.hasLocation) {
-                                    geo.requestLocation();
-                                }
-                            }}
-                            className="sr-only peer"
-                            disabled={isSearching}
-                        />
-                        <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
-                    </label>
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <Navigation className="w-4 h-4 text-primary shrink-0" />
-                        <span className="text-sm font-medium text-foreground">Sử dụng vị trí của tôi</span>
-                        {geo.loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />}
-                        {useMyLocation && geo.hasLocation && (
-                            <span className="text-xs text-green-600 dark:text-green-400 shrink-0">
-                                Đã xác định
-                            </span>
-                        )}
-                        {useMyLocation && geo.error && (
-                            <span className="text-xs text-destructive truncate">{geo.error}</span>
-                        )}
-                    </div>
-                    {useMyLocation && geo.hasLocation && (
-                        <span className="text-xs text-muted-foreground shrink-0">
-                            Ưu tiên phòng gần bạn + tiện ích xung quanh
-                        </span>
-                    )}
-                </div>
-                )}
-
                 {/* Price Range */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
@@ -341,30 +352,30 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
 
                 {/* Area Range – tenant/VIP only */}
                 {!basicOnly && (
-                <div className="space-y-2">
-                    <label className="flex items-center gap-2 font-medium text-foreground">
-                        <Maximize className="w-4 h-4 text-primary" />
-                        Diện tích (m²)
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <input
-                            type="text"
-                            value={formState.minArea}
-                            onChange={(e) => handleInputChange('minArea', e.target.value)}
-                            placeholder="Diện tích tối thiểu"
-                            disabled={isSearching}
-                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
-                        />
-                        <input
-                            type="text"
-                            value={formState.maxArea}
-                            onChange={(e) => handleInputChange('maxArea', e.target.value)}
-                            placeholder="Diện tích tối đa"
-                            disabled={isSearching}
-                            className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
-                        />
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2 font-medium text-foreground">
+                            <Maximize className="w-4 h-4 text-primary" />
+                            Diện tích (m²)
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <input
+                                type="text"
+                                value={formState.minArea}
+                                onChange={(e) => handleInputChange('minArea', e.target.value)}
+                                placeholder="Diện tích tối thiểu"
+                                disabled={isSearching}
+                                className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                            />
+                            <input
+                                type="text"
+                                value={formState.maxArea}
+                                onChange={(e) => handleInputChange('maxArea', e.target.value)}
+                                placeholder="Diện tích tối đa"
+                                disabled={isSearching}
+                                className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
+                            />
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* Room Type */}
@@ -390,29 +401,29 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
 
                 {/* Amenities – tenant/VIP only */}
                 {!basicOnly && (
-                <div className="space-y-3">
-                    <label className="font-medium text-foreground">Tiện nghi</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {amenitiesList.map((amenity) => (
-                            <label
-                                key={amenity.id}
-                                className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formState.selectedAmenities.includes(amenity.id)
+                    <div className="space-y-3">
+                        <label className="font-medium text-foreground">Tiện nghi</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {amenitiesList.map((amenity) => (
+                                <label
+                                    key={amenity.id}
+                                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formState.selectedAmenities.includes(amenity.id)
                                         ? 'border-primary bg-primary/5'
                                         : 'border-border hover:border-primary/50'
-                                    } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={formState.selectedAmenities.includes(amenity.id)}
-                                    onChange={() => handleAmenityToggle(amenity.id)}
-                                    disabled={isSearching}
-                                    className="w-4 h-4 text-primary accent-primary"
-                                />
-                                <span className="text-sm">{amenity.name}</span>
-                            </label>
-                        ))}
+                                        } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={formState.selectedAmenities.includes(amenity.id)}
+                                        onChange={() => handleAmenityToggle(amenity.id)}
+                                        disabled={isSearching}
+                                        className="w-4 h-4 text-primary accent-primary"
+                                    />
+                                    <span className="text-sm">{amenity.name}</span>
+                                </label>
+                            ))}
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* Action Buttons */}

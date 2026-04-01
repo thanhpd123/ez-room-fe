@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { HomePage } from '@/app/features/home';
 import { SearchPage } from '@/app/features/search';
+import { RoomsPage } from '@/app/features/rooms';
 import { BrowsePage } from '@/app/features/browse';
 import { RentalDetailPage } from '@/app/features/rental-detail';
 import { RoomDetailPage } from '@/app/features/room-detail';
@@ -10,6 +11,9 @@ import { RegisterPage } from '@/app/features/common';
 import { ProfilePage } from '@/app/features/profile';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 import { PageLoader } from '@/app/components/PageLoader';
+import { PayOSResultPage, WalletPaymentResultPage } from '@/app/features/payment-result';
+import { VipPlansPage } from '@/app/features/vip';
+import { BlogListPage, BlogDetailPage } from '@/app/features/blog';
 
 /* Lazy-loaded chunks – admin/moderator/rental-mgmt only loaded when visited */
 const BookingHistoryPage = lazy(() => import('@/app/features/booking-history').then((m) => ({ default: m.BookingHistoryPage })));
@@ -18,10 +22,12 @@ const LayoutRentalManagements = lazy(() => import('@/app/layouts/layout_rentalMa
 const CreateRentalPage = lazy(() => import('@/app/features/rentalManagement/create_Rental').then((m) => ({ default: m.CreateRentalPage })));
 const ViewListRentalPage = lazy(() => import('@/app/features/rentalManagement/ViewListRental').then((m) => ({ default: m.ViewListRentalPage })));
 const ViewRentalDetailPage = lazy(() => import('@/app/features/rentalManagement/ViewRentalDetail').then((m) => ({ default: m.ViewRentalDetailPage })));
+const LandlordDashboardPage = lazy(() => import('@/app/features/rentalManagement').then((m) => ({ default: m.LandlordDashboardPage })));
 const CreateRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.CreateRoomPostPage })));
 const ViewListRoomPostPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewListRoomPostPage })));
 const ViewRoomPostDetailPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewRoomPostDetailPage })));
 const RequestsPage = lazy(() => import('@/app/features/rentalManagement/requests').then((m) => ({ default: m.RequestsPage })));
+const ReviewsPage = lazy(() => import('@/app/features/rentalManagement/reviews').then((m) => ({ default: m.ReviewsPage })));
 const EditRentalPage = lazy(() => import('@/app/features/rentalManagement/EditRental/EditRentalPage').then((m) => ({ default: m.EditRentalPage })));
 const EditRoomPostPage = lazy(() => import('@/app/features/roomManagement/EditRoomPost/EditRoomPostPage').then((m) => ({ default: m.EditRoomPostPage })));
 const HandleReportsPage = lazy(() => import('@/app/features/moderator/handle-reports').then((m) => ({ default: m.HandleReportsPage })));
@@ -38,6 +44,10 @@ const AdminRentalsPage = lazy(() => import('@/app/features/admin').then((m) => (
 const AdminAmenitiesPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminAmenitiesPage })));
 const AdminLocationsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminLocationsPage })));
 const AdminWalletsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminWalletsPage })));
+const AdminFinancePage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminFinancePage })));
+const AdminSettingsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminSettingsPage })));
+const AdminModeratorsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminModeratorsPage })));
+const AdminBlogPostsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminBlogPostsPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
 const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
 const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) => ({ default: m.FindRoommatePage })));
@@ -74,8 +84,28 @@ const routes = [
         element: <HomePage />,
     },
     {
+        path: '/blog',
+        element: <BlogListPage />,
+    },
+    {
+        path: '/blog/:slug',
+        element: <BlogDetailPage />,
+    },
+    {
         path: '/search',
         element: <SearchPage />,
+    },
+    {
+        path: '/vip-plans',
+        element: <VipPlansPage />,
+    },
+    {
+        path: '/vip/plans',
+        element: <Navigate to="/vip-plans" replace />,
+    },
+    {
+        path: '/rooms',
+        element: <RoomsPage />,
     },
     {
         path: '/browse',
@@ -163,7 +193,8 @@ const routes = [
             </ProtectedRoute>
         ),
         children: [
-            { index: true, element: <Navigate to="rentals" replace /> },
+            { index: true, element: <Navigate to="dashboard" replace /> },
+            { path: 'dashboard', element: <Suspense fallback={<PageLoader />}><LandlordDashboardPage /></Suspense> },
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><ViewListRentalPage /></Suspense> },
             { path: 'rentals/create', element: <Suspense fallback={<PageLoader />}><CreateRentalPage /></Suspense> },
             { path: 'rentals/:rentalId', element: <Suspense fallback={<PageLoader />}><ViewRentalDetailPage /></Suspense> },
@@ -173,6 +204,7 @@ const routes = [
             { path: 'rentals/:rentalId/room-posts/:roomPostId', element: <Suspense fallback={<PageLoader />}><ViewRoomPostDetailPage /></Suspense> },
             { path: 'rentals/:rentalId/room-posts/:roomPostId/edit', element: <Suspense fallback={<PageLoader />}><EditRoomPostPage /></Suspense> },
             { path: 'requests', element: <Suspense fallback={<PageLoader />}><RequestsPage /></Suspense> },
+            { path: 'reviews', element: <Suspense fallback={<PageLoader />}><ReviewsPage /></Suspense> },
         ],
     },
     {
@@ -190,6 +222,18 @@ const routes = [
     {
         path: '/room/:id',
         element: <RoomDetailPage />,
+    },
+    {
+        path: '/payment/payos-result',
+        element: <PayOSResultPage />,
+    },
+    {
+        path: '/payment-success',
+        element: <WalletPaymentResultPage />,
+    },
+    {
+        path: '/payment-cancel',
+        element: <WalletPaymentResultPage isCancel />,
     },
     {
         path: '/moderator',
@@ -222,10 +266,14 @@ const routes = [
         children: [
             { index: true, element: <Suspense fallback={<PageLoader />}><AdminDashboardPage /></Suspense> },
             { path: 'users', element: <Suspense fallback={<PageLoader />}><AdminUsersPage /></Suspense> },
+            { path: 'finance', element: <Suspense fallback={<PageLoader />}><AdminFinancePage /></Suspense> },
+            { path: 'moderators', element: <Suspense fallback={<PageLoader />}><AdminModeratorsPage /></Suspense> },
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><AdminRentalsPage /></Suspense> },
             { path: 'amenities', element: <Suspense fallback={<PageLoader />}><AdminAmenitiesPage /></Suspense> },
             { path: 'locations', element: <Suspense fallback={<PageLoader />}><AdminLocationsPage /></Suspense> },
             { path: 'wallets', element: <Suspense fallback={<PageLoader />}><AdminWalletsPage /></Suspense> },
+            { path: 'settings', element: <Suspense fallback={<PageLoader />}><AdminSettingsPage /></Suspense> },
+            { path: 'blogs', element: <Suspense fallback={<PageLoader />}><AdminBlogPostsPage /></Suspense> },
         ],
     },
 ];

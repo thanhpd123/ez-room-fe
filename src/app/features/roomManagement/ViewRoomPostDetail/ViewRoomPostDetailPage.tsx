@@ -162,13 +162,19 @@ export function ViewRoomPostDetailPage() {
                             📄 Tạo hợp đồng thuê
                         </button>
                     )}
-                    <button
-                        type="button"
-                        onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts/${roomPostId}/edit`)}
-                        className="rounded-xl border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
-                    >
-                        ✏️ Sửa
-                    </button>
+                    {roomPost.status === 'PENDING' ? (
+                        <span className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 cursor-not-allowed">
+                            ⏳ Đang chờ duyệt
+                        </span>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts/${roomPostId}/edit`)}
+                            className="rounded-xl border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                        >
+                            ✏️ Sửa
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => setShowDeleteConfirm(true)}

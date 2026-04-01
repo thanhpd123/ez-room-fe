@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getRentalByIdRequest, deleteRentalRequest } from '@/lib/api';
+import { getRentalByIdRequest, deleteRentalRequest, getRejectionInfoRequest } from '@/lib/api';
+import { getSupabasePublicUrl, filterOutDocuments } from '@/lib/supabase-urls';
 import { findOldAddress, type OldAddressInfo } from '@/app/constants/v1-v2-mapping';
 import { RENTAL_STATUS_OPTIONS } from '../shared/types';
 
@@ -42,6 +43,13 @@ interface RentalDetail {
     images: string[];
 }
 
+interface RejectionInfo {
+    hasRejection: boolean;
+    reason?: string | null;
+    moderatorName?: string | null;
+    rejectedAt?: string;
+}
+
 export function ViewRentalDetailPage() {
     const navigate = useNavigate();
     const { rentalId = '' } = useParams();
@@ -52,6 +60,7 @@ export function ViewRentalDetailPage() {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [rejectionInfo, setRejectionInfo] = useState<RejectionInfo | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -63,6 +72,18 @@ export function ViewRentalDetailPage() {
                 const result = await getRentalByIdRequest(rentalId);
                 if (!active) return;
                 setRental(result.data);
+
+                // Nếu bài đăng bị từ chối (HIDDEN), lấy thông tin từ chối
+                if (result.data.status === 'HIDDEN') {
+                    try {
+                        const rejInfo = await getRejectionInfoRequest('RENTAL', rentalId);
+                        if (active && rejInfo.data?.hasRejection) {
+                            setRejectionInfo(rejInfo.data);
+                        }
+                    } catch {
+                        // Không bắt buộc — nếu fail thì không hiển thị lý do
+                    }
+                }
             } catch (err) {
                 if (!active) return;
                 setLoadError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
@@ -157,13 +178,19 @@ export function ViewRentalDetailPage() {
                     ← Quay lại
                 </button>
                 <div className="flex gap-2">
-                    <button
-                        type="button"
-                        onClick={() => navigate(`/rental-management/rentals/${rentalId}/edit`)}
-                        className="rounded-xl border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
-                    >
-                        ✏️ Sửa
-                    </button>
+                    {rental.status === 'PENDING' ? (
+                        <span className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 cursor-not-allowed">
+                            ⏳ Đang chờ duyệt
+                        </span>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/rental-management/rentals/${rentalId}/edit`)}
+                            className="rounded-xl border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+                        >
+                            ✏️ Sửa
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => setShowDeleteConfirm(true)}
@@ -173,6 +200,39 @@ export function ViewRentalDetailPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Rejection Banner */}
+            {rental.status === 'HIDDEN' && rejectionInfo?.hasRejection && (
+                <div className="mb-4 rounded-2xl border border-rose-300 bg-rose-50 p-4">
+                    <div className="flex items-start gap-3">
+                        <span className="text-xl"></span>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-rose-800">Bài đăng bị từ chối bởi Moderator</h3>
+                            {rejectionInfo.reason && (
+                                <p className="mt-1 text-sm text-rose-700">
+                                    <strong>Lý do:</strong> {rejectionInfo.reason}
+                                </p>
+                            )}
+                            {rejectionInfo.rejectedAt && (
+                                <p className="mt-1 text-xs text-rose-600">
+                                    Từ chối lúc: {formatDateTime(rejectionInfo.rejectedAt)}
+                                    {rejectionInfo.moderatorName && ` bởi ${rejectionInfo.moderatorName}`}
+                                </p>
+                            )}
+                            <p className="mt-2 text-sm text-rose-700">
+                                Vui lòng chỉnh sửa bài đăng và gửi lại để duyệt.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => navigate(`/rental-management/rentals/${rentalId}/edit`)}
+                                className="mt-3 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 transition-colors"
+                            >
+                                Chỉnh sửa & Gửi lại
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Delete Confirmation Dialog */}
             {showDeleteConfirm && (
@@ -220,38 +280,53 @@ export function ViewRentalDetailPage() {
                             {/* Hero image or gallery */}
                 {rental.images && rental.images.length > 0 ? (
                     <div>
-                        <img
-                            src={rental.images[selectedImageIndex]}
-                            alt={rental.title}
-                            className="h-64 w-full object-cover sm:h-80"
-                        />
-                        {rental.images.length > 1 && (
-                            <div className="flex gap-2 overflow-x-auto p-3 bg-slate-50">
-                                {rental.images.map((url, i) => (
-                                    <button
-                                        key={url}
-                                        type="button"
-                                        onClick={() => setSelectedImageIndex(i)}
-                                        className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${
-                                            selectedImageIndex === i
-                                                ? 'border-slate-900'
-                                                : 'border-slate-200 hover:border-slate-400'
-                                        }`}
-                                    >
-                                        <img
-                                            src={url}
-                                            alt={`Ảnh ${i + 1}`}
-                                            className="h-full w-full object-cover"
-                                        />
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                        {rental.images.length > 1 && (
-                            <p className="text-center text-xs text-slate-500 pb-2">
-                                {selectedImageIndex + 1} / {rental.images.length}
-                            </p>
-                        )}
+                        {/* Filter out documents before rendering */}
+                        {(() => {
+                            const filteredImages = filterOutDocuments(rental.images);
+                            if (filteredImages.length === 0) {
+                                return <img
+                                    src={DEFAULT_THUMB}
+                                    alt={rental.title}
+                                    className="h-64 w-full object-cover sm:h-80"
+                                />;
+                            }
+                            return (
+                                <>
+                                    <img
+                                        src={getSupabasePublicUrl(filteredImages[selectedImageIndex])}
+                                        alt={rental.title}
+                                        className="h-64 w-full object-cover sm:h-80"
+                                    />
+                                    {filteredImages.length > 1 && (
+                                        <div className="flex gap-2 overflow-x-auto p-3 bg-slate-50">
+                                            {filteredImages.map((url, i) => (
+                                                <button
+                                                    key={url}
+                                                    type="button"
+                                                    onClick={() => setSelectedImageIndex(i)}
+                                                    className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${
+                                                        selectedImageIndex === i
+                                                            ? 'border-slate-900'
+                                                            : 'border-slate-200 hover:border-slate-400'
+                                                    }`}
+                                                >
+                                                    <img
+                                                        src={getSupabasePublicUrl(url)}
+                                                        alt={`Ảnh ${i + 1}`}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {filteredImages.length > 1 && (
+                                        <p className="text-center text-xs text-slate-500 pb-2">
+                                            {selectedImageIndex + 1} / {filteredImages.length}
+                                        </p>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 ) : (
                     <img

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { RentalDetail } from './components/RentalDetail';
 import { Header, Footer } from '@/app/features/home/components';
 import { getPublicRentalByIdRequest } from '@/lib/api';
+import { getSupabasePublicUrl, filterOutDocuments } from '@/lib/supabase-urls';
 import type { RentalDetailData } from './types';
 
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800';
@@ -34,6 +35,10 @@ function mapApiToRentalDetailData(
     ? [location.address, location.district, location.city].filter(Boolean).join(', ')
     : '';
   const rooms = api.rooms || [];
+  
+  // Convert image paths to full URLs and filter out documents
+  const imageUrls = filterOutDocuments(api.images || []).map(img => getSupabasePublicUrl(img));
+  
   return {
     id: api.id,
     title: api.title || t('rentalDetail.defaultRentalTitle'),
@@ -43,7 +48,7 @@ function mapApiToRentalDetailData(
     status: (api.status as RentalDetailData['status']) || 'PENDING',
     address,
     totalRooms: rooms.length,
-    images: api.images?.length ? api.images : [PLACEHOLDER_IMAGE],
+    images: imageUrls.length ? imageUrls : [PLACEHOLDER_IMAGE],
     amenities: Array.isArray(api.amenities) ? api.amenities : [],
     landlord: {
       id: api.owner?.id ?? '',
@@ -58,7 +63,9 @@ function mapApiToRentalDetailData(
       price: typeof r.price === 'number' ? r.price : 0,
       area: r.size_m2 != null ? Number(r.size_m2) : 0,
       status: 'available' as const,
-      images: Array.isArray(r.images) && r.images.length > 0 ? r.images : undefined,
+      images: Array.isArray(r.images) && r.images.length > 0 
+        ? filterOutDocuments(r.images).map(img => getSupabasePublicUrl(img))
+        : undefined,
       amenities: Array.isArray(r.amenities) ? r.amenities : [],
     })),
   };

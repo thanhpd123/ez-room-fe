@@ -88,6 +88,7 @@ export function FloatingChatBox() {
     }, []);
 
     const loadThread = useCallback((peerId: string) => {
+        if (peerId === user?.id) return;
         setLoadingThread(true);
         getThreadRequest(peerId, { limit: 50 })
             .then((r) => {
@@ -99,7 +100,7 @@ export function FloatingChatBox() {
                 setPeer(null);
             })
             .finally(() => setLoadingThread(false));
-    }, []);
+    }, [user?.id]);
 
     useEffect(() => {
         if (!chatBox?.isOpen || !user) return;
@@ -107,11 +108,17 @@ export function FloatingChatBox() {
     }, [chatBox?.isOpen, user, loadConversations]);
 
     useEffect(() => {
-        if (chatBox?.openWithUserId && chatBox.isOpen) {
+        if (chatBox?.openWithUserId && chatBox.isOpen && user) {
+            // Prevent opening chat with yourself
+            if (chatBox.openWithUserId === user.id) {
+                console.warn('Cannot open chat with yourself');
+                chatBox.openChatWith(null);
+                return;
+            }
             setSelectedPeerId(chatBox.openWithUserId);
             chatBox.openChatWith(null);
         }
-    }, [chatBox?.openWithUserId, chatBox?.isOpen]);
+    }, [chatBox?.openWithUserId, chatBox?.isOpen, user]);
 
     useEffect(() => {
         if (selectedPeerId) loadThread(selectedPeerId);
@@ -122,15 +129,17 @@ export function FloatingChatBox() {
     }, [selectedPeerId, loadThread]);
 
     useEffect(() => {
-        if (!selectedPeerId) return;
+        if (!selectedPeerId || selectedPeerId === user?.id) return;
         const id = setInterval(() => {
             getThreadRequest(selectedPeerId, { limit: 50 })
                 .then((r) => setMessages(r.data.messages || []))
-                .catch(() => {});
+                .catch((err) => {
+                    console.error('Error loading messages:', err);
+                });
         }, POLL_INTERVAL_MS);
         pollRef.current = id;
         return () => clearInterval(id);
-    }, [selectedPeerId]);
+    }, [selectedPeerId, user?.id]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

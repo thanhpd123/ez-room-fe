@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Input, Select, Button } from 'antd';
+import { Input, Select, Button, Alert } from 'antd';
 import { SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { PRICE_OPTIONS } from '../constants';
 import { ROOM_TYPE_OPTIONS } from '@/lib/constants/room-types';
@@ -28,7 +28,7 @@ export interface SearchFilters {
 export function SearchForm({ onSearch }: SearchFormProps) {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const { provinces, getWardsFor, loading: locationsLoading } = useProvinces();
+    const { provinces, getWardsFor, loading: locationsLoading, error: locationsError } = useProvinces();
     const { options: roomTypeOptions } = useRoomTypes();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -73,7 +73,6 @@ export function SearchForm({ onSearch }: SearchFormProps) {
     return (
         <div className="bg-card/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 p-4 sm:p-6 lg:p-8 w-full max-w-2xl mx-auto ring-2 ring-white/10">
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-                {/* Search bar + voice */}
                 <div className="flex gap-2">
                     <Input
                         id="home-search-query"
@@ -93,7 +92,11 @@ export function SearchForm({ onSearch }: SearchFormProps) {
                     />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {locationsError && (
+                    <Alert type="warning" title={locationsError} showIcon className="rounded-xl" />
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Select
                         id="home-search-city"
                         aria-label={t('search.city') || 'Tỉnh / Thành phố'}
@@ -129,6 +132,17 @@ export function SearchForm({ onSearch }: SearchFormProps) {
                         value={filters.priceRange || undefined}
                         onChange={(v) => handleFilterChange('priceRange', v || '')}
                         options={PRICE_OPTIONS.filter((o) => o.value !== '').map((o) => ({ value: o.value, label: o.label }))}
+                        allowClear
+                        className="w-full rounded-xl [&_.ant-select-selector]:rounded-xl"
+                    />
+                    <Select
+                        id="home-search-room-type"
+                        aria-label={t('search.roomType') || 'Loại phòng'}
+                        size="large"
+                        placeholder={t('search.roomType') || 'Loại phòng'}
+                        value={filters.roomType || undefined}
+                        onChange={(v) => handleFilterChange('roomType', v || '')}
+                        options={roomTypeOptionsFormatted}
                         allowClear
                         className="w-full rounded-xl [&_.ant-select-selector]:rounded-xl"
                     />

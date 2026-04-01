@@ -7,7 +7,13 @@ import {
 } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
-import { authFetch, clearStoredAuth, loginWithEmail, setStoredAuth } from '@/lib/api';
+import {
+    authFetch,
+    clearStoredAuth,
+    loginWithEmail,
+    logoutCurrentSessionRequest,
+    setStoredAuth,
+} from '@/lib/api';
 import { AuthContext } from './auth-context';
 import type { AuthUser } from './auth-context';
 
@@ -222,8 +228,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signInWithEmail = useCallback(async (email: string, password: string) => {
-        const { token, user: u } = await loginWithEmail(email, password);
-        setStoredAuth(token, {
+        const { accessToken, user: u } = await loginWithEmail(email, password);
+        setStoredAuth(accessToken, {
             id: u.id,
             email: u.email,
             fullName: u.fullName,
@@ -243,7 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             gender: u.gender ?? undefined,
             isVip: u.isVip === true,
         });
-        setAccessToken(token);
+        setAccessToken(accessToken);
         setSession(null);
         setAuthVerified(false);
         verifiedRef.current = false;
@@ -270,6 +276,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [setUserFromBackend]);
 
     const signOut = useCallback(async () => {
+        try {
+            await logoutCurrentSessionRequest();
+        } catch {
+            /* ignore */
+        }
         await supabase.auth.signOut();
         clearStoredAuth();
         setUser(null);

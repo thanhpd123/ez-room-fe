@@ -1,19 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, theme, Avatar, Dropdown, Button } from 'antd';
 import type { MenuProps } from 'antd';
 import {
     DashboardOutlined,
+    GlobalOutlined,
     UserOutlined,
     HomeOutlined,
     EnvironmentOutlined,
     AppstoreOutlined,
     WalletOutlined,
+    DollarCircleOutlined,
+    TeamOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     LogoutOutlined,
     SettingOutlined,
+    LockOutlined,
+    BookOutlined,
 } from '@ant-design/icons';
+import { useAuth } from '@/app/context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const { Header, Sider, Content } = Layout;
 
@@ -28,43 +35,51 @@ function getItem(
     return { label, key, icon, children } as MenuItem;
 }
 
-const menuItems: MenuItem[] = [
-    getItem('Dashboard', '/admin', <DashboardOutlined />),
-    getItem('Quản lý Users', '/admin/users', <UserOutlined />),
-    getItem('Quản lý Bài đăng', '/admin/rentals', <HomeOutlined />),
-    getItem('Quản lý Ví', '/admin/wallets', <WalletOutlined />),
-    getItem('Quản lý Địa điểm', '/admin/locations', <EnvironmentOutlined />),
-    getItem('Quản lý Tiện ích', '/admin/amenities', <AppstoreOutlined />),
-];
-
 export function AdminLayout() {
     const [collapsed, setCollapsed] = useState(false);
+    const [openKeys, setOpenKeys] = useState<string[]>([]);
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, signOut } = useAuth();
+    const { t, i18n } = useTranslation();
     const {
         token: { colorBgContainer, borderRadiusLG },
     } = theme.useToken();
 
-    // Get current user from localStorage
-    const userStr = localStorage.getItem('user');
-    const user = userStr ? JSON.parse(userStr) : null;
+    const menuItems: MenuItem[] = [
+        getItem(t('admin.menu.dashboard'), '/admin', <DashboardOutlined />),
+        getItem(t('admin.menu.users'), '/admin/users', <UserOutlined />),
+        getItem(t('admin.menu.rentals'), '/admin/rentals', <HomeOutlined />),
+        getItem(t('admin.menu.blogs'), '/admin/blogs', <BookOutlined />),
+        getItem(t('admin.menu.wallets'), '/admin/wallets', <WalletOutlined />),
+        getItem(t('admin.menu.reportsGroup'), 'reports-group', <DollarCircleOutlined />, [
+            getItem(t('admin.menu.finance'), '/admin/finance', <DollarCircleOutlined />),
+            getItem(t('admin.menu.moderatorKpis'), '/admin/moderators', <TeamOutlined />),
+        ]),
+        getItem(t('admin.menu.settingsGroup'), 'settings-group', <SettingOutlined />, [
+            getItem(t('admin.menu.locations'), '/admin/locations', <EnvironmentOutlined />),
+            getItem(t('admin.menu.amenities'), '/admin/amenities', <AppstoreOutlined />),
+            getItem(t('admin.menu.systemSettings'), '/admin/settings', <SettingOutlined />),
+        ]),
+    ];
 
     const handleMenuClick = (e: { key: string }) => {
-        navigate(e.key);
+        if (e.key.startsWith('/')) {
+            navigate(e.key);
+        }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+    const handleLogout = async () => {
+        await signOut();
         navigate('/login');
     };
 
     const userMenuItems: MenuProps['items'] = [
         {
-            key: 'profile',
-            icon: <SettingOutlined />,
-            label: 'Cài đặt',
-            onClick: () => navigate('/profile'),
+            key: 'change-password',
+            icon: <LockOutlined />,
+            label: t('admin.userMenu.changePassword'),
+            onClick: () => navigate('/forgot-password'),
         },
         {
             type: 'divider',
@@ -72,28 +87,47 @@ export function AdminLayout() {
         {
             key: 'logout',
             icon: <LogoutOutlined />,
-            label: 'Đăng xuất',
+            label: t('admin.userMenu.logout'),
             onClick: handleLogout,
             danger: true,
         },
     ];
 
-    // Determine selected key based on current path
-    const selectedKey = menuItems.find(
-        (item) => item && 'key' in item && location.pathname === item.key
-    )
-        ? location.pathname
-        : location.pathname.startsWith('/admin/users')
-            ? '/admin/users'
-            : location.pathname.startsWith('/admin/rentals')
-                ? '/admin/rentals'
-                : location.pathname.startsWith('/admin/wallets')
-                    ? '/admin/wallets'
-                    : location.pathname.startsWith('/admin/locations')
-                        ? '/admin/locations'
-                        : location.pathname.startsWith('/admin/amenities')
-                            ? '/admin/amenities'
-                            : '/admin';
+    const selectedKey = location.pathname.startsWith('/admin/users')
+        ? '/admin/users'
+        : location.pathname.startsWith('/admin/finance')
+            ? '/admin/finance'
+            : location.pathname.startsWith('/admin/moderators')
+                ? '/admin/moderators'
+                : location.pathname.startsWith('/admin/rentals')
+                    ? '/admin/rentals'
+                    : location.pathname.startsWith('/admin/blogs')
+                        ? '/admin/blogs'
+                    : location.pathname.startsWith('/admin/wallets')
+                        ? '/admin/wallets'
+                        : location.pathname.startsWith('/admin/locations')
+                            ? '/admin/locations'
+                            : location.pathname.startsWith('/admin/amenities')
+                                ? '/admin/amenities'
+                                : location.pathname.startsWith('/admin/settings')
+                                    ? '/admin/settings'
+                                    : '/admin';
+
+    useEffect(() => {
+        const nextOpenKeys = selectedKey.startsWith('/admin/finance') || selectedKey.startsWith('/admin/moderators')
+            ? ['reports-group']
+            : selectedKey.startsWith('/admin/locations') || selectedKey.startsWith('/admin/amenities') || selectedKey.startsWith('/admin/settings')
+                ? ['settings-group']
+                : [];
+        setOpenKeys(nextOpenKeys);
+    }, [selectedKey]);
+
+    const currentLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'vi';
+    const nextLanguage = currentLanguage === 'vi' ? 'en' : 'vi';
+
+    const toggleLanguage = async () => {
+        await i18n.changeLanguage(nextLanguage);
+    };
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
@@ -122,13 +156,15 @@ export function AdminLayout() {
                         borderBottom: '1px solid rgba(255,255,255,0.1)',
                     }}
                 >
-                    {collapsed ? 'EZ' : 'EZ-Room Admin'}
+                    {collapsed ? 'EZ' : t('admin.brand')}
                 </div>
                 <Menu
                     theme="dark"
                     mode="inline"
                     selectedKeys={[selectedKey]}
+                    openKeys={openKeys}
                     items={menuItems}
+                    onOpenChange={(keys) => setOpenKeys(keys as string[])}
                     onClick={handleMenuClick}
                 />
             </Sider>
@@ -152,25 +188,35 @@ export function AdminLayout() {
                         onClick={() => setCollapsed(!collapsed)}
                         style={{ fontSize: 16, width: 48, height: 48 }}
                     />
-                    <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                cursor: 'pointer',
-                            }}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <Button
+                            type="text"
+                            icon={<GlobalOutlined />}
+                            onClick={() => void toggleLanguage()}
+                            title={t('admin.language.toggleTitle')}
                         >
-                            <Avatar
-                                src={user?.avatar_url}
-                                icon={!user?.avatar_url && <UserOutlined />}
-                                style={{ backgroundColor: '#1677ff' }}
-                            />
-                            <span style={{ fontWeight: 500 }}>
-                                {user?.full_name || user?.email || 'Admin'}
-                            </span>
-                        </div>
-                    </Dropdown>
+                            {currentLanguage.toUpperCase()} / {nextLanguage.toUpperCase()}
+                        </Button>
+                        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <Avatar
+                                    src={user?.avatarUrl}
+                                    icon={!user?.avatarUrl && <UserOutlined />}
+                                    style={{ backgroundColor: '#1677ff' }}
+                                />
+                                <span style={{ fontWeight: 500 }}>
+                                    {user?.fullName || user?.email || t('admin.defaultUser')}
+                                </span>
+                            </div>
+                        </Dropdown>
+                    </div>
                 </Header>
                 <Content
                     style={{

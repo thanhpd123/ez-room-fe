@@ -42,35 +42,37 @@ import {
     type UserDetail,
     type PaginationInfo,
 } from './shared/admin-api';
+import { useTranslation } from 'react-i18next';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
 const ROLE_OPTIONS = [
-    { value: 'ADMIN', label: 'Admin', color: 'red' },
-    { value: 'MODERATOR', label: 'Moderator', color: 'purple' },
-    { value: 'LANDLORD', label: 'Chủ trọ', color: 'blue' },
-    { value: 'TENANT', label: 'Người thuê', color: 'green' },
-    { value: 'GUEST', label: 'Khách', color: 'default' },
+    { value: 'ADMIN', color: 'red' },
+    { value: 'MODERATOR', color: 'purple' },
+    { value: 'LANDLORD', color: 'blue' },
+    { value: 'TENANT', color: 'green' },
+    { value: 'GUEST', color: 'default' },
 ];
 
 const STATUS_OPTIONS = [
-    { value: 'ACTIVE', label: 'Hoạt động', color: 'success' },
-    { value: 'INACTIVE', label: 'Không hoạt động', color: 'default' },
-    { value: 'SUSPENDED', label: 'Tạm ngưng', color: 'warning' },
-    { value: 'BANNED', label: 'Bị cấm', color: 'error' },
+    { value: 'ACTIVE', color: 'success' },
+    { value: 'INACTIVE', color: 'default' },
+    { value: 'SUSPENDED', color: 'warning' },
+    { value: 'BANNED', color: 'error' },
 ];
 
-const RENTAL_STATUS_MAP: Record<string, { label: string; color: string }> = {
-    AVAILABLE: { label: 'Đang hiển thị', color: 'success' },
-    UNAVAILABLE: { label: 'Tạm ngưng', color: 'processing' },
-    HIDDEN: { label: 'Đã ẩn', color: 'default' },
-    VIOLATE: { label: 'Vi phạm', color: 'error' },
-    PENDING: { label: 'Chờ duyệt', color: 'warning' },
-    SUSPEND: { label: 'Tạm khóa', color: 'default' },
+const RENTAL_STATUS_MAP: Record<string, { color: string }> = {
+    AVAILABLE: { color: 'success' },
+    UNAVAILABLE: { color: 'processing' },
+    HIDDEN: { color: 'default' },
+    VIOLATE: { color: 'error' },
+    PENDING: { color: 'warning' },
+    SUSPEND: { color: 'default' },
 };
 
 export function AdminUsersPage() {
+    const { t, i18n } = useTranslation();
     const [users, setUsers] = useState<User[]>([]);
     const [pagination, setPagination] = useState<PaginationInfo>({
         page: 1,
@@ -176,7 +178,8 @@ export function AdminUsersPage() {
 
     const formatDate = (dateStr: string | null | undefined) => {
         if (!dateStr) return '-';
-        return new Date(dateStr).toLocaleDateString('vi-VN', {
+        const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN';
+        return new Date(dateStr).toLocaleDateString(locale, {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
@@ -187,12 +190,21 @@ export function AdminUsersPage() {
 
     const formatMoney = (value: string | number | null | undefined) => {
         if (value == null) return '-';
-        return Number(value).toLocaleString('vi-VN') + ' đ';
+        const locale = i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN';
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: 'VND',
+            maximumFractionDigits: 0,
+        }).format(Number(value || 0));
     };
+
+    const roleLabel = (role: string) => t(`admin.users.role.${role}`);
+    const statusLabel = (status: string) => t(`admin.users.status.${status}`);
+    const rentalStatusLabel = (status: string) => t(`admin.users.rentalStatus.${status}`);
 
     const columns: ColumnsType<User> = [
         {
-            title: 'User',
+            title: t('admin.users.table.user'),
             key: 'user',
             render: (_, record) => (
                 <Space>
@@ -208,42 +220,42 @@ export function AdminUsersPage() {
             ),
         },
         {
-            title: 'Phone',
+            title: t('admin.users.table.phone'),
             dataIndex: 'phone',
             key: 'phone',
             render: (phone) => phone || '-',
         },
         {
-            title: 'Role',
+            title: t('admin.users.table.role'),
             dataIndex: 'role',
             key: 'role',
             render: (role) => {
                 const option = ROLE_OPTIONS.find((r) => r.value === role);
-                return <Tag color={option?.color}>{option?.label || role}</Tag>;
+                return <Tag color={option?.color}>{roleLabel(role)}</Tag>;
             },
         },
         {
-            title: 'Status',
+            title: t('admin.users.table.status'),
             dataIndex: 'status',
             key: 'status',
             render: (status) => {
                 const option = STATUS_OPTIONS.find((s) => s.value === status);
-                return <Tag color={option?.color}>{option?.label || status}</Tag>;
+                return <Tag color={option?.color}>{statusLabel(status)}</Tag>;
             },
         },
         {
-            title: 'Ngày tạo',
+            title: t('admin.users.table.createdAt'),
             dataIndex: 'createdAt',
             key: 'createdAt',
             render: (date) =>
-                new Date(date).toLocaleDateString('vi-VN', {
+                new Date(date).toLocaleDateString(i18n.resolvedLanguage === 'en' ? 'en-US' : 'vi-VN', {
                     day: '2-digit',
                     month: '2-digit',
                     year: 'numeric',
                 }),
         },
         {
-            title: 'Hành động',
+            title: t('admin.users.table.actions'),
             key: 'actions',
             render: (_, record) => (
                 <Space>
@@ -251,7 +263,7 @@ export function AdminUsersPage() {
                         type="text"
                         icon={<EyeOutlined />}
                         onClick={() => handleViewDetail(record)}
-                        title="Xem chi tiết"
+                        title={t('admin.users.actions.viewDetail')}
                     />
                     <Button
                         type="text"
@@ -260,38 +272,38 @@ export function AdminUsersPage() {
                             setEditingUser(record);
                             setNewRole(record.role);
                         }}
-                        title="Đổi role"
+                        title={t('admin.users.actions.changeRole')}
                     />
                     {record.role !== 'ADMIN' && (
                         record.status === 'ACTIVE' ? (
                             <Popconfirm
-                                title="Ban user này?"
-                                description={`Bạn có chắc muốn ban "${record.fullName}"?`}
+                                title={t('admin.users.actions.confirmBanTitle')}
+                                description={t('admin.users.actions.confirmBanDesc', { name: record.fullName })}
                                 onConfirm={() => handleStatusToggle(record, 'BANNED')}
-                                okText="Ban"
-                                cancelText="Hủy"
+                                okText={t('admin.users.actions.ban')}
+                                cancelText={t('admin.users.actions.cancel')}
                                 okButtonProps={{ danger: true }}
                             >
                                 <Button
                                     type="text"
                                     danger
                                     icon={<StopOutlined />}
-                                    title="Ban user"
+                                    title={t('admin.users.actions.banUser')}
                                 />
                             </Popconfirm>
                         ) : (
                             <Popconfirm
-                                title="Mở khóa user này?"
-                                description={`Bạn có chắc muốn mở khóa "${record.fullName}"?`}
+                                title={t('admin.users.actions.confirmUnbanTitle')}
+                                description={t('admin.users.actions.confirmUnbanDesc', { name: record.fullName })}
                                 onConfirm={() => handleStatusToggle(record, 'ACTIVE')}
-                                okText="Mở khóa"
-                                cancelText="Hủy"
+                                okText={t('admin.users.actions.unban')}
+                                cancelText={t('admin.users.actions.cancel')}
                             >
                                 <Button
                                     type="text"
                                     style={{ color: '#52c41a' }}
                                     icon={<CheckOutlined />}
-                                    title="Unban user"
+                                    title={t('admin.users.actions.unbanUser')}
                                 />
                             </Popconfirm>
                         )
@@ -303,13 +315,13 @@ export function AdminUsersPage() {
 
     return (
         <div>
-            <Title level={2}>Quản lý Users</Title>
+            <Title level={2}>{t('admin.users.title')}</Title>
 
             {/* Filters */}
             <Card style={{ marginBottom: 16 }}>
                 <Space wrap>
                     <Input
-                        placeholder="Tìm theo tên, email, phone..."
+                        placeholder={t('admin.users.filters.searchPlaceholder')}
                         prefix={<SearchOutlined />}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -318,7 +330,7 @@ export function AdminUsersPage() {
                         allowClear
                     />
                     <Select
-                        placeholder="Lọc theo Role"
+                        placeholder={t('admin.users.filters.rolePlaceholder')}
                         value={roleFilter}
                         onChange={setRoleFilter}
                         style={{ width: 150 }}
@@ -326,12 +338,12 @@ export function AdminUsersPage() {
                     >
                         {ROLE_OPTIONS.map((opt) => (
                             <Option key={opt.value} value={opt.value}>
-                                {opt.label}
+                                {roleLabel(opt.value)}
                             </Option>
                         ))}
                     </Select>
                     <Select
-                        placeholder="Lọc theo Status"
+                        placeholder={t('admin.users.filters.statusPlaceholder')}
                         value={statusFilter}
                         onChange={setStatusFilter}
                         style={{ width: 150 }}
@@ -339,12 +351,12 @@ export function AdminUsersPage() {
                     >
                         {STATUS_OPTIONS.map((opt) => (
                             <Option key={opt.value} value={opt.value}>
-                                {opt.label}
+                                {statusLabel(opt.value)}
                             </Option>
                         ))}
                     </Select>
                     <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
-                        Tìm kiếm
+                        {t('admin.users.filters.searchButton')}
                     </Button>
                 </Space>
             </Card>
@@ -361,7 +373,7 @@ export function AdminUsersPage() {
                         pageSize: pagination.limit,
                         total: pagination.total,
                         showSizeChanger: false,
-                        showTotal: (total) => `Tổng ${total} users`,
+                        showTotal: (total) => t('admin.users.totalUsersText', { total }),
                     }}
                     onChange={handleTableChange}
                 />
@@ -369,16 +381,16 @@ export function AdminUsersPage() {
 
             {/* Edit Role Modal */}
             <Modal
-                title={`Đổi role cho "${editingUser?.fullName}"`}
+                title={t('admin.users.roleModal.title', { name: editingUser?.fullName || '' })}
                 open={!!editingUser}
                 onOk={handleRoleChange}
                 onCancel={() => setEditingUser(null)}
                 confirmLoading={modalLoading}
-                okText="Lưu"
-                cancelText="Hủy"
+                okText={t('admin.users.roleModal.save')}
+                cancelText={t('admin.users.roleModal.cancel')}
             >
                 <div style={{ marginTop: 16 }}>
-                    <p style={{ marginBottom: 8 }}>Chọn role mới:</p>
+                    <p style={{ marginBottom: 8 }}>{t('admin.users.roleModal.selectNewRole')}</p>
                     <Select
                         value={newRole}
                         onChange={setNewRole}
@@ -386,7 +398,7 @@ export function AdminUsersPage() {
                     >
                         {ROLE_OPTIONS.map((opt) => (
                             <Option key={opt.value} value={opt.value}>
-                                <Tag color={opt.color}>{opt.label}</Tag>
+                                <Tag color={opt.color}>{roleLabel(opt.value)}</Tag>
                             </Option>
                         ))}
                     </Select>
@@ -395,7 +407,7 @@ export function AdminUsersPage() {
 
             {/* User Detail Drawer */}
             <Drawer
-                title="Chi tiết người dùng"
+                title={t('admin.users.drawer.title')}
                 open={drawerOpen}
                 onClose={() => { setDrawerOpen(false); setDetailUser(null); }}
                 size="large"
@@ -420,17 +432,17 @@ export function AdminUsersPage() {
                                     {detailUser.isVip && (
                                         <CrownOutlined
                                             style={{ color: '#faad14', marginLeft: 8, fontSize: 16 }}
-                                            title="VIP"
+                                            title={t('admin.users.drawer.vip')}
                                         />
                                     )}
                                 </Title>
                                 <Text type="secondary">{detailUser.email}</Text>
                                 <div style={{ marginTop: 4 }}>
                                     <Tag color={ROLE_OPTIONS.find((r) => r.value === detailUser.role)?.color}>
-                                        {ROLE_OPTIONS.find((r) => r.value === detailUser.role)?.label}
+                                        {roleLabel(detailUser.role)}
                                     </Tag>
                                     <Tag color={STATUS_OPTIONS.find((s) => s.value === detailUser.status)?.color}>
-                                        {STATUS_OPTIONS.find((s) => s.value === detailUser.status)?.label}
+                                        {statusLabel(detailUser.status)}
                                     </Tag>
                                 </div>
                             </div>
@@ -438,36 +450,36 @@ export function AdminUsersPage() {
 
                         {/* Basic info */}
                         <Descriptions bordered size="small" column={2}>
-                            <Descriptions.Item label="ID">
+                            <Descriptions.Item label={t('admin.users.drawer.id')}>
                                 <Text copyable style={{ fontSize: 12 }}>{detailUser.id}</Text>
                             </Descriptions.Item>
-                            <Descriptions.Item label="SĐT">
+                            <Descriptions.Item label={t('admin.users.drawer.phone')}>
                                 {detailUser.phone || '-'}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Ngày tạo">
+                            <Descriptions.Item label={t('admin.users.drawer.createdAt')}>
                                 {formatDate(detailUser.createdAt)}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Cập nhật lần cuối">
+                            <Descriptions.Item label={t('admin.users.drawer.lastUpdated')}>
                                 {formatDate(detailUser.updated_at)}
                             </Descriptions.Item>
                         </Descriptions>
 
                         {/* Stats summary */}
-                        <Divider titlePlacement="left">Thống kê</Divider>
+                        <Divider titlePlacement="left">{t('admin.users.drawer.stats')}</Divider>
                         <Space size="large" wrap>
                             <Badge count={detailUser.stats.totalRentals} showZero overflowCount={999}>
                                 <Tag icon={<HomeOutlined />} style={{ padding: '4px 12px' }}>
-                                    Bài đăng
+                                    {t('admin.users.drawer.rentals')}
                                 </Tag>
                             </Badge>
                             <Badge count={detailUser.stats.totalFavorites} showZero overflowCount={999}>
                                 <Tag icon={<HeartOutlined />} style={{ padding: '4px 12px' }}>
-                                    Yêu thích
+                                    {t('admin.users.drawer.favorites')}
                                 </Tag>
                             </Badge>
                             <Badge count={detailUser.stats.totalPreorders} showZero overflowCount={999}>
                                 <Tag icon={<ShoppingCartOutlined />} style={{ padding: '4px 12px' }}>
-                                    Đặt cọc
+                                    {t('admin.users.drawer.preorders')}
                                 </Tag>
                             </Badge>
                         </Space>
@@ -476,15 +488,15 @@ export function AdminUsersPage() {
                         {detailUser.wallet && (
                             <>
                                 <Divider titlePlacement="left">
-                                    <WalletOutlined /> Ví
+                                    <WalletOutlined /> {t('admin.users.drawer.wallet')}
                                 </Divider>
                                 <Descriptions bordered size="small" column={1}>
-                                    <Descriptions.Item label="Số dư">
+                                    <Descriptions.Item label={t('admin.users.drawer.balance')}>
                                         <Text strong style={{ color: '#52c41a', fontSize: 16 }}>
                                             {formatMoney(detailUser.wallet.balance)}
                                         </Text>
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Ngày tạo ví">
+                                    <Descriptions.Item label={t('admin.users.drawer.walletCreatedAt')}>
                                         {formatDate(detailUser.wallet.createdAt)}
                                     </Descriptions.Item>
                                 </Descriptions>
@@ -494,17 +506,17 @@ export function AdminUsersPage() {
                         {/* Preferences */}
                         {detailUser.preference && (
                             <>
-                                <Divider titlePlacement="left">Sở thích tìm phòng</Divider>
+                                <Divider titlePlacement="left">{t('admin.users.drawer.preferences')}</Divider>
                                 <Descriptions bordered size="small" column={2}>
-                                    <Descriptions.Item label="Ngân sách">
+                                    <Descriptions.Item label={t('admin.users.drawer.budget')}>
                                         {detailUser.preference.budget_min && detailUser.preference.budget_max
                                             ? `${formatMoney(detailUser.preference.budget_min)} - ${formatMoney(detailUser.preference.budget_max)}`
                                             : '-'}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Loại phòng">
+                                    <Descriptions.Item label={t('admin.users.drawer.roomType')}>
                                         {detailUser.preference.room_type || '-'}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Khu vực" span={2}>
+                                    <Descriptions.Item label={t('admin.users.drawer.location')} span={2}>
                                         {detailUser.preference.preferredLocation || '-'}
                                     </Descriptions.Item>
                                 </Descriptions>
@@ -514,12 +526,12 @@ export function AdminUsersPage() {
                         {/* Lifestyle profile */}
                         {detailUser.lifestyleProfile && (
                             <>
-                                <Divider titlePlacement="left">Hồ sơ lối sống</Divider>
+                                <Divider titlePlacement="left">{t('admin.users.drawer.lifestyle')}</Divider>
                                 <Descriptions bordered size="small" column={2}>
-                                    <Descriptions.Item label="Nghề nghiệp">
+                                    <Descriptions.Item label={t('admin.users.drawer.occupation')}>
                                         {detailUser.lifestyleProfile.occupation_type || '-'}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Tính cách">
+                                    <Descriptions.Item label={t('admin.users.drawer.personality')}>
                                         {detailUser.lifestyleProfile.personalityType || '-'}
                                     </Descriptions.Item>
                                 </Descriptions>
@@ -530,7 +542,7 @@ export function AdminUsersPage() {
                         {detailUser.role === 'LANDLORD' && detailUser.rentals.length > 0 && (
                             <>
                                 <Divider titlePlacement="left">
-                                    <HomeOutlined /> Bài đăng ({detailUser.rentals.length})
+                                    <HomeOutlined /> {t('admin.users.drawer.rentalPosts', { count: detailUser.rentals.length })}
                                 </Divider>
                                 <List
                                     size="small"
@@ -542,9 +554,9 @@ export function AdminUsersPage() {
                                                 description={
                                                     <Space>
                                                         <Tag color={RENTAL_STATUS_MAP[rental.status]?.color || 'default'}>
-                                                            {RENTAL_STATUS_MAP[rental.status]?.label || rental.status}
+                                                            {rentalStatusLabel(rental.status)}
                                                         </Tag>
-                                                        <Text type="secondary">{rental.rooms.length} phòng</Text>
+                                                        <Text type="secondary">{t('admin.users.drawer.roomsCount', { count: rental.rooms.length })}</Text>
                                                         <Text type="secondary">{formatDate(rental.createdAt)}</Text>
                                                     </Space>
                                                 }
@@ -559,7 +571,7 @@ export function AdminUsersPage() {
                         {detailUser.preorders.length > 0 && (
                             <>
                                 <Divider titlePlacement="left">
-                                    <ShoppingCartOutlined /> Đặt cọc gần đây
+                                    <ShoppingCartOutlined /> {t('admin.users.drawer.recentPreorders')}
                                 </Divider>
                                 <List
                                     size="small"
@@ -596,14 +608,13 @@ export function AdminUsersPage() {
                                 borderRadius: 6,
                             }}>
                                 <Text type="warning" strong>
-                                    Lưu ý: Dữ liệu chủ trọ có thể liên kết với nhiều bài đăng, phòng,
-                                    đặt cọc và giao dịch. Không nên xóa tài khoản chủ trọ.
+                                    {t('admin.users.drawer.landlordWarning')}
                                 </Text>
                             </div>
                         )}
                     </div>
                 ) : (
-                    <Text type="secondary">Không tìm thấy thông tin.</Text>
+                    <Text type="secondary">{t('admin.users.drawer.notFound')}</Text>
                 )}
             </Drawer>
         </div>

@@ -36,6 +36,7 @@ export function clearStoredAuth(): void {
     localStorage.removeItem(EZROOM_TOKEN_KEY);
     localStorage.removeItem('ezroom_user');
     localStorage.removeItem('ezroom_session_expires_at');
+    localStorage.removeItem('ezroom_refresh_token');
 }
 
 /**
@@ -44,17 +45,50 @@ export function clearStoredAuth(): void {
 export async function loginWithEmail(
     email: string,
     password: string
-): Promise<{ token: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; gender?: string | null; isVip?: boolean } }> {
+): Promise<{ accessToken: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; gender?: string | null; isVip?: boolean } }> {
     const url = getApiUrl('/auth/login');
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Đăng nhập thất bại');
-    if (!data.success || !data.token || !data.user) throw new Error('Phản hồi không hợp lệ');
-    return { token: data.token, user: data.user };
+    const accessToken = data?.accessToken || data?.token;
+    if (!data.success || !accessToken || !data.user) throw new Error('Phản hồi không hợp lệ');
+    return { accessToken, user: data.user };
+}
+
+export async function refreshAccessTokenRequest(): Promise<{ accessToken: string; user?: Record<string, unknown> }> {
+    const res = await fetch(getApiUrl('/auth/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data?.message || 'Không thể làm mới phiên đăng nhập');
+    }
+    const accessToken = data?.accessToken || data?.token;
+    if (!accessToken) {
+        throw new Error('Phản hồi làm mới phiên không hợp lệ');
+    }
+    return { accessToken, user: data?.user };
+}
+
+export async function logoutCurrentSessionRequest(): Promise<void> {
+    await fetch(getApiUrl('/auth/logout'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+    });
+}
+
+export async function logoutAllSessionsRequest(): Promise<void> {
+    await authFetch('/auth/logout-all', {
+        method: 'POST',
+    });
 }
 
 /**
@@ -267,6 +301,7 @@ export interface LifestyleProfileResponse {
     move_in_date?: string | null;
     temperature_preference?: string | null;
     quiet_hours_preference?: string | null;
+    deal_breakers?: string | null;
 }
 
 /** User preference – matches backend/DB (UserPreference). Roommate matching uses profile gender (same gender). */
@@ -322,6 +357,7 @@ export async function upsertLifestyleRequest(body: {
     move_in_date?: string | null;
     temperature_preference?: string | null;
     quiet_hours_preference?: string | null;
+    deal_breakers?: string | null;
 }) {
     const res = await authFetch('/auth/lifestyle', { method: 'PUT', body: JSON.stringify(body) });
     const data = await res.json();
@@ -376,23 +412,64 @@ export async function authFetch(
     path: string,
     options: AuthFetchOptions = {}
 ): Promise<Response> {
-    const { token: explicitToken, ...init } = options;
-    const token = explicitToken !== undefined && explicitToken !== null
-        ? explicitToken
-        : await getAccessToken();
+    const { token: explicitToken, ...rest } = options;
+
+    const fetchWithToken = async (token: string | null): Promise<Response> => {
+        const url = getApiUrl(path);
+        const headers: HeadersInit = {};
+
+        if (!(rest.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        if (rest.headers) {
+            Object.assign(headers, rest.headers);
+        }
+
+        if (token) {
+            (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+        }
+        return fetch(url, {
+            ...rest,
+            headers,
+            credentials: 'include',
+        });
+    };
+
+    const token =
+        explicitToken !== undefined && explicitToken !== null
+            ? explicitToken
+            : await getAccessToken();
+
     if (!token) {
         return new Response(
             JSON.stringify({ success: false, message: 'Chưa đăng nhập' }),
             { status: 401, headers: { 'Content-Type': 'application/json' } }
         );
     }
-    const url = getApiUrl(path);
-    const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        ...init.headers,
-        Authorization: `Bearer ${token}`,
-    };
-    return fetch(url, { ...init, headers });
+
+    let response = await fetchWithToken(token);
+
+    const shouldTryRefresh =
+        response.status === 401 &&
+        !!localStorage.getItem(EZROOM_TOKEN_KEY) &&
+        path !== '/auth/login' &&
+        path !== '/auth/refresh' &&
+        path !== '/auth/logout';
+
+    if (!shouldTryRefresh) {
+        return response;
+    }
+
+    try {
+        const { accessToken } = await refreshAccessTokenRequest();
+        localStorage.setItem(EZROOM_TOKEN_KEY, accessToken);
+        response = await fetchWithToken(accessToken);
+    } catch {
+        return response;
+    }
+
+    return response;
 }
 
 /**
@@ -502,7 +579,18 @@ export async function depositWalletRequest(body: {
 }): Promise<{
     success: boolean;
     message: string;
-    data: { wallet: WalletSummary; transaction: WalletTransactionItem };
+    data: {
+        wallet: WalletSummary;
+        transaction: WalletTransactionItem;
+        payment?: {
+            provider: 'PAYOS';
+            orderCode: string;
+            checkoutUrl: string | null;
+            qrCode: string | null;
+            paymentLinkId: string | null;
+            status: string;
+        };
+    };
 }> {
     const res = await authFetch('/wallet/deposit', {
         method: 'POST',
@@ -527,6 +615,104 @@ export async function withdrawWalletRequest(body: {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Rút tiền thất bại');
+    return data;
+}
+
+export async function verifyWalletDepositRequest(orderCode: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { confirmed?: boolean; alreadyConfirmed?: boolean; wallet: WalletSummary | null; payosStatus?: string };
+}> {
+    const res = await authFetch(`/wallet/verify-deposit?orderCode=${encodeURIComponent(orderCode)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Xác minh thất bại');
+    return data;
+}
+
+/** Preorder / đặt cọc phòng (PayOS) */
+export interface MyPreorderItem {
+    id: string;
+    userId: string;
+    roomId: string;
+    status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
+    paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
+    depositAmount: number;
+    refundStatus: 'NOT_APPLICABLE' | 'ELIGIBLE' | 'REFUNDED' | 'NOT_REFUNDABLE';
+    createdAt: string;
+    cancelReason: string | null;
+    room: {
+        id: string;
+        room_name: string | null;
+        price: number;
+    } | null;
+    rental: {
+        id: string;
+        title: string;
+    } | null;
+}
+
+export interface CreatePreorderDepositPaymentRequest {
+    roomId: string;
+    depositMonths?: number;
+    depositPercent?: number;
+    depositAmount?: number;
+    buyerName?: string;
+    buyerEmail?: string;
+    buyerPhone?: string;
+}
+
+export interface CreatePreorderDepositPaymentResponse {
+    success: boolean;
+    message: string;
+    data: {
+        preorderId: string;
+        roomId: string;
+        depositAmount: number;
+        depositPercent?: number;
+        depositMonths?: number;
+        payment: {
+            provider: 'PAYOS';
+            orderCode: string;
+            checkoutUrl: string | null;
+            qrCode: string | null;
+            paymentLinkId: string | null;
+            status: string;
+        };
+    };
+}
+
+export async function createPreorderDepositPaymentRequest(
+    body: CreatePreorderDepositPaymentRequest
+): Promise<CreatePreorderDepositPaymentResponse> {
+    const res = await authFetch('/preorders/deposit/pay', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể tạo thanh toán đặt cọc');
+    return data;
+}
+
+export async function getMyPreordersRequest(params?: {
+    page?: number;
+    limit?: number;
+    status?: MyPreorderItem['status'] | 'ALL';
+    paymentStatus?: MyPreorderItem['paymentStatus'] | 'ALL';
+}): Promise<{
+    success: boolean;
+    data: MyPreorderItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    if (params?.status) search.set('status', params.status);
+    if (params?.paymentStatus) search.set('paymentStatus', params.paymentStatus);
+
+    const qs = search.toString();
+    const res = await authFetch(`/preorders/mine${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách đặt cọc');
     return data;
 }
 
@@ -620,9 +806,13 @@ export interface RoommateSuggestionItem {
         work_from_home: boolean | null;
         personalityType: string | null;
         social_level: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
         interests: string[];
+        deal_breakers: string | null;
     } | null;
-    preference: { preferred_districts: string[]; room_type: string | null } | null;
+    preference: { preferred_districts: string[]; room_type: string | null; budget_min: number | null; budget_max: number | null; preferredLocation: string | null } | null;
     matchScore: number;
 }
 
@@ -643,6 +833,7 @@ export interface RoommateMatchItem {
     status: string;
     createdAt: string;
     isRequester: boolean;
+    roomId: string | null;
     otherUser: { id: string; fullName: string; avatarUrl: string | null; gender: string | null } | null;
 }
 
@@ -677,7 +868,184 @@ export async function updateRoommateMatchStatusRequest(
     return data;
 }
 
+export interface RoommatePublicProfile {
+    user: {
+        id: string;
+        fullName: string;
+        avatarUrl: string | null;
+        gender: string | null;
+        memberSince: string | null;
+    };
+    lifestyle: {
+        smoking: boolean | null;
+        drinking: boolean | null;
+        pets_allowed: boolean | null;
+        sleep_schedule: string | null;
+        work_from_home: boolean | null;
+        personalityType: string | null;
+        social_level: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
+        cooking_frequency: string | null;
+        wake_time: string | null;
+        bedtime: string | null;
+        occupation_type: string | null;
+        temperature_preference: string | null;
+        quiet_hours_preference: string | null;
+        interests: string[];
+        deal_breakers: string | null;
+        languages: string[];
+        preferred_lease_months: number | null;
+    } | null;
+    preference: {
+        preferred_districts: string[];
+        room_type: string | null;
+        budget_min: number | null;
+        budget_max: number | null;
+        preferred_amenities: string[];
+        must_have_amenities: string[];
+        preferred_lease_months: number | null;
+        pet_friendly: boolean | null;
+        transport_nearby: boolean | null;
+    } | null;
+}
+
+export async function getRoommateProfileRequest(userId: string): Promise<{
+    success: boolean;
+    data: RoommatePublicProfile;
+}> {
+    const res = await authFetch(`/roommate/profile/${encodeURIComponent(userId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải hồ sơ');
+    return data;
+}
+
+/** Danh sách phòng đang thuê (để mời roommate) */
+export interface MyActiveRoomItem {
+    rentalPeriodId: string;
+    roomId: string;
+    roomName: string;
+    propertyName: string;
+    price: number | null;
+    address: string;
+    image: string | null;
+    startDate: string;
+    endDate: string | null;
+}
+
+export async function getMyActiveRoomsRequest(): Promise<{
+    success: boolean;
+    data: MyActiveRoomItem[];
+}> {
+    const res = await authFetch('/roommate/my-active-rooms');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách phòng đang thuê');
+    return data;
+}
+
+export async function inviteRoommateRequest(
+    targetUserId: string,
+    roomId: string
+): Promise<{ success: boolean; message: string }> {
+    const res = await authFetch(`/roommate/invite-room/${encodeURIComponent(targetUserId)}`, {
+        method: 'POST',
+        body: JSON.stringify({ roomId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi lời mời ở ghép thất bại');
+    return data;
+}
+
+/** AI Roommate Search (VIP only) */
+export interface RoommateSearchResultItem {
+    user: { id: string; fullName: string; avatarUrl: string | null; gender: string | null };
+    lifestyle: {
+        smoking: boolean | null;
+        drinking: boolean | null;
+        pets_allowed: boolean | null;
+        sleep_schedule: string | null;
+        work_from_home: boolean | null;
+        personalityType: string | null;
+        social_level: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
+        interests: string[];
+        deal_breakers: string | null;
+    } | null;
+    preference: {
+        preferred_districts: string[];
+        room_type: string | null;
+        budget_min: number | null;
+        budget_max: number | null;
+        preferredLocation: string | null;
+    } | null;
+    similarityScore: number;
+    aiReason: string | null;
+}
+
+export async function searchRoommatesRequest(
+    query: string,
+    limit?: number
+): Promise<{ success: boolean; data: RoommateSearchResultItem[] }> {
+    const params = new URLSearchParams({ q: query });
+    if (limit != null) params.set('limit', String(limit));
+    const res = await authFetch(`/roommate/search?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tìm kiếm AI');
+    return data;
+}
+
+/** Top searchers by area (based on actual behavior) */
+
+export interface AreaSearcherActivity {
+    views: number;
+    favorites: number;
+    preorders: number;
+    totalScore: number;
+}
+
+export interface AreaSearcherItem {
+    user: { id: string; fullName: string; avatarUrl: string | null; gender: string | null };
+    lifestyle: {
+        smoking: boolean;
+        drinking: boolean;
+        pets_allowed: boolean;
+        sleep_schedule: string | null;
+        personalityType: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
+        interests: string[];
+        deal_breakers: string | null;
+    } | null;
+    preference: {
+        preferred_districts: string[];
+        room_type: string | null;
+        budget_min: number | null;
+        budget_max: number | null;
+        preferredLocation: string | null;
+    } | null;
+    matchScore: number;
+    isSameGender: boolean;
+    activityInArea: AreaSearcherActivity;
+}
+
+export async function getTopSearchersByAreaRequest(
+    area: string,
+    limit?: number
+): Promise<{ success: boolean; data: AreaSearcherItem[]; area: string; totalRoomsInArea: number }> {
+    const params = new URLSearchParams({ area });
+    if (limit != null) params.set('limit', String(limit));
+    const res = await authFetch(`/roommate/top-searchers-by-area?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tìm kiếm theo khu vực');
+    return data;
+}
+
 /** Chat / messages */
+
 
 export interface ConversationItem {
     peer: { id: string; fullName: string; avatarUrl: string | null };
@@ -782,7 +1150,7 @@ export async function uploadRentalImage(file: File): Promise<{ url: string }> {
 }
 
 /**
- * POST /rentals – create a new rental listing.
+ * POST /rentals – create a new rental listing with files and image URLs.
  */
 export async function createRentalRequest(body: {
     title: string;
@@ -790,14 +1158,36 @@ export async function createRentalRequest(body: {
     city: string;
     district: string;
     address: string;
-    images?: string[];
+    imageUrls?: string[];     // URLs từ MultiImageUpload
+    documentFiles?: File[];    // Files để upload Supabase
 }): Promise<{ success: boolean; data: Record<string, unknown>; message: string }> {
     const token = await getAccessToken();
     if (!token) throw new Error('Cần đăng nhập để tạo bài đăng');
 
+    // Create FormData for multipart upload
+    const formData = new FormData();
+    formData.append('title', body.title);
+    formData.append('description', body.description || '');
+    formData.append('city', body.city);
+    formData.append('district', body.district);
+    formData.append('address', body.address);
+
+    // Add image URLs (as JSON, separate từ files)
+    if (body.imageUrls && body.imageUrls.length > 0) {
+        formData.append('images', JSON.stringify(body.imageUrls));
+    }
+
+    // Add document files
+    if (body.documentFiles && body.documentFiles.length > 0) {
+        for (const file of body.documentFiles) {
+            formData.append('file', file);
+        }
+    }
+
     const res = await authFetch('/rentals', {
         method: 'POST',
-        body: JSON.stringify(body),
+        body: formData,
+        // Don't set Content-Type header - browser will set it with boundary
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Tạo bài đăng thất bại');
@@ -919,6 +1309,30 @@ export async function updateRentalStatusRequest(
 }
 
 /**
+ * GET /rentals/rejection-info – landlord fetches rejection info for a target.
+ */
+export async function getRejectionInfoRequest(
+    targetType: 'RENTAL' | 'ROOM',
+    targetId: string
+): Promise<{
+    success: boolean;
+    data: {
+        hasRejection: boolean;
+        reason?: string | null;
+        moderatorName?: string | null;
+        rejectedAt?: string;
+        previousStatus?: string;
+        newStatus?: string;
+    };
+}> {
+    const params = new URLSearchParams({ targetType, targetId });
+    const res = await authFetch(`/rentals/rejection-info?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi lấy thông tin từ chối');
+    return data;
+}
+
+/**
  * PUT /rentals/:rentalId – landlord update their rental.
  */
 export async function updateRentalRequest(
@@ -931,6 +1345,7 @@ export async function updateRentalRequest(
         city?: string;
         images?: string[];
         status?: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN';
+        resubmit?: boolean;
     }
 ): Promise<{ success: boolean; message: string; data: Record<string, unknown> }> {
     const res = await authFetch(`/rentals/${rentalId}`, {
@@ -997,6 +1412,66 @@ export async function getRoomsAmenitiesRequest(): Promise<{
     return json;
 }
 
+/**
+ * Room item returned from GET /rooms
+ */
+export interface PublicRoomItem {
+    id: string;
+    rentalId: string;
+    roomName: string | null;
+    description: string | null;
+    roomType: string;
+    price: number;
+    sizeM2: number | null;
+    maxPeople: number;
+    status: string;
+    createdAt: string;
+    images: string[];
+    amenities: Array<{ id: string; name: string }>;
+    rental: {
+        id: string;
+        title: string;
+        status: string;
+        location: { address: string; district: string | null; city: string | null } | null;
+    } | null;
+    // flattened fields from backend
+    title?: string;
+    area?: number;
+    thumbnail_url?: string | null;
+}
+
+/**
+ * GET /rooms – list rooms (public, no auth).
+ */
+export async function getPublicRoomsRequest(params?: {
+    page?: number;
+    limit?: number;
+    roomType?: string;
+    minPrice?: number;
+    maxPrice?: number;
+}): Promise<{
+    success: boolean;
+    data: PublicRoomItem[];
+    pagination: { page: number; limit: number; total: number; pages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    if (params?.roomType) search.set('roomType', params.roomType);
+    if (params?.minPrice) search.set('minPrice', String(params.minPrice));
+    if (params?.maxPrice) search.set('maxPrice', String(params.maxPrice));
+    const qs = search.toString();
+    const url = getApiUrl(`/rooms${qs ? `?${qs}` : ''}`);
+    const res = await fetch(url, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const msg = json?.message || json?.error || `HTTP ${res.status}`;
+        console.error('[getPublicRooms]', url, res.status, msg);
+        throw new Error(msg);
+    }
+    return json;
+}
+
 export async function getPublicRentalsRequest(params?: {
     page?: number;
     limit?: number;
@@ -1023,6 +1498,127 @@ export async function getPublicRentalsRequest(params?: {
         console.error('[getPublicRentals]', url, res.status, msg);
         throw new Error(msg);
     }
+    return json;
+}
+
+export interface BlogPostItem {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt: string | null;
+    content: string;
+    coverImageUrl: string | null;
+    status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+    publishedAt: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+    author: { id: string; fullName: string | null; email: string | null; avatarUrl: string | null } | null;
+    category: { id: string; name: string; slug: string } | null;
+    tags: Array<{ id: string; name: string; slug: string }>;
+}
+
+export async function getPublicBlogPostsRequest(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    tag?: string;
+}): Promise<{
+    success: boolean;
+    data: BlogPostItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.tag) searchParams.set('tag', params.tag);
+    const qs = searchParams.toString();
+    const url = getApiUrl(`/blogs${qs ? `?${qs}` : ''}`);
+    const res = await fetch(url, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const msg = json?.message || json?.error || `HTTP ${res.status}`;
+        throw new Error(msg);
+    }
+    return json;
+}
+
+export async function getPublicBlogPostBySlugRequest(slug: string): Promise<{
+    success: boolean;
+    data: BlogPostItem;
+}> {
+    const url = getApiUrl(`/blogs/${encodeURIComponent(slug)}`);
+    const res = await fetch(url, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const msg = json?.message || json?.error || `HTTP ${res.status}`;
+        throw new Error(msg);
+    }
+    return json;
+}
+
+export interface BlogPostPayload {
+    title: string;
+    slug?: string;
+    excerpt?: string;
+    content: string;
+    coverImageUrl?: string;
+    status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+    publishedAt?: string | null;
+    categoryName?: string | null;
+    tagNames?: string[];
+}
+
+export async function getAdminBlogPostsRequest(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+}): Promise<{
+    success: boolean;
+    data: BlogPostItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.status) searchParams.set('status', params.status);
+    const qs = searchParams.toString();
+    const res = await authFetch(`/blogs/admin/posts${qs ? `?${qs}` : ''}`);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Không tải được danh sách bài viết');
+    return json;
+}
+
+export async function createBlogPostRequest(payload: BlogPostPayload): Promise<{ success: boolean; data: BlogPostItem; message?: string }> {
+    const res = await authFetch('/blogs/admin/posts', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Tạo bài viết thất bại');
+    return json;
+}
+
+export async function updateBlogPostRequest(postId: string, payload: Partial<BlogPostPayload>): Promise<{ success: boolean; data: BlogPostItem; message?: string }> {
+    const res = await authFetch(`/blogs/admin/posts/${encodeURIComponent(postId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Cập nhật bài viết thất bại');
+    return json;
+}
+
+export async function deleteBlogPostRequest(postId: string): Promise<{ success: boolean; message?: string }> {
+    const res = await authFetch(`/blogs/admin/posts/${encodeURIComponent(postId)}`, {
+        method: 'DELETE',
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Xóa bài viết thất bại');
     return json;
 }
 
@@ -1089,6 +1685,66 @@ export async function getRoomByIdRequest(roomId: string): Promise<{
 }
 
 /**
+ * GET /rooms/:roomId/search-roommate – room detail with tracking.
+ */
+export async function getRoomByIdForSearchRoomateRequest(roomId: string): Promise<{
+    success: boolean;
+    data: Record<string, unknown>;
+}> {
+    const token = await getAccessToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const url = getApiUrl(`/rooms/${roomId}/search-roommate`);
+    const res = await fetch(url, { headers });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Không tìm thấy phòng');
+    return json;
+}
+
+/**
+ * GET /feedback/room/:roomId – get reviews for a room (public, no auth).
+ */
+export async function getRoomReviewsRequest(
+    roomId: string,
+    options: { page?: number; limit?: number } = {}
+): Promise<{
+    success: boolean;
+    reviews: Array<{
+        id: string;
+        rating: number;
+        cleanlinessRating?: number;
+        locationRating?: number;
+        valueRating?: number;
+        landlordRating?: number;
+        comment: string;
+        createdAt: string;
+        author: {
+            id: string;
+            name: string;
+            avatar?: string;
+        };
+        landlordReply?: string;
+        repliedAt?: string;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+}> {
+    const params = new URLSearchParams();
+    if (options.page) params.append('page', String(options.page));
+    if (options.limit) params.append('limit', String(options.limit));
+
+    const res = await fetch(getApiUrl(`/feedback/room/${roomId}?${params}`));
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Không thể tải đánh giá');
+    return json;
+}
+
+/**
  * GET /auth/me – current user from backend (verifies token end-to-end).
  */
 export async function fetchAuthMe(): Promise<{
@@ -1149,6 +1805,12 @@ export interface SmartSearchRoomItem {
     otherRoomsInRental: Array<{ id: string; roomName: string | null; price: number; area: number | null; roomType: string; image: string }>;
 }
 
+export interface ApiErrorWithCode extends Error {
+    code?: string;
+    upgradePath?: string;
+    featureName?: string;
+}
+
 /**
  * GET /public/search – room-based recommendation search.
  * Pass token via options for user-preference scoring. Rooms sorted by match score.
@@ -1180,7 +1842,13 @@ export async function smartSearchRequest(
     if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     const res = await fetch(url, { cache: 'no-store', headers });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tìm kiếm');
+    if (!res.ok) {
+        const err = new Error(json?.message || json?.error || 'Lỗi tìm kiếm') as ApiErrorWithCode;
+        err.code = json?.code;
+        err.upgradePath = json?.upgradePath;
+        err.featureName = json?.featureName;
+        throw err;
+    }
     return json;
 }
 
@@ -1437,6 +2105,73 @@ export interface LandlordProfileResponse {
     };
 }
 
+export interface VipPackageItem {
+    id: string;
+    name: string;
+    description: string | null;
+    durationDays: number;
+    price: number;
+    targetRole: 'TENANT' | 'LANDLORD' | string;
+    isActive: boolean;
+    createdAt: string | null;
+}
+
+export async function getVipPackagesRequest(targetRole?: 'TENANT' | 'LANDLORD'): Promise<{
+    success: boolean;
+    data: VipPackageItem[];
+}> {
+    const search = new URLSearchParams();
+    if (targetRole) search.set('targetRole', targetRole);
+    const qs = search.toString();
+    const res = await fetch(getApiUrl(`/vip/packages${qs ? `?${qs}` : ''}`), {
+        cache: 'no-store',
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || 'Không thể tải gói VIP');
+    }
+    return json;
+}
+
+export async function createVipPurchaseRequest(packageId: string): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+        payment?: {
+            checkoutUrl?: string | null;
+            orderCode?: string;
+        };
+    };
+}> {
+    const res = await authFetch('/vip/purchase', {
+        method: 'POST',
+        body: JSON.stringify({ packageId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || 'Không thể tạo thanh toán VIP');
+    }
+    return json;
+}
+
+export async function verifyVipPurchaseRequest(orderCode: string): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+        confirmed?: boolean;
+        activated?: boolean;
+        vipExpiresAt?: string;
+        payosStatus?: string;
+    };
+}> {
+    const res = await authFetch(`/vip/verify?orderCode=${encodeURIComponent(orderCode)}`);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || 'Không thể xác minh thanh toán VIP');
+    }
+    return json;
+}
+
 export async function getLandlordProfileRequest(userId: string): Promise<LandlordProfileResponse> {
     const url = getApiUrl(`/public/landlord/${encodeURIComponent(userId)}`);
     const res = await fetch(url, { cache: 'no-store' });
@@ -1523,5 +2258,164 @@ export async function handleReportRequest(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Xử lý báo cáo thất bại');
+    return data;
+}
+
+/** Landlord Dashboard */
+
+export interface LandlordDashboardStats {
+    rentals: {
+        total: number;
+        byStatus: {
+            AVAILABLE: number;
+            UNAVAILABLE: number;
+            HIDDEN: number;
+            PENDING: number;
+            SUSPEND: number;
+            VIOLATE: number;
+        };
+    };
+    rooms: {
+        total: number;
+    };
+    wallet: {
+        balance: number;
+    };
+    feedback: {
+        total: number;
+        averageRating: number;
+    };
+    preorders: {
+        total: number;
+        byStatus: {
+            PENDING: number;
+            CONFIRMED: number;
+            CANCELLED: number;
+            EXPIRED: number;
+        };
+    };
+}
+
+export interface LandlordPerformanceMetrics {
+    occupancyRate: number;
+    revenue: {
+        thisMonth: number;
+        total: number;
+    };
+    cancellationRate: number;
+    conversionRate: number;
+    bookingStats: {
+        active: number;
+        cancelled: number;
+        total: number;
+    };
+}
+
+export async function getLandlordDashboardStatsRequest(): Promise<{
+    success: boolean;
+    data: LandlordDashboardStats;
+}> {
+    const res = await authFetch('/rentals/dashboard');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải dashboard');
+    return data;
+}
+
+
+export async function getLandlordPerformanceMetricsRequest(): Promise<{
+    success: boolean;
+    data: LandlordPerformanceMetrics;
+}> {
+    const res = await authFetch('/rentals/performance');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải chỉ số hiệu suất');
+    return data;
+}
+
+export interface TopSearchedRoom {
+    id: string;
+    name: string;
+    price: number;
+    searchCount: number;
+    image: string | null;
+    rentalTitle: string;
+    location: {
+        address: string;
+        district: string;
+        city: string;
+    };
+}
+
+export async function getTopSearchedRoomsRequest(limit: number = 5): Promise<{
+    success: boolean;
+    data: {
+        rooms: TopSearchedRoom[];
+    };
+}> {
+    const res = await authFetch(`/rentals/top-searched?limit=${limit}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải phòng được tìm kiếm');
+    return data;
+}
+/** Notifications */
+
+export interface NotificationItem {
+    id: string;
+    type: string;
+    status: string;
+    title: string | null;
+    body: string | null;
+    roomId: string | null;
+    createdAt: string;
+}
+
+export async function getNotificationsRequest(params?: {
+    page?: number;
+    limit?: number;
+}): Promise<{
+    success: boolean;
+    data: NotificationItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+    const search = new URLSearchParams();
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    const qs = search.toString();
+    const res = await authFetch(`/notifications${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải thông báo');
+    return data;
+}
+
+export async function getUnreadCountRequest(): Promise<{
+    success: boolean;
+    unreadCount: number;
+}> {
+    const res = await authFetch('/notifications/unread-count');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi đếm thông báo');
+    return data;
+}
+
+export async function markNotificationReadRequest(id: string): Promise<{
+    success: boolean;
+    message: string;
+}> {
+    const res = await authFetch(`/notifications/${encodeURIComponent(id)}/read`, {
+        method: 'PATCH',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi đánh dấu đã đọc');
+    return data;
+}
+
+export async function markAllNotificationsReadRequest(): Promise<{
+    success: boolean;
+    message: string;
+}> {
+    const res = await authFetch('/notifications/read-all', { method: 'PATCH' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi đánh dấu đã đọc');
+
     return data;
 }

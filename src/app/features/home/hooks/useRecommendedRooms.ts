@@ -31,7 +31,21 @@ export function useRecommendedRooms() {
             getRecommendRequest()
                 .then((res) => {
                     if (!cancelled && res.data) {
-                        setRooms(res.data as RecommendedRoom[]);
+                        setRooms(
+                            res.data.map((room) => ({
+                                id: room.id,
+                                title: room.title,
+                                description:
+                                    'description' in room && room.description != null
+                                        ? String(room.description)
+                                        : null,
+                                price: room.price,
+                                area: room.area,
+                                amenities: room.amenities,
+                                images: room.images,
+                                location: room.location,
+                            }))
+                        );
                         setHint(res.hint ?? '');
                     }
                 })

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { RoomDetail } from './components/RoomDetail';
-import { getRoomByIdRequest } from '@/lib/api';
+import { getRoomByIdForSearchRoomateRequest } from '@/lib/api';
 import type { RoomDetailData } from './types';
 
 function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
@@ -59,7 +59,7 @@ export function RoomDetailPage() {
       setLoading(false);
       return;
     }
-    getRoomByIdRequest(id)
+    getRoomByIdForSearchRoomateRequest(id)
       .then((res) => setRoom(mapApiToRoomDetailData(res.data as Record<string, unknown>)))
       .catch((e) => setError(e instanceof Error ? e.message : t('roomDetail.loadError')))
       .finally(() => setLoading(false));

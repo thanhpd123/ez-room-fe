@@ -3,6 +3,11 @@ import { getAccessToken } from '@/lib/api';
 
 import { getApiUrl } from '@/lib/api-config';
 
+export interface RoomPostApiError extends Error {
+    code?: string;
+    upgradePath?: string;
+}
+
 async function apiRequest<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -21,7 +26,10 @@ async function apiRequest<T>(
 
     const data = await res.json();
     if (!res.ok) {
-        throw new Error(data?.message || 'API request failed');
+        const err = new Error(data?.message || 'API request failed') as RoomPostApiError;
+        err.code = data?.code;
+        err.upgradePath = data?.upgradePath;
+        throw err;
     }
     return data;
 }
@@ -61,7 +69,7 @@ export async function createRoomPost(payload: CreateManagedRoomPostInput): Promi
 
 export async function updateRoomPost(
     roomPostId: string,
-    payload: Partial<CreateManagedRoomPostInput>
+    payload: Partial<CreateManagedRoomPostInput> & { resubmit?: boolean }
 ): Promise<ManagedRoomPostItem | null> {
     try {
         const response = await apiRequest<ApiResponse<ManagedRoomPostItem>>(`/rooms/${roomPostId}`, {
