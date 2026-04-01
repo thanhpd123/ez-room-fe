@@ -172,6 +172,7 @@
       "settingsGroup": "Settings",
       "locations": "Locations",
       "amenities": "Amenities",
+      "vipPackages": "VIP Packages",
       "systemSettings": "System Settings"
     },
     "userMenu": {

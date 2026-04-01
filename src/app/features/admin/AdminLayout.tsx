@@ -59,6 +59,7 @@ export function AdminLayout() {
         getItem(t('admin.menu.settingsGroup'), 'settings-group', <SettingOutlined />, [
             getItem(t('admin.menu.locations'), '/admin/locations', <EnvironmentOutlined />),
             getItem(t('admin.menu.amenities'), '/admin/amenities', <AppstoreOutlined />),
+            getItem(t('admin.menu.vipPackages'), '/admin/vip', <SettingOutlined />),
             getItem(t('admin.menu.systemSettings'), '/admin/settings', <SettingOutlined />),
         ]),
     ];
@@ -103,20 +104,23 @@ export function AdminLayout() {
                     ? '/admin/rentals'
                     : location.pathname.startsWith('/admin/blogs')
                         ? '/admin/blogs'
-                    : location.pathname.startsWith('/admin/wallets')
-                        ? '/admin/wallets'
-                        : location.pathname.startsWith('/admin/locations')
-                            ? '/admin/locations'
-                            : location.pathname.startsWith('/admin/amenities')
-                                ? '/admin/amenities'
-                                : location.pathname.startsWith('/admin/settings')
-                                    ? '/admin/settings'
-                                    : '/admin';
+                        : location.pathname.startsWith('/admin/wallets')
+                            ? '/admin/wallets'
+                            : location.pathname.startsWith('/admin/locations')
+                                ? '/admin/locations'
+                                : location.pathname.startsWith('/admin/amenities')
+                                    ? '/admin/amenities'
+                                    : location.pathname.startsWith('/admin/vip')
+                                        ? '/admin/vip'
+                                        : location.pathname.startsWith('/admin/settings')
+                                            ? '/admin/settings'
+                                            : '/admin';
 
     useEffect(() => {
         const nextOpenKeys = selectedKey.startsWith('/admin/finance') || selectedKey.startsWith('/admin/moderators')
             ? ['reports-group']
             : selectedKey.startsWith('/admin/locations') || selectedKey.startsWith('/admin/amenities') || selectedKey.startsWith('/admin/settings')
+                || selectedKey.startsWith('/admin/vip')
                 ? ['settings-group']
                 : [];
         setOpenKeys(nextOpenKeys);
