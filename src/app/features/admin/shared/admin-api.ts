@@ -632,6 +632,69 @@ export async function deleteLocation(id: string): Promise<{ success: boolean; me
     }
 }
 
+// ==================== Citizen Card Verification API ====================
+
+export interface CitizenCardVerificationItem {
+    id: string;
+    userId: string;
+    citizenCardNumber: string;
+    citizenCardFrontImageUrl: string;
+    citizenCardBackImageUrl: string;
+    status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    reviewNote: string | null;
+    submittedAt: string;
+    reviewedAt: string | null;
+    reviewedBy: string | null;
+    user: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone: string | null;
+        role: string;
+    } | null;
+}
+
+export async function getCitizenCardVerifications(params?: {
+    page?: number;
+    limit?: number;
+    status?: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    search?: string;
+}): Promise<{ data: CitizenCardVerificationItem[]; pagination: PaginationInfo }> {
+    try {
+        const res = await axios.get(getApiUrl('/verifications/citizen-cards'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return { data: res.data.data, pagination: res.data.pagination };
+    } catch (error) {
+        console.error('getCitizenCardVerifications error:', error);
+        return {
+            data: [],
+            pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function reviewCitizenCardVerification(
+    verificationId: string,
+    body: { status: 'VERIFIED' | 'REJECTED'; reviewNote?: string }
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const res = await axios.patch(
+            getApiUrl(`/verifications/citizen-cards/${verificationId}/review`),
+            body,
+            { headers: getAuthHeader() }
+        );
+        return { success: true, message: res.data.message || 'Duyệt thành công' };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi duyệt CCCD',
+        };
+    }
+}
+
 // ==================== User Detail API ====================
 
 export async function getUserDetail(userId: string): Promise<UserDetail | null> {

@@ -28,15 +28,15 @@ export function getDistinctLocations(rentals: PublicRental[]): { district: strin
     return out;
 }
 
-/** Pick 3 nearest or random locations. If user in Hanoi, use first 3 from API; else random 3. */
+/** Pick 3 locations. If user in Hanoi, use first 3; otherwise spread evenly across the list. */
 export function pickThreeLocations(
     locations: { district: string; city: string }[],
     userInHanoi: boolean
 ): { district: string; city: string }[] {
     if (locations.length <= 3) return locations;
     if (userInHanoi) return locations.slice(0, 3);
-    const shuffled = [...locations].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 3);
+    const step = Math.floor(locations.length / 3);
+    return [locations[0], locations[step], locations[step * 2]];
 }
 
 export function usePublicRentals(options?: { district?: string; city?: string; limit?: number }) {

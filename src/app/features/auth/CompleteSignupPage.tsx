@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Home, User, Mail, Phone, Loader2 } from 'lucide-react';
 import { registerOAuthRequest } from '@/lib/api';
 
@@ -7,6 +8,7 @@ const PENDING_KEY = 'pendingOAuth';
 
 export function CompleteSignupPage() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [pending, setPending] = useState<{ email: string; full_name: string; avatar_url: string } | null>(null);
     const [form, setForm] = useState({ fullName: '', phone: '', role: 'TENANT' as 'TENANT' | 'LANDLORD' });
     const [loading, setLoading] = useState(false);
@@ -42,7 +44,7 @@ export function CompleteSignupPage() {
             sessionStorage.removeItem(PENDING_KEY);
             window.location.href = '/home';
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Đăng ký thất bại');
+            setError(err instanceof Error ? err.message : t('common.error'));
         } finally {
             setLoading(false);
         }
@@ -51,7 +53,7 @@ export function CompleteSignupPage() {
     if (!pending) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
-                <p className="text-muted-foreground">Đang tải...</p>
+                <p className="text-muted-foreground">{t('completeSignup.loading')}</p>
             </div>
         );
     }
@@ -65,9 +67,9 @@ export function CompleteSignupPage() {
                             <Home className="w-7 h-7 text-primary-foreground" strokeWidth={2} />
                         </div>
                     </div>
-                    <h1 className="text-2xl font-heading font-bold text-foreground text-center mb-2">Hoàn tất đăng ký</h1>
+                    <h1 className="text-2xl font-heading font-bold text-foreground text-center mb-2">{t('completeSignup.title')}</h1>
                     <p className="text-muted-foreground text-sm text-center mb-8">
-                        Chọn vai trò và điền thông tin để tạo tài khoản EzRoom
+                        {t('completeSignup.subtitle')}
                     </p>
 
                     {error && (
@@ -85,7 +87,7 @@ export function CompleteSignupPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Họ và tên</label>
+                            <label className="block text-sm font-medium text-foreground mb-1.5">{t('completeSignup.fullName')}</label>
                             <div className="relative">
                                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" strokeWidth={2} />
                                 <input
@@ -100,7 +102,7 @@ export function CompleteSignupPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Số điện thoại</label>
+                            <label className="block text-sm font-medium text-foreground mb-1.5">{t('completeSignup.phone')}</label>
                             <div className="relative">
                                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" strokeWidth={2} />
                                 <input
@@ -113,15 +115,31 @@ export function CompleteSignupPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Vai trò</label>
-                            <select
-                                value={form.role}
-                                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as 'TENANT' | 'LANDLORD' }))}
-                                className="w-full px-4 py-3.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-                            >
-                                <option value="TENANT">Người thuê phòng (Tenant)</option>
-                                <option value="LANDLORD">Chủ nhà / Cho thuê (Landlord)</option>
-                            </select>
+                            <label className="block text-sm font-medium text-foreground mb-1.5">{t('completeSignup.role')}</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setForm((f) => ({ ...f, role: 'TENANT' }))}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                                        form.role === 'TENANT'
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border text-foreground hover:bg-muted'
+                                    }`}
+                                >
+                                    Tenant
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setForm((f) => ({ ...f, role: 'LANDLORD' }))}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                                        form.role === 'LANDLORD'
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border text-foreground hover:bg-muted'
+                                    }`}
+                                >
+                                    Landlord
+                                </button>
+                            </div>
                         </div>
                         <button
                             type="submit"
@@ -129,7 +147,7 @@ export function CompleteSignupPage() {
                             className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
                         >
                             {loading && <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />}
-                            {loading ? 'Đang xử lý...' : 'Hoàn tất đăng ký'}
+                            {loading ? t('completeSignup.processing') : t('completeSignup.submit')}
                         </button>
                     </form>
                 </div>

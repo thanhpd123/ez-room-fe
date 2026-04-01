@@ -1,21 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Header } from '@/app/features/home/components';
 import {
-    User,
-    Heart,
-    Sliders,
-    Loader2,
-    Save,
-    Mail,
-    Phone,
-    Check,
-    Moon,
-    Sparkles,
-    MapPin,
-    Banknote,
-    Crown,
-    X,
+    User, Heart, Sliders, Loader2, Save, Mail, Phone, Check,
+    Moon, Sparkles, MapPin, Banknote, Crown, X, Sun, Clock,
+    Briefcase, Users, Home, Calendar, Star, Shield, Languages,
+    Thermometer, Volume2, UtensilsCrossed, ChevronDown,
+    CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw,
+    CheckCircle2, XCircle, Clock3, ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { ImageUpload } from '@/app/components/ImageUpload';
@@ -26,31 +19,107 @@ import {
     upsertLifestyleRequest,
     getPreferenceRequest,
     upsertPreferenceRequest,
+    getMyPreordersRequest,
+    getMyBookingsRequest,
+    resumePreorderPaymentRequest,
+    cancelUnpaidPreorderRequest,
     type LifestyleProfileResponse,
     type UserPreferenceResponse,
+    type MyPreorderItem,
+    type MyBookingItem,
 } from '@/lib/api';
 import { trackEvent } from '@/lib/analytics';
 import type { ProvinceItem, WardItem } from '@/lib/provinces-api';
 
-type Tab = 'profile' | 'lifestyle' | 'preference';
+type Tab = 'profile' | 'lifestyle' | 'preference' | 'bookings';
 
-const PERSONALITY_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Hướng ngoại', label: 'Hướng ngoại' },
-    { value: 'Hướng nội', label: 'Hướng nội' },
-    { value: 'Yên tĩnh', label: 'Yên tĩnh' },
-    { value: 'Dễ gần', label: 'Dễ gần' },
-    { value: 'Năng động', label: 'Năng động' },
-    { value: 'Khác', label: 'Khác' },
-];
+// ─── Option sets ────────────────────────────────────────────────────────────
 
-/** Gender in profile – used for roommate matching (same gender). */
 const PROFILE_GENDER_OPTIONS = [
     { value: '', label: '— Chọn —' },
     { value: 'Nam', label: 'Nam' },
     { value: 'Nữ', label: 'Nữ' },
     { value: 'Khác', label: 'Khác' },
     { value: 'Không tiết lộ', label: 'Không tiết lộ' },
+];
+
+const SLEEP_SCHEDULE_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Sớm (trước 22h)', label: '🌙 Sớm (trước 22h)' },
+    { value: 'Bình thường (22h-0h)', label: '🌛 Bình thường (22h–0h)' },
+    { value: 'Khuya (sau 0h)', label: '🦉 Khuya (sau 0h)' },
+];
+
+const QUIET_HOURS_OPTIONS = [
+    { value: '', label: '— Không cần —' },
+    { value: '21h-6h', label: '21h – 6h' },
+    { value: '22h-7h', label: '22h – 7h' },
+    { value: '23h-8h', label: '23h – 8h' },
+];
+
+const TEMPERATURE_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Lạnh', label: '❄️ Lạnh' },
+    { value: 'Mát', label: '🌬️ Mát' },
+    { value: 'Bình thường', label: '🌡️ Bình thường' },
+    { value: 'Ấm', label: '☀️ Ấm' },
+];
+
+const PERSONALITY_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Hướng ngoại', label: '🗣️ Hướng ngoại' },
+    { value: 'Hướng nội', label: '📚 Hướng nội' },
+    { value: 'Yên tĩnh', label: '🧘 Yên tĩnh' },
+    { value: 'Dễ gần', label: '🤝 Dễ gần' },
+    { value: 'Năng động', label: '⚡ Năng động' },
+    { value: 'Khác', label: 'Khác' },
+];
+
+const SOCIAL_LEVEL_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Thấp', label: '🔇 Ít giao tiếp' },
+    { value: 'Trung bình', label: '💬 Bình thường' },
+    { value: 'Cao', label: '🎉 Rất thích giao lưu' },
+];
+
+const CLEANLINESS_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Rất sạch', label: '✨ Rất sạch sẽ' },
+    { value: 'Sạch', label: '🧹 Sạch sẽ' },
+    { value: 'Bình thường', label: '😐 Bình thường' },
+    { value: 'Không quan tâm', label: '🤷 Không quan tâm' },
+];
+
+const NOISE_TOLERANCE_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Thấp', label: '🤫 Cần yên tĩnh' },
+    { value: 'Trung bình', label: '🎵 Chấp nhận được' },
+    { value: 'Cao', label: '🔊 Chịu được ồn ào' },
+];
+
+const OCCUPATION_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Sinh viên', label: '🎓 Sinh viên' },
+    { value: 'Văn phòng', label: '💼 Nhân viên văn phòng' },
+    { value: 'Freelancer', label: '💻 Freelancer' },
+    { value: 'Kinh doanh', label: '🏪 Kinh doanh' },
+    { value: 'Khác', label: 'Khác' },
+];
+
+const COOKING_FREQUENCY_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Không nấu', label: '🍱 Không nấu' },
+    { value: 'Ít', label: '🍳 Thỉnh thoảng' },
+    { value: 'Thường xuyên', label: '👨‍🍳 Thường xuyên' },
+    { value: 'Hàng ngày', label: '🔥 Hàng ngày' },
+];
+
+const GUEST_FREQUENCY_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'Không bao giờ', label: '🚫 Không bao giờ' },
+    { value: 'Hiếm', label: '😶 Rất hiếm' },
+    { value: 'Thỉnh thoảng', label: '🙂 Thỉnh thoảng' },
+    { value: 'Thường xuyên', label: '🎊 Thường xuyên' },
 ];
 
 const ROOM_TYPE_OPTIONS = [
@@ -61,249 +130,241 @@ const ROOM_TYPE_OPTIONS = [
     { value: 'APARTMENT', label: 'Căn hộ' },
 ];
 
-const SLEEP_SCHEDULE_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Sớm (trước 22h)', label: 'Sớm (trước 22h)' },
-    { value: 'Bình thường (22h-0h)', label: 'Bình thường (22h-0h)' },
-    { value: 'Khuya (sau 0h)', label: 'Khuya (sau 0h)' },
-];
-
-const CLEANLINESS_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Rất sạch', label: 'Rất sạch' },
-    { value: 'Sạch', label: 'Sạch' },
-    { value: 'Bình thường', label: 'Bình thường' },
-    { value: 'Không quan tâm', label: 'Không quan tâm' },
-];
-
-const NOISE_TOLERANCE_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Thấp', label: 'Thấp' },
-    { value: 'Trung bình', label: 'Trung bình' },
-    { value: 'Cao', label: 'Cao' },
-];
-
-const COOKING_FREQUENCY_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Không nấu', label: 'Không nấu' },
-    { value: 'Ít', label: 'Ít' },
-    { value: 'Thường xuyên', label: 'Thường xuyên' },
-    { value: 'Hàng ngày', label: 'Hàng ngày' },
-];
-
-const GUEST_FREQUENCY_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Không bao giờ', label: 'Không bao giờ' },
-    { value: 'Hiếm', label: 'Hiếm' },
-    { value: 'Thỉnh thoảng', label: 'Thỉnh thoảng' },
-    { value: 'Thường xuyên', label: 'Thường xuyên' },
-];
-
-const SOCIAL_LEVEL_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Thấp', label: 'Thấp' },
-    { value: 'Trung bình', label: 'Trung bình' },
-    { value: 'Cao', label: 'Cao' },
-];
-
-const OCCUPATION_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Sinh viên', label: 'Sinh viên' },
-    { value: 'Văn phòng', label: 'Văn phòng' },
-    { value: 'Freelancer', label: 'Freelancer' },
-    { value: 'Kinh doanh', label: 'Kinh doanh' },
+const PREFERRED_GENDER_OPTIONS = [
+    { value: '', label: 'Không quan tâm' },
+    { value: 'Nam', label: 'Nam' },
+    { value: 'Nữ', label: 'Nữ' },
     { value: 'Khác', label: 'Khác' },
 ];
 
-const TEMPERATURE_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Lạnh', label: 'Lạnh' },
-    { value: 'Mát', label: 'Mát' },
-    { value: 'Bình thường', label: 'Bình thường' },
-    { value: 'Ấm', label: 'Ấm' },
-];
+const COMMON_AMENITIES = ['WiFi', 'Điều hòa', 'Máy giặt', 'Bếp', 'Ban công', 'Bảo vệ 24/7', 'Thang máy', 'Hồ bơi', 'Chỗ để xe', 'Tủ lạnh', 'Nóng lạnh'];
+const INTEREST_SUGGESTIONS = ['Đọc sách', 'Thể thao', 'Âm nhạc', 'Du lịch', 'Nấu ăn', 'Gaming', 'Phim ảnh', 'Yoga', 'Chạy bộ', 'Nhiếp ảnh'];
+const LANGUAGE_SUGGESTIONS = ['Tiếng Việt', 'English', '中文', '한국어', '日本語', 'Français'];
 
-const QUIET_HOURS_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: '21h-6h', label: '21h - 6h' },
-    { value: '22h-7h', label: '22h - 7h' },
-    { value: '23h-8h', label: '23h - 8h' },
-    { value: 'Không cần', label: 'Không cần' },
-];
+// ─── Shared UI helpers ───────────────────────────────────────────────────────
+
+const inputClass =
+    'w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm';
+const labelClass = 'block text-sm font-medium text-foreground mb-1.5';
+
+function SectionCard({ icon, title, subtitle, children }: {
+    icon: React.ReactNode;
+    title: string;
+    subtitle?: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <div className="px-5 py-3.5 bg-muted/40 border-b border-border flex items-center gap-3">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    {icon}
+                </div>
+                <div>
+                    <p className="text-sm font-semibold text-foreground">{title}</p>
+                    {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+                </div>
+            </div>
+            <div className="p-5 space-y-4">{children}</div>
+        </div>
+    );
+}
+
+function ToggleSwitch({ checked, onChange, label, description, disabled }: {
+    checked: boolean;
+    onChange: (v: boolean) => void;
+    label: string;
+    description?: string;
+    disabled?: boolean;
+}) {
+    return (
+        <label className={`flex items-center justify-between gap-4 py-1 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+            <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">{label}</p>
+                {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+            </div>
+            <div
+                onClick={() => !disabled && onChange(!checked)}
+                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+            >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+            </div>
+        </label>
+    );
+}
+
+function TagInput({ value, onChange, placeholder, suggestions }: {
+    value: string;
+    onChange: (v: string) => void;
+    placeholder?: string;
+    suggestions?: string[];
+}) {
+    const [input, setInput] = useState('');
+    const tags = value ? value.split(',').map((s) => s.trim()).filter(Boolean) : [];
+
+    const addTag = (tag: string) => {
+        const t = tag.trim();
+        if (!t || tags.includes(t)) { setInput(''); return; }
+        onChange([...tags, t].join(', '));
+        setInput('');
+    };
+
+    const removeTag = (tag: string) => onChange(tags.filter((t) => t !== tag).join(', '));
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(input); }
+        else if (e.key === 'Backspace' && !input && tags.length > 0) removeTag(tags[tags.length - 1]);
+    };
+
+    return (
+        <div>
+            <div className="min-h-[48px] w-full px-3 py-2 bg-background border border-border rounded-xl focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all flex flex-wrap gap-1.5">
+                {tags.map((tag) => (
+                    <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
+                        {tag}
+                        <button type="button" onClick={() => removeTag(tag)} className="hover:bg-primary/20 rounded-full p-0.5 transition-colors">
+                            <X className="w-3 h-3" />
+                        </button>
+                    </span>
+                ))}
+                <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onBlur={() => { if (input.trim()) addTag(input); }}
+                    placeholder={tags.length === 0 ? placeholder : 'Thêm...'}
+                    className="flex-1 min-w-[120px] bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground py-1"
+                />
+            </div>
+            {suggestions && suggestions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                    {suggestions.filter((s) => !tags.includes(s)).map((s) => (
+                        <button key={s} type="button" onClick={() => addTag(s)}
+                            className="text-xs px-2.5 py-1 rounded-full border border-border bg-muted/50 text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors">
+                            + {s}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 type PreferenceFormState = ReturnType<typeof toPreferenceForm>;
 
-function PreferredDistrictsField({
-    preference,
-    setPreference,
-    labelClass,
-    inputClass,
-}: {
+function PreferredDistrictsField({ preference, setPreference }: {
     preference: PreferenceFormState;
     setPreference: React.Dispatch<React.SetStateAction<PreferenceFormState>>;
-    labelClass: string;
-    inputClass: string;
 }) {
     const [selectedProvince, setSelectedProvince] = useState('');
+    const [open, setOpen] = useState(false);
     const { provinces, getWardsFor } = useProvinces();
     const wardList = selectedProvince ? getWardsFor(selectedProvince) : [];
     const preferredSet = new Set(
-        (preference.preferred_districts ?? '')
-            .split(',')
-            .map((s: string) => s.trim())
-            .filter(Boolean)
+        (preference.preferred_districts ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)
     );
 
     const toggleWard = (wardName: string) => {
         const next = new Set(preferredSet);
         if (next.has(wardName)) next.delete(wardName);
         else next.add(wardName);
-        setPreference((p: PreferenceFormState) => ({ ...p, preferred_districts: Array.from(next).join(', ') }));
+        setPreference((p) => ({ ...p, preferred_districts: Array.from(next).join(', ') }));
     };
 
     return (
-        <div className="space-y-3">
-            <label className={labelClass}>
-                <MapPin className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
-                Khu vực ưa thích (chọn từ danh sách)
-            </label>
-
+        <div className="space-y-2">
             {preferredSet.size > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                     {Array.from(preferredSet).map((ward) => (
-                        <div key={ward} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
+                        <div key={ward} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
                             {ward}
-                            <button
-                                type="button"
-                                onClick={() => toggleWard(ward)}
-                                className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
-                            >
+                            <button type="button" onClick={() => toggleWard(ward)} className="hover:bg-primary/20 rounded-full p-0.5">
                                 <X className="w-3 h-3" />
                             </button>
                         </div>
                     ))}
                 </div>
             )}
-
-            <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-sm font-medium text-muted-foreground mb-2">Chọn tỉnh/thành phố và phường/xã</p>
-                <select
-                    value={selectedProvince}
-                    onChange={(e) => setSelectedProvince(e.target.value)}
-                    className={`${inputClass} mb-3`}
-                >
-                    <option value="">Chọn tỉnh / thành phố</option>
-                    {provinces.map((p: ProvinceItem) => (
-                        <option key={p.code} value={p.name}>{p.name}</option>
-                    ))}
-                </select>
-                {wardList.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                        {wardList.map((w: WardItem) => (
-                            <label key={w.code} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={preferredSet.has(w.name)}
-                                    onChange={() => toggleWard(w.name)}
-                                    className="rounded border-border text-primary"
-                                />
-                                <span className="text-sm">{w.name}</span>
-                            </label>
+            <button type="button" onClick={() => setOpen(!open)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-background border border-border rounded-xl text-sm text-muted-foreground hover:border-primary/50 transition-all">
+                <span className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Chọn khu vực từ danh sách</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && (
+                <div className="border border-border rounded-xl bg-background p-4 space-y-3">
+                    <select value={selectedProvince} onChange={(e) => setSelectedProvince(e.target.value)} className={inputClass}>
+                        <option value="">Chọn tỉnh / thành phố</option>
+                        {provinces.map((p: ProvinceItem) => (
+                            <option key={p.code} value={p.name}>{p.name}</option>
                         ))}
-                    </div>
-                )}
-            </div>
+                    </select>
+                    {wardList.length > 0 && (
+                        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                            {wardList.map((w: WardItem) => (
+                                <label key={w.code} className="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" checked={preferredSet.has(w.name)} onChange={() => toggleWard(w.name)}
+                                        className="rounded border-border text-primary" />
+                                    <span className="text-xs">{w.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
 
+// ─── Form state mappers ──────────────────────────────────────────────────────
+
 function toLifestyleForm(p: LifestyleProfileResponse | null) {
-    if (!p) {
-        return {
-            smoking: false,
-            drinking: false,
-            pets_allowed: false,
-            sleep_schedule: '',
-            personalityType: '',
-            cleanliness: '',
-            noise_tolerance: '',
-            guest_frequency: '',
-            cooking_frequency: '',
-            work_from_home: false,
-            wake_time: '',
-            bedtime: '',
-            social_level: '',
-            occupation_type: '',
-            interests: ([] as string[]).join(', '),
-            languages: ([] as string[]).join(', '),
-            preferred_lease_months: '' as number | '',
-            move_in_date: '',
-            temperature_preference: '',
-            quiet_hours_preference: '',
-            deal_breakers: '',
-        };
-    }
+    const defaults = {
+        smoking: false, drinking: false, pets_allowed: false, work_from_home: false,
+        sleep_schedule: '', wake_time: '', bedtime: '', quiet_hours_preference: '', temperature_preference: '',
+        personalityType: '', social_level: '', cleanliness: '', noise_tolerance: '',
+        occupation_type: '', cooking_frequency: '', guest_frequency: '',
+        interests: '', languages: '',
+        preferred_lease_months: '' as number | '', move_in_date: '',
+        deal_breakers: '',
+    };
+    if (!p) return defaults;
     return {
-        smoking: !!p.smoking,
-        drinking: !!p.drinking,
-        pets_allowed: !!p.pets_allowed,
-        sleep_schedule: p.sleep_schedule ?? '',
-        personalityType: p.personalityType ?? '',
-        cleanliness: p.cleanliness ?? '',
-        noise_tolerance: p.noise_tolerance ?? '',
+        smoking: !!p.smoking, drinking: !!p.drinking, pets_allowed: !!p.pets_allowed, work_from_home: !!p.work_from_home,
+        sleep_schedule: p.sleep_schedule ?? '', wake_time: p.wake_time ?? '', bedtime: p.bedtime ?? '',
+        quiet_hours_preference: p.quiet_hours_preference ?? '', temperature_preference: p.temperature_preference ?? '',
+        personalityType: p.personalityType ?? '', social_level: p.social_level ?? '',
+        cleanliness: p.cleanliness ?? '', noise_tolerance: p.noise_tolerance ?? '',
+        occupation_type: p.occupation_type ?? '', cooking_frequency: p.cooking_frequency ?? '',
         guest_frequency: p.guest_frequency ?? '',
-        cooking_frequency: p.cooking_frequency ?? '',
-        work_from_home: !!p.work_from_home,
-        wake_time: p.wake_time ?? '',
-        bedtime: p.bedtime ?? '',
-        social_level: p.social_level ?? '',
-        occupation_type: p.occupation_type ?? '',
-        interests: (p.interests ?? []).join(', '),
-        languages: (p.languages ?? []).join(', '),
+        interests: (p.interests ?? []).join(', '), languages: (p.languages ?? []).join(', '),
         preferred_lease_months: (p.preferred_lease_months ?? '') as number | '',
         move_in_date: p.move_in_date ?? '',
-        temperature_preference: p.temperature_preference ?? '',
-        quiet_hours_preference: p.quiet_hours_preference ?? '',
         deal_breakers: p.deal_breakers ?? '',
     };
 }
 
 function toPreferenceForm(p: UserPreferenceResponse | null) {
-    if (!p) {
-        return {
-            budget_min: '' as number | '',
-            budget_max: '' as number | '',
-            preferredLocation: '',
-            preferred_districts: '',
-            room_type: '',
-            preferred_amenities: '',
-            must_have_amenities: '',
-            preferred_lease_months: '' as number | '',
-            move_in_date_min: '',
-            move_in_date_max: '',
-            max_distance_km: '' as number | '',
-            transport_nearby: null as boolean | null,
-            pet_friendly: null as boolean | null,
-            preferred_roommate_age_min: '' as number | '',
-            preferred_roommate_age_max: '' as number | '',
-            lifestyle_match_weight: '' as number | '',
-            safety_priority: '' as number | '',
-        };
-    }
+    const defaults = {
+        budget_min: '' as number | '', budget_max: '' as number | '',
+        preferredLocation: '', preferred_districts: '',
+        room_type: '', preferred_amenities: '', must_have_amenities: '',
+        preferred_lease_months: '' as number | '', move_in_date_min: '', move_in_date_max: '',
+        max_distance_km: '' as number | '', transport_nearby: null as boolean | null, pet_friendly: null as boolean | null,
+        preferred_gender: '',
+        preferred_roommate_age_min: '' as number | '', preferred_roommate_age_max: '' as number | '',
+        lifestyle_match_weight: '' as number | '', safety_priority: '' as number | '',
+    };
+    if (!p) return defaults;
     return {
-        budget_min: p.budget_min ?? ('' as number | ''),
-        budget_max: p.budget_max ?? ('' as number | ''),
+        budget_min: p.budget_min ?? ('' as number | ''), budget_max: p.budget_max ?? ('' as number | ''),
         preferredLocation: p.preferredLocation ?? '',
         preferred_districts: (p.preferred_districts ?? []).join(', '),
-        room_type: p.room_type ?? '',
-        preferred_amenities: (p.preferred_amenities ?? []).join(', '),
+        room_type: p.room_type ?? '', preferred_amenities: (p.preferred_amenities ?? []).join(', '),
         must_have_amenities: (p.must_have_amenities ?? []).join(', '),
         preferred_lease_months: (p.preferred_lease_months ?? '') as number | '',
-        move_in_date_min: p.move_in_date_min ?? '',
-        move_in_date_max: p.move_in_date_max ?? '',
+        move_in_date_min: p.move_in_date_min ?? '', move_in_date_max: p.move_in_date_max ?? '',
         max_distance_km: (p.max_distance_km ?? '') as number | '',
-        transport_nearby: p.transport_nearby ?? null,
-        pet_friendly: p.pet_friendly ?? null,
+        transport_nearby: p.transport_nearby ?? null, pet_friendly: p.pet_friendly ?? null,
+        preferred_gender: p.preferred_gender ?? '',
         preferred_roommate_age_min: (p.preferred_roommate_age_min ?? '') as number | '',
         preferred_roommate_age_max: (p.preferred_roommate_age_max ?? '') as number | '',
         lifestyle_match_weight: (p.lifestyle_match_weight ?? '') as number | '',
@@ -311,13 +372,12 @@ function toPreferenceForm(p: UserPreferenceResponse | null) {
     };
 }
 
-const inputClass =
-    'w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
-const labelClass = 'block text-sm font-medium text-foreground mb-1.5';
+// ─── Main page ───────────────────────────────────────────────────────────────
 
 export function ProfilePage() {
     const navigate = useNavigate();
     const { user, refreshUser } = useAuth();
+    const { t } = useTranslation();
     const [tab, setTab] = useState<Tab>('profile');
 
     const [profileForm, setProfileForm] = useState({ fullName: '', phone: '', avatarUrl: '', gender: '' });
@@ -336,852 +396,866 @@ export function ProfilePage() {
     const [preferenceSaving, setPreferenceSaving] = useState(false);
     const [preferenceError, setPreferenceError] = useState<string | null>(null);
     const [preferenceSuccess, setPreferenceSuccess] = useState(false);
-    const canUpgradeVip =
-        user != null &&
-        (user.role === 'TENANT' || user.role === 'LANDLORD') &&
-        user.isVip !== true;
+
+    const isTenant = user?.role === 'TENANT';
+    const canUpgradeVip = user != null && (user.role === 'TENANT' || user.role === 'LANDLORD') && user.isVip !== true;
+
+    // Bookings & payments state
+    const [preorders, setPreorders] = useState<MyPreorderItem[]>([]);
+    const [bookings, setBookings] = useState<MyBookingItem[]>([]);
+    const [bookingsLoading, setBookingsLoading] = useState(false);
+    const [bookingsError, setBookingsError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (user) {
-            setProfileForm({
-                fullName: user.fullName ?? '',
-                phone: user.phone ?? '',
-                avatarUrl: user.avatarUrl ?? '',
-                gender: user.gender ?? '',
-            });
-        }
+        if (user) setProfileForm({ fullName: user.fullName ?? '', phone: user.phone ?? '', avatarUrl: user.avatarUrl ?? '', gender: user.gender ?? '' });
     }, [user]);
 
     useEffect(() => {
         getLifestyleRequest()
             .then((r) => setLifestyle(toLifestyleForm(r.profile ?? null)))
-            .catch(() => setLifestyleError('Không tải được'))
+            .catch(() => setLifestyleError(t('common.error')))
             .finally(() => setLifestyleLoading(false));
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         getPreferenceRequest()
             .then((r) => setPreference(toPreferenceForm(r.preference ?? null)))
-            .catch(() => setPreferenceError('Không tải được'))
+            .catch(() => setPreferenceError(t('common.error')))
             .finally(() => setPreferenceLoading(false));
-    }, []);
+    }, [t]);
 
     const handleSaveProfile = async (e: React.FormEvent) => {
         e.preventDefault();
-        setProfileError(null);
-        setProfileSuccess(false);
-        setProfileSaving(true);
+        setProfileError(null); setProfileSuccess(false); setProfileSaving(true);
         try {
-            await updateProfileRequest({
-                fullName: profileForm.fullName.trim(),
-                phone: profileForm.phone.trim() || undefined,
-                avatarUrl: profileForm.avatarUrl.trim() || undefined,
-                gender: profileForm.gender.trim() || null,
-            });
+            await updateProfileRequest({ fullName: profileForm.fullName.trim(), phone: profileForm.phone.trim() || undefined, avatarUrl: profileForm.avatarUrl.trim() || undefined, gender: profileForm.gender.trim() || null });
             await refreshUser();
-            setProfileSuccess(true);
-            setTimeout(() => setProfileSuccess(false), 3000);
-        } catch (err) {
-            setProfileError(err instanceof Error ? err.message : 'Lưu thất bại');
-        } finally {
-            setProfileSaving(false);
-        }
+            setProfileSuccess(true); setTimeout(() => setProfileSuccess(false), 3000);
+        } catch (err) { setProfileError(err instanceof Error ? err.message : t('common.error')); }
+        finally { setProfileSaving(false); }
     };
 
     const handleSaveLifestyle = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLifestyleError(null);
-        setLifestyleSuccess(false);
-        setLifestyleSaving(true);
+        setLifestyleError(null); setLifestyleSuccess(false); setLifestyleSaving(true);
         try {
-            const interests = lifestyle.interests
-                ? lifestyle.interests.split(',').map((s) => s.trim()).filter(Boolean)
-                : [];
-            const languages = lifestyle.languages
-                ? lifestyle.languages.split(',').map((s) => s.trim()).filter(Boolean)
-                : [];
             await upsertLifestyleRequest({
-                smoking: lifestyle.smoking,
-                drinking: lifestyle.drinking,
-                pets_allowed: lifestyle.pets_allowed,
+                smoking: lifestyle.smoking, drinking: lifestyle.drinking,
+                pets_allowed: lifestyle.pets_allowed, work_from_home: lifestyle.work_from_home,
                 sleep_schedule: lifestyle.sleep_schedule || null,
+                wake_time: lifestyle.wake_time || null, bedtime: lifestyle.bedtime || null,
+                quiet_hours_preference: lifestyle.quiet_hours_preference || null,
+                temperature_preference: lifestyle.temperature_preference || null,
                 personalityType: lifestyle.personalityType || null,
-                cleanliness: lifestyle.cleanliness || null,
-                noise_tolerance: lifestyle.noise_tolerance || null,
-                guest_frequency: lifestyle.guest_frequency || null,
-                cooking_frequency: lifestyle.cooking_frequency || null,
-                work_from_home: lifestyle.work_from_home,
-                wake_time: lifestyle.wake_time || null,
-                bedtime: lifestyle.bedtime || null,
                 social_level: lifestyle.social_level || null,
+                cleanliness: lifestyle.cleanliness || null, noise_tolerance: lifestyle.noise_tolerance || null,
                 occupation_type: lifestyle.occupation_type || null,
-                interests,
-                languages,
+                cooking_frequency: lifestyle.cooking_frequency || null,
+                guest_frequency: lifestyle.guest_frequency || null,
+                interests: lifestyle.interests ? lifestyle.interests.split(',').map((s) => s.trim()).filter(Boolean) : [],
+                languages: lifestyle.languages ? lifestyle.languages.split(',').map((s) => s.trim()).filter(Boolean) : [],
                 preferred_lease_months: lifestyle.preferred_lease_months === '' ? null : Number(lifestyle.preferred_lease_months),
                 move_in_date: lifestyle.move_in_date || null,
-                temperature_preference: lifestyle.temperature_preference || null,
-                quiet_hours_preference: lifestyle.quiet_hours_preference || null,
                 deal_breakers: lifestyle.deal_breakers || null,
             });
-            setLifestyleSuccess(true);
-            setTimeout(() => setLifestyleSuccess(false), 3000);
-        } catch (err) {
-            setLifestyleError(err instanceof Error ? err.message : 'Lưu thất bại');
-        } finally {
-            setLifestyleSaving(false);
-        }
+            setLifestyleSuccess(true); setTimeout(() => setLifestyleSuccess(false), 3000);
+        } catch (err) { setLifestyleError(err instanceof Error ? err.message : t('common.error')); }
+        finally { setLifestyleSaving(false); }
     };
 
     const handleSavePreference = async (e: React.FormEvent) => {
         e.preventDefault();
-        setPreferenceError(null);
-        setPreferenceSuccess(false);
-        setPreferenceSaving(true);
+        setPreferenceError(null); setPreferenceSuccess(false); setPreferenceSaving(true);
         try {
-            const preferred_districts = preference.preferred_districts
-                ? preference.preferred_districts.split(',').map((s) => s.trim()).filter(Boolean)
-                : [];
-            const preferred_amenities = preference.preferred_amenities
-                ? preference.preferred_amenities.split(',').map((s) => s.trim()).filter(Boolean)
-                : [];
-            const must_have_amenities = preference.must_have_amenities
-                ? preference.must_have_amenities.split(',').map((s) => s.trim()).filter(Boolean)
-                : [];
             await upsertPreferenceRequest({
                 budget_min: preference.budget_min === '' ? null : Number(preference.budget_min),
                 budget_max: preference.budget_max === '' ? null : Number(preference.budget_max),
                 preferredLocation: preference.preferredLocation || null,
-                preferred_districts,
+                preferred_districts: preference.preferred_districts ? preference.preferred_districts.split(',').map((s) => s.trim()).filter(Boolean) : [],
                 room_type: preference.room_type || null,
-                preferred_amenities,
-                must_have_amenities,
+                preferred_amenities: preference.preferred_amenities ? preference.preferred_amenities.split(',').map((s) => s.trim()).filter(Boolean) : [],
+                must_have_amenities: preference.must_have_amenities ? preference.must_have_amenities.split(',').map((s) => s.trim()).filter(Boolean) : [],
                 preferred_lease_months: preference.preferred_lease_months === '' ? null : Number(preference.preferred_lease_months),
                 move_in_date_min: preference.move_in_date_min || null,
                 move_in_date_max: preference.move_in_date_max || null,
                 max_distance_km: preference.max_distance_km === '' ? null : Number(preference.max_distance_km),
                 transport_nearby: preference.transport_nearby,
                 pet_friendly: preference.pet_friendly,
+                preferred_gender: preference.preferred_gender || null,
                 preferred_roommate_age_min: preference.preferred_roommate_age_min === '' ? null : Number(preference.preferred_roommate_age_min),
                 preferred_roommate_age_max: preference.preferred_roommate_age_max === '' ? null : Number(preference.preferred_roommate_age_max),
                 lifestyle_match_weight: preference.lifestyle_match_weight === '' ? null : Number(preference.lifestyle_match_weight),
                 safety_priority: preference.safety_priority === '' ? null : Number(preference.safety_priority),
             });
-            setPreferenceSuccess(true);
-            setTimeout(() => setPreferenceSuccess(false), 3000);
+            setPreferenceSuccess(true); setTimeout(() => setPreferenceSuccess(false), 3000);
+        } catch (err) { setPreferenceError(err instanceof Error ? err.message : t('common.error')); }
+        finally { setPreferenceSaving(false); }
+    };
+
+    const loadBookings = async () => {
+        if (!isTenant) return;
+        setBookingsLoading(true);
+        setBookingsError(null);
+        try {
+            const [preordersRes, bookingsRes] = await Promise.all([
+                getMyPreordersRequest({ limit: 50 }),
+                getMyBookingsRequest(),
+            ]);
+            setPreorders(preordersRes.data);
+            setBookings(bookingsRes.data);
         } catch (err) {
-            setPreferenceError(err instanceof Error ? err.message : 'Lưu thất bại');
+            setBookingsError(err instanceof Error ? err.message : t('common.error'));
         } finally {
-            setPreferenceSaving(false);
+            setBookingsLoading(false);
         }
     };
 
+    useEffect(() => {
+        if (tab === 'bookings') {
+            loadBookings();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab]);
+
     const avatarUrl = profileForm.avatarUrl?.trim() || user?.avatarUrl;
     const tabs: { id: Tab; label: string; icon: typeof User }[] = [
-        { id: 'profile', label: 'Thông tin cá nhân', icon: User },
-        { id: 'lifestyle', label: 'Phong cách sống', icon: Heart },
-        { id: 'preference', label: 'Sở thích tìm phòng', icon: Sliders },
+        { id: 'profile', label: t('profile.tabBasic'), icon: User },
+        { id: 'lifestyle', label: t('profile.tabLifestyle'), icon: Heart },
+        { id: 'preference', label: t('profile.tabPreference'), icon: Sliders },
+        ...(isTenant ? [{ id: 'bookings' as Tab, label: t('profile.tabBookings'), icon: CreditCard }] : []),
     ];
 
     return (
         <div className="min-h-screen bg-background">
             <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
             <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-12">
-                {/* Profile header card */}
-                <div className="bg-card rounded-2xl border border-border shadow-sm p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-                        <div className="relative shrink-0">
+
+                {/* Profile header */}
+                <div className="bg-card rounded-2xl border border-border shadow-sm p-4 sm:p-6 mb-6">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+                        <div className="shrink-0">
                             {avatarUrl ? (
-                                <img
-                                    src={avatarUrl}
-                                    alt=""
-                                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover ring-2 ring-border"
-                                />
+                                <img src={avatarUrl} alt="" className="w-24 h-24 rounded-2xl object-cover ring-2 ring-border" />
                             ) : (
-                                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-primary/10 flex items-center justify-center">
-                                    <User className="w-12 h-12 sm:w-14 sm:h-14 text-primary" strokeWidth={1.5} />
+                                <div className="w-24 h-24 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                    <User className="w-12 h-12 text-primary" strokeWidth={1.5} />
                                 </div>
                             )}
                         </div>
                         <div className="text-center sm:text-left flex-1 min-w-0">
-                            <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground truncate">
-                                {user?.fullName || 'Chưa có tên'}
-                            </h1>
+                            <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground truncate">{user?.fullName || t('profile.noName')}</h1>
                             <p className="text-muted-foreground text-sm mt-0.5 flex items-center justify-center sm:justify-start gap-1.5">
-                                <Mail className="w-4 h-4 shrink-0" />
-                                <span className="truncate">{user?.email || '—'}</span>
+                                <Mail className="w-4 h-4 shrink-0" /><span className="truncate">{user?.email || '—'}</span>
                             </p>
-                            <div className="mt-3">
-                                <span
-                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${user?.role === 'LANDLORD'
-                                        ? 'bg-accent/15 text-accent'
-                                        : 'bg-primary/15 text-primary'
-                                        }`}
-                                >
-                                    {user?.role === 'LANDLORD' ? 'Chủ nhà / Cho thuê' : 'Người thuê phòng'}
+                            <div className="flex flex-wrap items-center gap-2 mt-3 justify-center sm:justify-start">
+                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${user?.role === 'LANDLORD' ? 'bg-accent/15 text-accent' : 'bg-primary/15 text-primary'}`}>
+                                    {user?.role === 'LANDLORD' ? t('profile.roleLandlord') : t('profile.roleTenant')}
                                 </span>
-                            </div>
-                            <div className="mt-4">
                                 {canUpgradeVip ? (
-                                    <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
-                                        <p className="text-sm text-amber-900">Bạn đang dùng tài khoản thường. Nâng cấp VIP để mở thêm quyền lợi nâng cao.</p>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                trackEvent('vip_cta_clicked', { source: 'profile' });
-                                                navigate('/vip-plans?source=profile');
-                                            }}
-                                            className="mt-2 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
-                                        >
-                                            <Crown className="h-3.5 w-3.5" />
-                                            Nâng cấp VIP
-                                        </button>
-                                    </div>
+                                    <button type="button" onClick={() => { trackEvent('vip_cta_clicked', { source: 'profile' }); navigate('/vip-plans?source=profile'); }}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-amber-300 bg-amber-50 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors">
+                                        <Crown className="h-3.5 w-3.5" />{t('profile.upgradeVip')}
+                                    </button>
                                 ) : (
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                        <Crown className="h-3.5 w-3.5" />
-                                        Tài khoản VIP đang hoạt động
-                                    </div>
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-700">
+                                        <Crown className="h-3.5 w-3.5" />{t('profile.vipActive')}
+                                    </span>
                                 )}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <h2 className="font-heading text-base sm:text-lg font-bold text-foreground mb-3 sm:mb-4">Cài đặt</h2>
-                <div className="flex flex-wrap gap-2 mb-4 sm:mb-6 border-b border-border pb-4 -mx-1 overflow-x-auto scrollbar-hide">
+                {/* Tab bar */}
+                <div className="flex flex-wrap gap-2 mb-5 border-b border-border pb-4">
                     {tabs.map((t) => (
-                        <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => setTab(t.id)}
-                            className={`flex items-center gap-2 px-4 py-2.5 sm:px-5 rounded-xl font-medium text-xs sm:text-sm transition-all shrink-0 min-h-11 touch-manipulation ${tab === t.id
-                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                : 'bg-muted text-foreground hover:bg-muted/80'
-                                }`}
-                        >
-                            <t.icon className="w-4 h-4" strokeWidth={2} />
-                            {t.label}
+                        <button key={t.id} type="button" onClick={() => setTab(t.id)}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-all shrink-0 min-h-11 touch-manipulation ${tab === t.id ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
+                            <t.icon className="w-4 h-4" strokeWidth={2} />{t.label}
                         </button>
                     ))}
                 </div>
 
+                {/* ── PROFILE TAB ── */}
                 {tab === 'profile' && (
                     <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                         <div className="px-6 py-4 border-b border-border bg-muted/30">
                             <h3 className="font-heading font-semibold text-foreground flex items-center gap-2">
-                                <User className="w-4 h-4 text-primary" />
-                                Thông tin cơ bản
+                                <User className="w-4 h-4 text-primary" />{t('profile.sectionBasic')}
                             </h3>
-                            <p className="text-muted-foreground text-xs mt-0.5">
-                                Họ tên, email, số điện thoại và ảnh đại diện
-                            </p>
+                            <p className="text-muted-foreground text-xs mt-0.5">{t('profile.sectionBasicSub')}</p>
                         </div>
                         <form onSubmit={handleSaveProfile} className="p-6 space-y-5">
-                            {profileError && (
-                                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
-                                    {profileError}
-                                </div>
-                            )}
+                            {profileError && <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">{profileError}</div>}
                             {profileSuccess && (
                                 <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2">
-                                    <Check className="w-4 h-4 shrink-0" />
-                                    Đã lưu thay đổi
+                                    <Check className="w-4 h-4 shrink-0" />{t('profile.savedChanges')}
                                 </div>
                             )}
                             <div>
-                                <label className={labelClass}>Họ và tên</label>
-                                <input
-                                    value={profileForm.fullName}
-                                    onChange={(e) => setProfileForm((f) => ({ ...f, fullName: e.target.value }))}
-                                    className={inputClass}
-                                    placeholder="Nguyễn Văn A"
-                                    required
-                                />
+                                <label className={labelClass}>{t('profile.fullName')}</label>
+                                <input value={profileForm.fullName} onChange={(e) => setProfileForm((f) => ({ ...f, fullName: e.target.value }))} className={inputClass} placeholder="Nguyễn Văn A" required />
                             </div>
                             <div>
-                                <label className={labelClass}>Email</label>
-                                <input
-                                    type="email"
-                                    value={user?.email ?? ''}
-                                    disabled
-                                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-muted-foreground cursor-not-allowed"
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">Email không thể thay đổi</p>
+                                <label className={labelClass}>{t('profile.email')}</label>
+                                <input type="email" value={user?.email ?? ''} disabled className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-muted-foreground cursor-not-allowed text-sm" />
+                                <p className="text-xs text-muted-foreground mt-1">{t('profile.emailNote')}</p>
                             </div>
                             <div>
-                                <label className={labelClass}>Vai trò</label>
-                                <div className="px-4 py-3 bg-muted border border-border rounded-xl text-muted-foreground text-sm">
-                                    {user?.role === 'LANDLORD' ? 'Chủ nhà / Cho thuê (Landlord)' : 'Người thuê phòng (Tenant)'}
-                                </div>
-                            </div>
-                            <div>
-                                <label className={labelClass}>Số điện thoại</label>
+                                <label className={labelClass}>{t('profile.phone')}</label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                                    <input
-                                        type="tel"
-                                        value={profileForm.phone}
-                                        onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))}
-                                        placeholder="0123456789"
-                                        className={`${inputClass} pl-11`}
-                                    />
+                                    <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} placeholder="0123456789" className={`${inputClass} pl-11`} />
                                 </div>
                             </div>
                             <div>
-                                <label className={labelClass}>Giới tính</label>
-                                <select
-                                    value={profileForm.gender}
-                                    onChange={(e) => setProfileForm((f) => ({ ...f, gender: e.target.value }))}
-                                    className={inputClass}
-                                >
-                                    {PROFILE_GENDER_OPTIONS.map((o) => (
-                                        <option key={o.value || 'empty'} value={o.value}>
-                                            {o.label}
-                                        </option>
-                                    ))}
+                                <label className={labelClass}>{t('profile.gender')}</label>
+                                <select value={profileForm.gender} onChange={(e) => setProfileForm((f) => ({ ...f, gender: e.target.value }))} className={inputClass}>
+                                    {PROFILE_GENDER_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
                                 </select>
-                                <p className="text-xs text-muted-foreground mt-1">Dùng để ghép bạn ở cùng người cùng giới tính</p>
+                                <p className="text-xs text-muted-foreground mt-1">{t('profile.genderNote')}</p>
                             </div>
                             <div>
-                                <ImageUpload
-                                    label="Ảnh đại diện"
-                                    value={profileForm.avatarUrl}
-                                    onChange={(url) => setProfileForm((f) => ({ ...f, avatarUrl: url }))}
-                                    placeholder="Chọn ảnh từ máy tính"
-                                    previewClassName="w-24 h-24 rounded-xl object-cover border border-border"
-                                />
+                                <ImageUpload label={t('profile.avatar')} value={profileForm.avatarUrl} onChange={(url) => setProfileForm((f) => ({ ...f, avatarUrl: url }))} placeholder={t('profile.avatarPlaceholder')} previewClassName="w-24 h-24 rounded-xl object-cover border border-border" />
                             </div>
-                            <button
-                                type="submit"
-                                disabled={profileSaving}
-                                className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm"
-                            >
-                                {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                Lưu thay đổi
+                            <button type="submit" disabled={profileSaving} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm">
+                                {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t('profile.saveBtn')}
                             </button>
                         </form>
                     </div>
                 )}
 
+                {/* ── LIFESTYLE TAB ── */}
                 {tab === 'lifestyle' && (
-                    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 border-b border-border bg-muted/30">
-                            <h3 className="font-heading font-semibold text-foreground flex items-center gap-2">
-                                <Heart className="w-4 h-4 text-primary" />
-                                Phong cách sống
-                            </h3>
-                            <p className="text-muted-foreground text-xs mt-0.5">
-                                Thói quen và tính cách để tìm bạn ở ghép phù hợp
-                            </p>
+                    <div className="space-y-4">
+                        <div className="px-1">
+                            <h3 className="font-heading font-semibold text-foreground flex items-center gap-2"><Heart className="w-4 h-4 text-primary" />{t('profile.tabLifestyle')}</h3>
+                            <p className="text-muted-foreground text-xs mt-0.5">{t('profile.lifestyleSub')}</p>
                         </div>
                         {lifestyleLoading ? (
-                            <div className="p-8 text-center text-muted-foreground">Đang tải...</div>
+                            <div className="p-8 text-center text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="w-5 h-5 animate-spin" />{t('common.loading')}</div>
                         ) : (
-                            <form onSubmit={handleSaveLifestyle} className="p-6 space-y-6">
-                                {lifestyleError && (
-                                    <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
-                                        {lifestyleError}
-                                    </div>
-                                )}
-                                {lifestyleSuccess && (
-                                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2">
-                                        <Check className="w-4 h-4 shrink-0" />
-                                        Đã lưu
-                                    </div>
-                                )}
-                                <div>
-                                    <span className={labelClass}>Thói quen</span>
-                                    <div className="flex flex-wrap gap-4 sm:gap-6 mt-2">
-                                        <label className="flex items-center gap-3 cursor-pointer group">
-                                            <input
-                                                type="checkbox"
-                                                checked={lifestyle.smoking}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, smoking: e.target.checked }))}
-                                                className="w-5 h-5 rounded border-border text-primary focus:ring-primary/20"
-                                            />
-                                            <span className="text-foreground group-hover:text-primary transition-colors">Hút thuốc</span>
-                                        </label>
-                                        <label className="flex items-center gap-3 cursor-pointer group">
-                                            <input
-                                                type="checkbox"
-                                                checked={lifestyle.drinking}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, drinking: e.target.checked }))}
-                                                className="w-5 h-5 rounded border-border text-primary focus:ring-primary/20"
-                                            />
-                                            <span className="text-foreground group-hover:text-primary transition-colors">Uống rượu bia</span>
-                                        </label>
-                                        <label className="flex items-center gap-3 cursor-pointer group">
-                                            <input
-                                                type="checkbox"
-                                                checked={lifestyle.pets_allowed}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, pets_allowed: e.target.checked }))}
-                                                className="w-5 h-5 rounded border-border text-primary focus:ring-primary/20"
-                                            />
-                                            <span className="text-foreground group-hover:text-primary transition-colors">Nuôi thú cưng</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className={labelClass}>
-                                        <Moon className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
-                                        Lịch ngủ
-                                    </label>
-                                    <select
-                                        value={lifestyle.sleep_schedule}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, sleep_schedule: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        {SLEEP_SCHEDULE_OPTIONS.map((o) => (
-                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClass}>
-                                        <Sparkles className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
-                                        Kiểu tính cách
-                                    </label>
-                                    <select
-                                        value={lifestyle.personalityType}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, personalityType: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        {PERSONALITY_OPTIONS.map((o) => (
-                                            <option key={o.value || 'empty'} value={o.value}>
-                                                {o.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                            <form onSubmit={handleSaveLifestyle} className="space-y-4">
+                                {lifestyleError && <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">{lifestyleError}</div>}
+                                {lifestyleSuccess && <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2"><Check className="w-4 h-4 shrink-0" />{t('profile.savedLifestyle')}</div>}
 
-                                <div>
-                                    <label className={labelClass}>Độ sạch sẽ</label>
-                                    <select
-                                        value={lifestyle.cleanliness}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, cleanliness: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        {CLEANLINESS_OPTIONS.map((o) => (
-                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Chịu ồn</label>
-                                    <select
-                                        value={lifestyle.noise_tolerance}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, noise_tolerance: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        {NOISE_TOLERANCE_OPTIONS.map((o) => (
-                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Khách tới chơi</label>
-                                    <select
-                                        value={lifestyle.guest_frequency}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, guest_frequency: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        {GUEST_FREQUENCY_OPTIONS.map((o) => (
-                                            <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Sở thích</label>
-                                    <textarea
-                                        value={lifestyle.interests}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, interests: e.target.value }))}
-                                        placeholder="VD: Đọc sách, Nghe nhạc..."
-                                        className={`${inputClass} min-h-[100px] resize-y`}
-                                        maxLength={500}
-                                        rows={3}
-                                    />
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Điều không chấp nhận</label>
-                                    <textarea
-                                        value={lifestyle.deal_breakers}
-                                        onChange={(e) => setLifestyle((l) => ({ ...l, deal_breakers: e.target.value }))}
-                                        placeholder="VD: Hút thuốc trong phòng..."
-                                        className={`${inputClass} min-h-[100px] resize-y`}
-                                        maxLength={500}
-                                        rows={3}
-                                    />
-                                </div>
-                                {/* ── Hidden fields (data preserved, UI hidden) ── */}
-                                {false && (
-                                    <>
+                                {/* Habits */}
+                                <SectionCard icon={<Sparkles className="w-4 h-4 text-primary" />} title={t('profile.habits')} subtitle={t('profile.habitsSub')}>
+                                    <div className="divide-y divide-border">
+                                        <div className="pb-3"><ToggleSwitch checked={lifestyle.smoking} onChange={(v) => setLifestyle((l) => ({ ...l, smoking: v }))} label={t('profile.smoking')} description={t('profile.smokingDesc')} /></div>
+                                        <div className="py-3"><ToggleSwitch checked={lifestyle.drinking} onChange={(v) => setLifestyle((l) => ({ ...l, drinking: v }))} label={t('profile.drinking')} description={t('profile.drinkingDesc')} /></div>
+                                        <div className="py-3"><ToggleSwitch checked={lifestyle.pets_allowed} onChange={(v) => setLifestyle((l) => ({ ...l, pets_allowed: v }))} label={t('profile.pets')} description={t('profile.petsDesc')} /></div>
+                                        <div className="pt-3"><ToggleSwitch checked={lifestyle.work_from_home} onChange={(v) => setLifestyle((l) => ({ ...l, work_from_home: v }))} label={t('profile.wfh')} description={t('profile.wfhDesc')} /></div>
+                                    </div>
+                                </SectionCard>
+
+                                {/* Sleep & Schedule */}
+                                <SectionCard icon={<Moon className="w-4 h-4 text-primary" />} title={t('profile.schedule')} subtitle={t('profile.scheduleSub')}>
+                                    <div>
+                                        <label className={labelClass}>{t('profile.sleepHabit')}</label>
+                                        <select value={lifestyle.sleep_schedule} onChange={(e) => setLifestyle((l) => ({ ...l, sleep_schedule: e.target.value }))} className={inputClass}>
+                                            {SLEEP_SCHEDULE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className={labelClass}>Tần suất nấu ăn</label>
-                                            <select
-                                                value={lifestyle.cooking_frequency}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, cooking_frequency: e.target.value }))}
-                                                className={inputClass}
-                                            >
-                                                {COOKING_FREQUENCY_OPTIONS.map((o) => (
-                                                    <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
-                                                ))}
+                                            <label className={labelClass}><Sun className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.wakeTime')}</label>
+                                            <input type="text" value={lifestyle.wake_time} onChange={(e) => setLifestyle((l) => ({ ...l, wake_time: e.target.value }))} placeholder="VD: 06:00" className={inputClass} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}><Moon className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.bedtime')}</label>
+                                            <input type="text" value={lifestyle.bedtime} onChange={(e) => setLifestyle((l) => ({ ...l, bedtime: e.target.value }))} placeholder="VD: 23:00" className={inputClass} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={labelClass}><Clock className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.quietHours')}</label>
+                                            <select value={lifestyle.quiet_hours_preference} onChange={(e) => setLifestyle((l) => ({ ...l, quiet_hours_preference: e.target.value }))} className={inputClass}>
+                                                {QUIET_HOURS_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className={labelClass}>Mức độ giao tiếp</label>
-                                            <select
-                                                value={lifestyle.social_level}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, social_level: e.target.value }))}
-                                                className={inputClass}
-                                            >
-                                                {SOCIAL_LEVEL_OPTIONS.map((o) => (
-                                                    <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
-                                                ))}
+                                            <label className={labelClass}><Thermometer className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.temperature')}</label>
+                                            <select value={lifestyle.temperature_preference} onChange={(e) => setLifestyle((l) => ({ ...l, temperature_preference: e.target.value }))} className={inputClass}>
+                                                {TEMPERATURE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </SectionCard>
+
+                                {/* Personality */}
+                                <SectionCard icon={<Users className="w-4 h-4 text-primary" />} title={t('profile.personality')} subtitle={t('profile.personalitySub')}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={labelClass}>{t('profile.personalityType')}</label>
+                                            <select value={lifestyle.personalityType} onChange={(e) => setLifestyle((l) => ({ ...l, personalityType: e.target.value }))} className={inputClass}>
+                                                {PERSONALITY_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className={labelClass}>Nghề nghiệp / loại công việc</label>
-                                            <select
-                                                value={lifestyle.occupation_type}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, occupation_type: e.target.value }))}
-                                                className={inputClass}
-                                            >
-                                                {OCCUPATION_OPTIONS.map((o) => (
-                                                    <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
-                                                ))}
+                                            <label className={labelClass}>{t('profile.socialLevel')}</label>
+                                            <select value={lifestyle.social_level} onChange={(e) => setLifestyle((l) => ({ ...l, social_level: e.target.value }))} className={inputClass}>
+                                                {SOCIAL_LEVEL_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
                                             </select>
                                         </div>
-                                        <label className="flex items-center gap-3 cursor-pointer group">
-                                            <input
-                                                type="checkbox"
-                                                checked={lifestyle.work_from_home}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, work_from_home: e.target.checked }))}
-                                                className="w-5 h-5 rounded border-border text-primary focus:ring-primary/20"
-                                            />
-                                            <span className="text-foreground group-hover:text-primary transition-colors">Làm việc từ xa (WFH)</span>
-                                        </label>
                                         <div>
-                                            <label className={labelClass}>Giờ thức dậy</label>
-                                            <input
-                                                value={lifestyle.wake_time}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, wake_time: e.target.value }))}
-                                                placeholder="VD: 6h30"
-                                                className={inputClass}
-                                            />
+                                            <label className={labelClass}><Volume2 className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.noiseTolerance')}</label>
+                                            <select value={lifestyle.noise_tolerance} onChange={(e) => setLifestyle((l) => ({ ...l, noise_tolerance: e.target.value }))} className={inputClass}>
+                                                {NOISE_TOLERANCE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
                                         </div>
                                         <div>
-                                            <label className={labelClass}>Giờ đi ngủ</label>
-                                            <input
-                                                value={lifestyle.bedtime}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, bedtime: e.target.value }))}
-                                                placeholder="VD: 23h"
-                                                className={inputClass}
-                                            />
+                                            <label className={labelClass}>{t('profile.cleanliness')}</label>
+                                            <select value={lifestyle.cleanliness} onChange={(e) => setLifestyle((l) => ({ ...l, cleanliness: e.target.value }))} className={inputClass}>
+                                                {CLEANLINESS_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </SectionCard>
+
+                                {/* Work & Activities */}
+                                <SectionCard icon={<Briefcase className="w-4 h-4 text-primary" />} title={t('profile.workActivities')} subtitle={t('profile.workActivitiesSub')}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div>
+                                            <label className={labelClass}>{t('profile.occupation')}</label>
+                                            <select value={lifestyle.occupation_type} onChange={(e) => setLifestyle((l) => ({ ...l, occupation_type: e.target.value }))} className={inputClass}>
+                                                {OCCUPATION_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
                                         </div>
                                         <div>
-                                            <label className={labelClass}>Ngôn ngữ (cách nhau bằng dấu phẩy)</label>
-                                            <input
-                                                value={lifestyle.languages}
-                                                onChange={(e) => setLifestyle((l) => ({ ...l, languages: e.target.value }))}
-                                                placeholder="VD: Tiếng Việt, English"
-                                                className={inputClass}
-                                            />
+                                            <label className={labelClass}><UtensilsCrossed className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.cookingFreq')}</label>
+                                            <select value={lifestyle.cooking_frequency} onChange={(e) => setLifestyle((l) => ({ ...l, cooking_frequency: e.target.value }))} className={inputClass}>
+                                                {COOKING_FREQUENCY_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className={labelClass}>Thời hạn thuê ưa thích (tháng)</label>
-                                                <input
-                                                    type="number"
-                                                    value={lifestyle.preferred_lease_months}
-                                                    onChange={(e) => setLifestyle((l) => ({ ...l, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                                    placeholder="VD: 12"
-                                                    min={1}
-                                                    className={inputClass}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={labelClass}>Ngày dự định chuyển vào</label>
-                                                <input
-                                                    type="date"
-                                                    value={lifestyle.move_in_date}
-                                                    onChange={(e) => setLifestyle((l) => ({ ...l, move_in_date: e.target.value }))}
-                                                    className={inputClass}
-                                                />
-                                            </div>
+                                        <div>
+                                            <label className={labelClass}>{t('profile.guestFreq')}</label>
+                                            <select value={lifestyle.guest_frequency} onChange={(e) => setLifestyle((l) => ({ ...l, guest_frequency: e.target.value }))} className={inputClass}>
+                                                {GUEST_FREQUENCY_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className={labelClass}>Nhiệt độ ưa thích</label>
-                                                <select
-                                                    value={lifestyle.temperature_preference}
-                                                    onChange={(e) => setLifestyle((l) => ({ ...l, temperature_preference: e.target.value }))}
-                                                    className={inputClass}
-                                                >
-                                                    {TEMPERATURE_OPTIONS.map((o) => (
-                                                        <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className={labelClass}>Giờ giữ yên tĩnh</label>
-                                                <select
-                                                    value={lifestyle.quiet_hours_preference}
-                                                    onChange={(e) => setLifestyle((l) => ({ ...l, quiet_hours_preference: e.target.value }))}
-                                                    className={inputClass}
-                                                >
-                                                    {QUIET_HOURS_OPTIONS.map((o) => (
-                                                        <option key={o.value || 'empty'} value={o.value}>{o.label}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                    </div>
+                                </SectionCard>
+
+                                {/* Interests & Languages */}
+                                <SectionCard icon={<Languages className="w-4 h-4 text-primary" />} title={t('profile.interestsLang')} subtitle={t('profile.interestsLangSub')}>
+                                    <div>
+                                        <label className={labelClass}>{t('profile.interests')}</label>
+                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.tagHint')}</p>
+                                        <TagInput value={lifestyle.interests} onChange={(v) => setLifestyle((l) => ({ ...l, interests: v }))} placeholder="VD: Đọc sách, Thể thao..." suggestions={INTEREST_SUGGESTIONS} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>{t('profile.languages')}</label>
+                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.languagesNote')}</p>
+                                        <TagInput value={lifestyle.languages} onChange={(v) => setLifestyle((l) => ({ ...l, languages: v }))} placeholder="VD: Tiếng Việt, English..." suggestions={LANGUAGE_SUGGESTIONS} />
+                                    </div>
+                                </SectionCard>
+
+                                {/* Move-in plans */}
+                                <SectionCard icon={<Calendar className="w-4 h-4 text-primary" />} title={t('profile.movePlan')} subtitle={t('profile.movePlanSub')}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={labelClass}>{t('profile.moveInDate')}</label>
+                                            <input type="date" value={lifestyle.move_in_date} onChange={(e) => setLifestyle((l) => ({ ...l, move_in_date: e.target.value }))} className={inputClass} />
                                         </div>
-                                    </>
-                                )}
-                                <button
-                                    type="submit"
-                                    disabled={lifestyleSaving}
-                                    className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm"
-                                >
-                                    {lifestyleSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    Lưu
+                                        <div>
+                                            <label className={labelClass}>{t('profile.leaseMonths')}</label>
+                                            <input type="number" value={lifestyle.preferred_lease_months} onChange={(e) => setLifestyle((l) => ({ ...l, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 6" min={1} max={60} className={inputClass} />
+                                        </div>
+                                    </div>
+                                </SectionCard>
+
+                                {/* Deal breakers */}
+                                <SectionCard icon={<X className="w-4 h-4 text-primary" />} title={t('profile.dealBreakers')} subtitle={t('profile.dealBreakersSub')}>
+                                    <textarea value={lifestyle.deal_breakers} onChange={(e) => setLifestyle((l) => ({ ...l, deal_breakers: e.target.value }))} placeholder="VD: Hút thuốc trong phòng, Tiệc tùng thường xuyên, Không giữ vệ sinh..." className={`${inputClass} min-h-[80px] resize-y`} maxLength={500} rows={3} />
+                                    <p className="text-xs text-muted-foreground">{lifestyle.deal_breakers.length}/500</p>
+                                </SectionCard>
+
+                                <button type="submit" disabled={lifestyleSaving} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm">
+                                    {lifestyleSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t('profile.saveLifestyle')}
                                 </button>
                             </form>
                         )}
                     </div>
                 )}
 
+                {/* ── PREFERENCE TAB ── */}
                 {tab === 'preference' && (
-                    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 border-b border-border bg-muted/30">
-                            <h3 className="font-heading font-semibold text-foreground flex items-center gap-2">
-                                <Sliders className="w-4 h-4 text-primary" />
-                                Sở thích tìm phòng
-                            </h3>
-                            <p className="text-muted-foreground text-xs mt-0.5">
-                                Ngân sách và khu vực, giới tính bạn ở ghép
-                            </p>
+                    <div className="space-y-4">
+                        <div className="px-1">
+                            <h3 className="font-heading font-semibold text-foreground flex items-center gap-2"><Sliders className="w-4 h-4 text-primary" />{t('profile.tabPreference')}</h3>
+                            <p className="text-muted-foreground text-xs mt-0.5">{t('profile.preferenceSub')}</p>
                         </div>
                         {preferenceLoading ? (
-                            <div className="p-8 text-center text-muted-foreground">Đang tải...</div>
+                            <div className="p-8 text-center text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="w-5 h-5 animate-spin" />{t('common.loading')}</div>
                         ) : (
-                            <form onSubmit={handleSavePreference} className="p-6 space-y-5">
-                                {preferenceError && (
-                                    <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
-                                        {preferenceError}
+                            <form onSubmit={handleSavePreference} className="space-y-4">
+                                {preferenceError && <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">{preferenceError}</div>}
+                                {preferenceSuccess && <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2"><Check className="w-4 h-4 shrink-0" />{t('profile.savedPreference')}</div>}
+
+                                {/* Budget */}
+                                <SectionCard icon={<Banknote className="w-4 h-4 text-primary" />} title={t('profile.budget')} subtitle={t('profile.budgetSub')}>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={labelClass}>{t('profile.budgetMin')}</label>
+                                            <input type="number" value={preference.budget_min} onChange={(e) => setPreference((p) => ({ ...p, budget_min: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="0" min={0} className={inputClass} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>{t('profile.budgetMax')}</label>
+                                            <input type="number" value={preference.budget_max} onChange={(e) => setPreference((p) => ({ ...p, budget_max: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 5000000" min={0} className={inputClass} />
+                                        </div>
                                     </div>
-                                )}
-                                {preferenceSuccess && (
-                                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2">
-                                        <Check className="w-4 h-4 shrink-0" />
-                                        Đã lưu
-                                    </div>
-                                )}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                </SectionCard>
+
+                                {/* Location */}
+                                <SectionCard icon={<MapPin className="w-4 h-4 text-primary" />} title={t('profile.location')} subtitle={t('profile.locationSub')}>
                                     <div>
-                                        <label className={labelClass}>
-                                            <Banknote className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
-                                            Ngân sách tối thiểu (VNĐ/tháng)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={preference.budget_min}
-                                            onChange={(e) => setPreference((p) => ({ ...p, budget_min: e.target.value === '' ? '' : (Number(e.target.value) || 0) }))}
-                                            placeholder="0"
-                                            min={0}
-                                            className={inputClass}
-                                        />
+                                        <label className={labelClass}>{t('profile.preferredLocation')}</label>
+                                        <input value={preference.preferredLocation} onChange={(e) => setPreference((p) => ({ ...p, preferredLocation: e.target.value }))} placeholder="VD: Gần Đại học Bách Khoa, quận 10..." className={inputClass} />
                                     </div>
                                     <div>
-                                        <label className={labelClass}>
-                                            <Banknote className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
-                                            Ngân sách tối đa (VNĐ/tháng)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={preference.budget_max}
-                                            onChange={(e) => setPreference((p) => ({ ...p, budget_max: e.target.value === '' ? '' : (Number(e.target.value) || 0) }))}
-                                            placeholder="0"
-                                            min={0}
-                                            className={inputClass}
-                                        />
+                                        <label className={labelClass}>{t('profile.preferredWard')}</label>
+                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.preferredWardNote')}</p>
+                                        <PreferredDistrictsField preference={preference} setPreference={setPreference} />
                                     </div>
-                                </div>
-                                <PreferredDistrictsField preference={preference} setPreference={setPreference} labelClass={labelClass} inputClass={inputClass} />
-                                <div>
-                                    <label className={labelClass}>Loại phòng ưa thích</label>
-                                    <select
-                                        value={preference.room_type}
-                                        onChange={(e) => setPreference((p) => ({ ...p, room_type: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        {ROOM_TYPE_OPTIONS.map((o) => (
-                                            <option key={o.value || 'empty'} value={o.value}>
-                                                {o.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                {/* ── Hidden fields (data preserved, UI hidden) ── */}
-                                {false && (
-                                    <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
-                                            <label className={labelClass}>
-                                                <MapPin className="w-4 h-4 inline mr-1.5 -mt-0.5 text-muted-foreground" />
-                                                Khu vực ưa thích
-                                            </label>
-                                            <input
-                                                value={preference.preferredLocation}
-                                                onChange={(e) => setPreference((p) => ({ ...p, preferredLocation: e.target.value }))}
-                                                placeholder="VD: Quận 1, Quận 7, Bình Thạnh"
-                                                className={inputClass}
-                                            />
+                                            <label className={labelClass}>{t('profile.maxRadius')}</label>
+                                            <input type="number" value={preference.max_distance_km} onChange={(e) => setPreference((p) => ({ ...p, max_distance_km: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 5" min={0} max={50} step={0.5} className={inputClass} />
                                         </div>
+                                        <div className="flex items-end pb-1">
+                                            <ToggleSwitch checked={preference.transport_nearby === true} onChange={(v) => setPreference((p) => ({ ...p, transport_nearby: v ? true : null }))} label={t('profile.nearTransport')} description={t('profile.nearTransportDesc')} />
+                                        </div>
+                                    </div>
+                                </SectionCard>
+
+                                {/* Room requirements */}
+                                <SectionCard icon={<Home className="w-4 h-4 text-primary" />} title={t('profile.roomReq')} subtitle={t('profile.roomReqSub')}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
-                                            <label className={labelClass}>Tiện nghi mong muốn (cách nhau bằng dấu phẩy)</label>
-                                            <input
-                                                value={preference.preferred_amenities}
-                                                onChange={(e) => setPreference((p) => ({ ...p, preferred_amenities: e.target.value }))}
-                                                placeholder="VD: Điều hòa, Wifi, Máy giặt"
-                                                className={inputClass}
-                                            />
+                                            <label className={labelClass}>{t('profile.preferredRoomType')}</label>
+                                            <select value={preference.room_type} onChange={(e) => setPreference((p) => ({ ...p, room_type: e.target.value }))} className={inputClass}>
+                                                {ROOM_TYPE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className={labelClass}>Thời hạn thuê ưa thích (tháng)</label>
-                                                <input
-                                                    type="number"
-                                                    value={preference.preferred_lease_months}
-                                                    onChange={(e) => setPreference((p) => ({ ...p, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                                    placeholder="VD: 12"
-                                                    min={1}
-                                                    className={inputClass}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={labelClass}>Khoảng cách tối đa (km)</label>
-                                                <input
-                                                    type="number"
-                                                    value={preference.max_distance_km}
-                                                    onChange={(e) => setPreference((p) => ({ ...p, max_distance_km: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                                    placeholder="VD: 5"
-                                                    min={0}
-                                                    step={0.5}
-                                                    className={inputClass}
-                                                />
-                                            </div>
+                                        <div className="flex items-end pb-1">
+                                            <ToggleSwitch checked={preference.pet_friendly === true} onChange={(v) => setPreference((p) => ({ ...p, pet_friendly: v ? true : null }))} label={t('profile.petFriendly')} description={t('profile.petFriendlyDesc')} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>{t('profile.preferredAmenities')}</label>
+                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.preferredAmenitiesNote')}</p>
+                                        <TagInput value={preference.preferred_amenities} onChange={(v) => setPreference((p) => ({ ...p, preferred_amenities: v }))} placeholder="VD: WiFi, Điều hòa..." suggestions={COMMON_AMENITIES} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>
+                                            {t('profile.mustHaveAmenities')}
+                                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-normal">{t('profile.mustHaveNote')}</span>
+                                        </label>
+                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.mustHaveDesc')}</p>
+                                        <TagInput value={preference.must_have_amenities} onChange={(v) => setPreference((p) => ({ ...p, must_have_amenities: v }))} placeholder="VD: Điều hòa, Máy giặt..." suggestions={COMMON_AMENITIES} />
+                                    </div>
+                                </SectionCard>
+
+                                {/* Timeline */}
+                                <SectionCard icon={<Calendar className="w-4 h-4 text-primary" />} title={t('profile.timeline')} subtitle={t('profile.timelineSub')}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={labelClass}>{t('profile.moveInMin')}</label>
+                                            <input type="date" value={preference.move_in_date_min} onChange={(e) => setPreference((p) => ({ ...p, move_in_date_min: e.target.value }))} className={inputClass} />
                                         </div>
                                         <div>
-                                            <label className={labelClass}>Ngày dự kiến chuyển vào</label>
-                                            <input
-                                                type="date"
-                                                value={preference.move_in_date_min}
-                                                onChange={(e) => setPreference((p) => ({ ...p, move_in_date_min: e.target.value }))}
-                                                className={inputClass}
-                                            />
+                                            <label className={labelClass}>{t('profile.moveInMax')}</label>
+                                            <input type="date" value={preference.move_in_date_max} onChange={(e) => setPreference((p) => ({ ...p, move_in_date_max: e.target.value }))} className={inputClass} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>{t('profile.preferredLease')}</label>
+                                        <input type="number" value={preference.preferred_lease_months} onChange={(e) => setPreference((p) => ({ ...p, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 6" min={1} max={60} className={inputClass} />
+                                    </div>
+                                </SectionCard>
+
+                                {/* Roommate */}
+                                <SectionCard icon={<Users className="w-4 h-4 text-primary" />} title={t('profile.roommate')} subtitle={t('profile.roommateSub')}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div>
+                                            <label className={labelClass}>{t('profile.roommateGender')}</label>
+                                            <select value={preference.preferred_gender} onChange={(e) => setPreference((p) => ({ ...p, preferred_gender: e.target.value }))} className={inputClass}>
+                                                {PREFERRED_GENDER_OPTIONS.map((o) => <option key={o.value || 'any'} value={o.value}>{o.label}</option>)}
+                                            </select>
                                         </div>
                                         <div>
-                                            <label className={labelClass}>Tiện nghi bắt buộc (cách nhau bằng dấu phẩy)</label>
-                                            <input
-                                                value={preference.must_have_amenities}
-                                                onChange={(e) => setPreference((p) => ({ ...p, must_have_amenities: e.target.value }))}
-                                                placeholder="VD: Điều hòa, Chỗ để xe"
-                                                className={inputClass}
-                                            />
+                                            <label className={labelClass}>{t('profile.ageMin')}</label>
+                                            <input type="number" value={preference.preferred_roommate_age_min} onChange={(e) => setPreference((p) => ({ ...p, preferred_roommate_age_min: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="18" min={16} max={99} className={inputClass} />
                                         </div>
                                         <div>
-                                            <label className={labelClass}>Đến ngày chuyển vào</label>
-                                            <input
-                                                type="date"
-                                                value={preference.move_in_date_max}
-                                                onChange={(e) => setPreference((p) => ({ ...p, move_in_date_max: e.target.value }))}
-                                                className={inputClass}
-                                            />
+                                            <label className={labelClass}>{t('profile.ageMax')}</label>
+                                            <input type="number" value={preference.preferred_roommate_age_max} onChange={(e) => setPreference((p) => ({ ...p, preferred_roommate_age_max: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="35" min={16} max={99} className={inputClass} />
                                         </div>
-                                        <div className="flex flex-wrap gap-4">
-                                            <label className="flex items-center gap-3 cursor-pointer group">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={preference.transport_nearby === true}
-                                                    onChange={(e) => setPreference((p) => ({ ...p, transport_nearby: e.target.checked || null }))}
-                                                    className="w-5 h-5 rounded border-border text-primary focus:ring-primary/20"
-                                                />
-                                                <span className="text-foreground group-hover:text-primary transition-colors">Gần phương tiện công cộng</span>
-                                            </label>
-                                            <label className="flex items-center gap-3 cursor-pointer group">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={preference.pet_friendly === true}
-                                                    onChange={(e) => setPreference((p) => ({ ...p, pet_friendly: e.target.checked || null }))}
-                                                    className="w-5 h-5 rounded border-border text-primary focus:ring-primary/20"
-                                                />
-                                                <span className="text-foreground group-hover:text-primary transition-colors">Cho phép thú cưng</span>
-                                            </label>
+                                    </div>
+                                </SectionCard>
+
+                                {/* AI matching weights */}
+                                <SectionCard icon={<Star className="w-4 h-4 text-primary" />} title={t('profile.aiMatching')} subtitle={t('profile.aiMatchingSub')}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className={labelClass}><Sparkles className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.lifestyleWeight')}</label>
+                                            <input type="number" value={preference.lifestyle_match_weight} onChange={(e) => setPreference((p) => ({ ...p, lifestyle_match_weight: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 0.7" min={0} max={1} step={0.05} className={inputClass} />
+                                            <p className="text-xs text-muted-foreground mt-1">{t('profile.weightNote')}</p>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className={labelClass}>Tuổi bạn ở ghép từ</label>
-                                                <input
-                                                    type="number"
-                                                    value={preference.preferred_roommate_age_min}
-                                                    onChange={(e) => setPreference((p) => ({ ...p, preferred_roommate_age_min: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                                    placeholder="VD: 20"
-                                                    min={18}
-                                                    className={inputClass}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={labelClass}>Tuổi bạn ở ghép đến</label>
-                                                <input
-                                                    type="number"
-                                                    value={preference.preferred_roommate_age_max}
-                                                    onChange={(e) => setPreference((p) => ({ ...p, preferred_roommate_age_max: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                                    placeholder="VD: 35"
-                                                    min={18}
-                                                    className={inputClass}
-                                                />
-                                            </div>
+                                        <div>
+                                            <label className={labelClass}><Shield className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.safetyPriority')}</label>
+                                            <input type="number" value={preference.safety_priority} onChange={(e) => setPreference((p) => ({ ...p, safety_priority: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 7" min={0} max={10} className={inputClass} />
+                                            <p className="text-xs text-muted-foreground mt-1">{t('profile.safetyNote')}</p>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className={labelClass}>Trọng số khớp phong cách (0–1)</label>
-                                                <input
-                                                    type="number"
-                                                    value={preference.lifestyle_match_weight}
-                                                    onChange={(e) => setPreference((p) => ({ ...p, lifestyle_match_weight: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                                    placeholder="VD: 0.5"
-                                                    min={0}
-                                                    max={1}
-                                                    step={0.1}
-                                                    className={inputClass}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={labelClass}>Mức ưu tiên an ninh (số)</label>
-                                                <input
-                                                    type="number"
-                                                    value={preference.safety_priority}
-                                                    onChange={(e) => setPreference((p) => ({ ...p, safety_priority: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                                    placeholder="VD: 5"
-                                                    min={0}
-                                                    className={inputClass}
-                                                />
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                                <button
-                                    type="submit"
-                                    disabled={preferenceSaving}
-                                    className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm"
-                                >
-                                    {preferenceSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    Lưu
+                                    </div>
+                                </SectionCard>
+
+                                <button type="submit" disabled={preferenceSaving} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm">
+                                    {preferenceSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t('profile.savePreference')}
                                 </button>
                             </form>
+                        )}
+                    </div>
+                )}
+
+                {/* ── BOOKINGS & PAYMENTS TAB ── */}
+                {tab === 'bookings' && isTenant && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between px-1">
+                            <div>
+                                <h3 className="font-heading font-semibold text-foreground flex items-center gap-2">
+                                    <CreditCard className="w-4 h-4 text-primary" />{t('profile.tabBookings')}
+                                </h3>
+                                <p className="text-muted-foreground text-xs mt-0.5">{t('profile.bookingsSub')}</p>
+                            </div>
+                            <button type="button" onClick={loadBookings} disabled={bookingsLoading}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50">
+                                <RefreshCw className={`w-3.5 h-3.5 ${bookingsLoading ? 'animate-spin' : ''}`} />{t('profile.refresh')}
+                            </button>
+                        </div>
+
+                        {bookingsError && (
+                            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 shrink-0" />{bookingsError}
+                            </div>
+                        )}
+
+                        {bookingsLoading ? (
+                            <div className="p-10 text-center text-muted-foreground flex items-center justify-center gap-2">
+                                <Loader2 className="w-5 h-5 animate-spin" />{t('common.loading')}
+                            </div>
+                        ) : (
+                            <>
+                                {/* ── Deposits / Pre-orders ── */}
+                                <div>
+                                    <h4 className="font-semibold text-sm text-foreground flex items-center gap-2 mb-3">
+                                        <Banknote className="w-4 h-4 text-amber-500" />{t('profile.depositsTitle')}
+                                        <span className="ml-auto text-xs font-normal text-muted-foreground">{preorders.length} {t('profile.items')}</span>
+                                    </h4>
+                                    {preorders.length === 0 ? (
+                                        <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
+                                            {t('profile.noDeposits')}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {preorders.map((p) => (
+                                                <PreorderCard
+                                                    key={p.id}
+                                                    item={p}
+                                                    onViewRoom={() => navigate(`/room/${p.roomId}`)}
+                                                    onRetryRoom={() => navigate(`/room/${p.roomId}`)}
+                                                    onCancelled={loadBookings}
+                                                    t={t}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* ── Rental History ── */}
+                                <div>
+                                    <h4 className="font-semibold text-sm text-foreground flex items-center gap-2 mb-3">
+                                        <Building2 className="w-4 h-4 text-primary" />{t('profile.rentalsTitle')}
+                                        <span className="ml-auto text-xs font-normal text-muted-foreground">{bookings.length} {t('profile.items')}</span>
+                                    </h4>
+                                    {bookings.length === 0 ? (
+                                        <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
+                                            {t('profile.noRentals')}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {bookings.map((b) => (
+                                                <BookingCard key={b.id} item={b} onViewRoom={() => navigate(`/room/${b.roomId}`)} t={t} />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
                         )}
                     </div>
                 )}
             </main>
+        </div>
+    );
+}
+
+// ─── PreorderCard ───────────────────────────────────────────────────────────
+
+type TFunc = (key: string, opts?: Record<string, unknown>) => string;
+
+const PREORDER_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
+    PENDING:   { label: 'Chờ xác nhận', icon: Clock3,         color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
+    CONFIRMED: { label: 'Đã xác nhận',  icon: CheckCircle2,   color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    CANCELLED: { label: 'Đã hủy',       icon: XCircle,        color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+    EXPIRED:   { label: 'Hết hạn',      icon: AlertCircle,    color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
+};
+
+const PAYMENT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+    UNPAID:   { label: 'Chưa thanh toán', color: 'text-amber-600' },
+    PAID:     { label: 'Đã thanh toán',   color: 'text-emerald-600' },
+    REFUNDED: { label: 'Đã hoàn tiền',    color: 'text-blue-600' },
+};
+
+function PreorderCard({
+    item,
+    onViewRoom,
+    onRetryRoom,
+    onCancelled,
+    t,
+}: {
+    item: MyPreorderItem;
+    onViewRoom: () => void;
+    onRetryRoom: () => void;
+    onCancelled: () => void | Promise<void>;
+    t: TFunc;
+}) {
+    const [resuming, setResuming] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+    const [resumeError, setResumeError] = useState<string | null>(null);
+
+    const statusCfg = PREORDER_STATUS_CONFIG[item.status] ?? PREORDER_STATUS_CONFIG.EXPIRED;
+    const paymentCfg = PAYMENT_STATUS_CONFIG[item.paymentStatus] ?? PAYMENT_STATUS_CONFIG.UNPAID;
+    const StatusIcon = statusCfg.icon;
+
+    const depositFormatted = item.depositAmount > 0
+        ? new Intl.NumberFormat('vi-VN').format(item.depositAmount) + ' ₫'
+        : '—';
+    const dateFormatted = item.createdAt
+        ? new Date(item.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : '—';
+
+    // PENDING + UNPAID → user can resume the existing payment link
+    const canResume = item.status === 'PENDING' && item.paymentStatus === 'UNPAID';
+    const canCancel = item.status === 'PENDING' && item.paymentStatus === 'UNPAID';
+    // CANCELLED + UNPAID (failed payment) → user can go back to room and start fresh
+    const canRetry = item.status === 'CANCELLED' && item.paymentStatus === 'UNPAID';
+
+    const handleResume = async () => {
+        setResumeError(null);
+        setResuming(true);
+        try {
+            const res = await resumePreorderPaymentRequest(item.id);
+            const url = res.data?.payment?.checkoutUrl;
+            if (url) {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            } else {
+                setResumeError(t('profile.noPaymentLink'));
+            }
+        } catch (err) {
+            setResumeError(err instanceof Error ? err.message : t('common.error'));
+        } finally {
+            setResuming(false);
+        }
+    };
+
+    const handleCancel = async () => {
+        const confirmed = window.confirm(t('profile.cancelPaymentConfirm'));
+        if (!confirmed) return;
+        setResumeError(null);
+        setCancelling(true);
+        try {
+            await cancelUnpaidPreorderRequest(item.id);
+            await onCancelled();
+        } catch (err) {
+            setResumeError(err instanceof Error ? err.message : t('common.error'));
+        } finally {
+            setCancelling(false);
+        }
+    };
+
+    return (
+        <div className="bg-card border border-border rounded-2xl p-4 hover:shadow-sm transition-shadow">
+            <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div>
+                                <p className="font-semibold text-sm text-foreground truncate">
+                                    {item.room?.room_name || t('profile.unknownRoom')}
+                                </p>
+                                {item.rental && (
+                                    <p className="text-xs text-muted-foreground truncate">{item.rental.title}</p>
+                                )}
+                            </div>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${statusCfg.bg} ${statusCfg.color}`}>
+                                <StatusIcon className="w-3 h-3" />{statusCfg.label}
+                            </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                                <Banknote className="w-3.5 h-3.5" />
+                                <span className="font-semibold text-foreground">{depositFormatted}</span>
+                                <span className={`font-medium ${paymentCfg.color}`}>· {paymentCfg.label}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" />{dateFormatted}
+                            </span>
+                            {item.refundStatus === 'ELIGIBLE' && (
+                                <span className="flex items-center gap-1 text-blue-600 font-medium">
+                                    <ArrowRight className="w-3 h-3" />{t('profile.refundEligible')}
+                                </span>
+                            )}
+                            {item.refundStatus === 'REFUNDED' && (
+                                <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                    <CheckCircle2 className="w-3 h-3" />{t('profile.refunded')}
+                                </span>
+                            )}
+                        </div>
+
+                        {item.cancelReason && (
+                            <p className="mt-2 text-xs text-muted-foreground italic">
+                                {t('profile.cancelReason')}: {item.cancelReason}
+                            </p>
+                        )}
+                    </div>
+
+                    <button type="button" onClick={onViewRoom}
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+                        <ExternalLink className="w-3.5 h-3.5" />{t('profile.viewRoom')}
+                    </button>
+                </div>
+
+                {/* Action bar */}
+                {(canResume || canRetry || canCancel) && (
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
+                        {canResume && (
+                            <button
+                                type="button"
+                                onClick={handleResume}
+                                disabled={resuming}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm"
+                            >
+                                {resuming
+                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    : <CreditCard className="w-3.5 h-3.5" />
+                                }
+                                {resuming ? t('common.loading') : t('profile.resumePayment')}
+                            </button>
+                        )}
+                        {canRetry && (
+                            <button
+                                type="button"
+                                onClick={onRetryRoom}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 transition-all shadow-sm"
+                            >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                {t('profile.retryDeposit')}
+                            </button>
+                        )}
+                        {canCancel && (
+                            <button
+                                type="button"
+                                onClick={handleCancel}
+                                disabled={cancelling}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-700 rounded-xl text-xs font-semibold hover:bg-red-100 disabled:opacity-60 transition-all border border-red-200"
+                            >
+                                {cancelling
+                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    : <XCircle className="w-3.5 h-3.5" />
+                                }
+                                {cancelling ? t('common.loading') : t('profile.cancelPayment')}
+                            </button>
+                        )}
+                        {resumeError && (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5" />{resumeError}
+                            </p>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─── BookingCard ─────────────────────────────────────────────────────────────
+
+const BOOKING_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
+    active:    { label: 'Đang thuê',   icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    completed: { label: 'Đã kết thúc', icon: Clock3,       color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
+    cancelled: { label: 'Đã hủy',      icon: XCircle,      color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+};
+
+function BookingCard({ item, onViewRoom, t }: { item: MyBookingItem; onViewRoom: () => void; t: TFunc }) {
+    const statusCfg = BOOKING_STATUS_CONFIG[item.status] ?? BOOKING_STATUS_CONFIG.completed;
+    const StatusIcon = statusCfg.icon;
+
+    const startFmt = item.startDate
+        ? new Date(item.startDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : '—';
+    const endFmt = item.endDate
+        ? new Date(item.endDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : t('profile.ongoing');
+
+    return (
+        <div className="bg-card border border-border rounded-2xl p-4 hover:shadow-sm transition-shadow">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                {item.propertyImage && (
+                    <img src={item.propertyImage} alt="" className="w-full sm:w-20 h-14 sm:h-14 rounded-xl object-cover border border-border shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div>
+                            <p className="font-semibold text-sm text-foreground truncate">{item.roomName}</p>
+                            <p className="text-xs text-muted-foreground truncate">{item.propertyName}</p>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${statusCfg.bg} ${statusCfg.color}`}>
+                            <StatusIcon className="w-3 h-3" />{statusCfg.label}
+                        </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5" />{startFmt} → {endFmt}
+                        </span>
+                        {item.landlordName && (
+                            <span className="flex items-center gap-1">
+                                <User className="w-3.5 h-3.5" />{item.landlordName}
+                            </span>
+                        )}
+                        {item.address && (
+                            <span className="flex items-center gap-1 truncate max-w-xs">
+                                <MapPin className="w-3.5 h-3.5 shrink-0" />{item.address}
+                            </span>
+                        )}
+                    </div>
+
+                    {item.userRating != null && (
+                        <div className="mt-2 flex items-center gap-1 text-xs">
+                            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                            <span className="font-medium text-foreground">{item.userRating}/5</span>
+                            <span className="text-muted-foreground">· {t('profile.yourRating')}</span>
+                        </div>
+                    )}
+                </div>
+
+                <button type="button" onClick={onViewRoom}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+                    <ExternalLink className="w-3.5 h-3.5" />{t('profile.viewRoom')}
+                </button>
+            </div>
         </div>
     );
 }

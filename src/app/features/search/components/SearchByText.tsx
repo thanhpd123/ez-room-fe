@@ -1,10 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw, Mic } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw, Navigation, Loader2 } from 'lucide-react';
 import type { SearchCriteria, RoomType } from '../types';
 import { useProvinces } from '@/app/hooks/useProvinces';
 import { useAmenities } from '@/app/hooks/useAmenities';
 import { useRoomTypes } from '@/app/hooks/useRoomTypes';
+import { VoiceSearchButton } from '@/app/components/VoiceSearchButton';
+import { useGeolocation } from '@/app/hooks/useGeolocation';
 
 interface SearchByTextProps {
     onSearch: (criteria: SearchCriteria) => void;
@@ -13,10 +16,8 @@ interface SearchByTextProps {
     basicOnly?: boolean;
     /** Voice search: callback with transcribed text to fill q. */
     onVoiceResult?: (text: string) => void;
-    /** Server-side search error (e.g., VIP required for advanced filters). */
-    backendError?: string | null;
-    vipUpgradePath?: string | null;
-    onUpgradeVip?: (path: string) => void;
+    /** Called when "use my location" toggle changes. Used to show/hide nearby search block. */
+    onUseMyLocationChange?: (enabled: boolean) => void;
 }
 
 interface FormState {
@@ -45,78 +46,21 @@ const initialFormState: FormState = {
     selectedAmenities: [],
 };
 
-type SpeechRecognitionInstance = {
-    lang: string;
-    continuous: boolean;
-    interimResults: boolean;
-    onresult: ((e: Event & { results?: ArrayLike<ArrayLike<{ transcript?: string }>> }) => void) | null;
-    onend: (() => void) | null;
-    onerror: (() => void) | null;
-    start: () => void;
-};
-
-function VoiceSearchButton({
-    onResult,
-    disabled,
-}: {
-    onResult: (text: string) => void;
-    disabled?: boolean;
-}) {
-    const [listening, setListening] = useState(false);
-    const startListening = useCallback(() => {
-        const Rec = (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).SpeechRecognition
-            || (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).webkitSpeechRecognition;
-        if (!Rec) {
-            onResult('');
-            return;
-        }
-        const rec = new Rec();
-        rec.lang = 'vi-VN';
-        rec.continuous = false;
-        rec.interimResults = false;
-        rec.onresult = (e) => {
-            const ev = e as Event & { results?: ArrayLike<ArrayLike<{ transcript?: string }>> };
-            const t = ev.results?.[0]?.[0]?.transcript ?? '';
-            onResult(t);
-        };
-        rec.onend = () => setListening(false);
-        rec.onerror = () => setListening(false);
-        setListening(true);
-        rec.start();
-    }, [onResult]);
-    return (
-        <button
-            type="button"
-            onClick={startListening}
-            disabled={disabled || listening}
-            className="p-3 rounded-xl border border-border bg-background hover:bg-muted transition-all disabled:opacity-50 flex items-center justify-center"
-            title="Tìm kiếm bằng giọng nói"
-        >
-            <Mic className={`w-5 h-5 ${listening ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
-        </button>
-    );
-}
-
-export function SearchByText({
-    onSearch,
-    isSearching,
-    basicOnly = false,
-    onVoiceResult,
-    backendError = null,
-    vipUpgradePath = null,
-    onUpgradeVip,
-}: SearchByTextProps) {
+export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoiceResult, onUseMyLocationChange }: SearchByTextProps) {
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const [formState, setFormState] = useState<FormState>(initialFormState);
     const [error, setError] = useState('');
+    const [useMyLocation, setUseMyLocation] = useState(false);
+    const geo = useGeolocation();
     const { provinces, getWardsFor, loading: locationsLoading } = useProvinces();
     const { amenities: amenitiesList } = useAmenities();
     const { options: roomTypeOptions } = useRoomTypes();
     const effectiveRoomTypes = roomTypeOptions.length > 0 ? roomTypeOptions : [
-        { value: 'single', label: 'Phòng đơn' },
-        { value: 'double', label: 'Phòng đôi' },
+        { value: 'single', label: t('search.roomType') },
+        { value: 'double', label: t('search.roomType') },
         { value: 'studio', label: 'Studio' },
-        { value: 'apartment', label: 'Căn hộ' },
+        { value: 'apartment', label: t('search.roomType') },
     ];
     const wardOptions = formState.city ? getWardsFor(formState.city) : [];
 
@@ -159,49 +103,17 @@ export function SearchByText({
     const validateInput = (): boolean => {
         const { minPrice, maxPrice, minArea, maxArea } = formState;
 
-        // Validate price range
-        if (minPrice && isNaN(Number(minPrice))) {
-            setError('Giá tối thiểu phải là số hợp lệ');
-            return false;
-        }
-        if (maxPrice && isNaN(Number(maxPrice))) {
-            setError('Giá tối đa phải là số hợp lệ');
-            return false;
-        }
-        if (minPrice && Number(minPrice) < 0) {
-            setError('Giá tối thiểu không thể là số âm');
-            return false;
-        }
-        if (maxPrice && Number(maxPrice) < 0) {
-            setError('Giá tối đa không thể là số âm');
-            return false;
-        }
-        if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
-            setError('Giá tối thiểu không thể lớn hơn giá tối đa');
-            return false;
-        }
+        if (minPrice && isNaN(Number(minPrice))) { setError(t('search.errors.minPriceInvalid')); return false; }
+        if (maxPrice && isNaN(Number(maxPrice))) { setError(t('search.errors.maxPriceInvalid')); return false; }
+        if (minPrice && Number(minPrice) < 0) { setError(t('search.errors.minPriceNegative')); return false; }
+        if (maxPrice && Number(maxPrice) < 0) { setError(t('search.errors.maxPriceNegative')); return false; }
+        if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) { setError(t('search.errors.priceRange')); return false; }
 
-        // Validate area range
-        if (minArea && isNaN(Number(minArea))) {
-            setError('Diện tích tối thiểu phải là số hợp lệ');
-            return false;
-        }
-        if (maxArea && isNaN(Number(maxArea))) {
-            setError('Diện tích tối đa phải là số hợp lệ');
-            return false;
-        }
-        if (minArea && Number(minArea) < 0) {
-            setError('Diện tích tối thiểu không thể là số âm');
-            return false;
-        }
-        if (maxArea && Number(maxArea) < 0) {
-            setError('Diện tích tối đa không thể là số âm');
-            return false;
-        }
-        if (minArea && maxArea && Number(minArea) > Number(maxArea)) {
-            setError('Diện tích tối thiểu không thể lớn hơn diện tích tối đa');
-            return false;
-        }
+        if (minArea && isNaN(Number(minArea))) { setError(t('search.errors.minAreaInvalid')); return false; }
+        if (maxArea && isNaN(Number(maxArea))) { setError(t('search.errors.maxAreaInvalid')); return false; }
+        if (minArea && Number(minArea) < 0) { setError(t('search.errors.minAreaNegative')); return false; }
+        if (maxArea && Number(maxArea) < 0) { setError(t('search.errors.maxAreaNegative')); return false; }
+        if (minArea && maxArea && Number(minArea) > Number(maxArea)) { setError(t('search.errors.areaRange')); return false; }
 
         return true;
     };
@@ -209,10 +121,7 @@ export function SearchByText({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-
-        if (!validateInput()) {
-            return;
-        }
+        if (!validateInput()) return;
 
         const criteria: SearchCriteria = {
             q: formState.q.trim() || undefined,
@@ -225,6 +134,8 @@ export function SearchByText({
             maxArea: basicOnly ? undefined : (formState.maxArea ? Number(formState.maxArea) : undefined),
             roomType: formState.roomType || undefined,
             amenities: basicOnly ? undefined : (formState.selectedAmenities.length > 0 ? formState.selectedAmenities : undefined),
+            lat: useMyLocation && geo.hasLocation ? geo.latitude! : undefined,
+            lng: useMyLocation && geo.hasLocation ? geo.longitude! : undefined,
         };
 
         onSearch(criteria);
@@ -235,6 +146,25 @@ export function SearchByText({
         setError('');
     };
 
+    const handleVoiceResult = useCallback((transcript: string) => {
+        setFormState((prev) => ({ ...prev, q: transcript }));
+        onVoiceResult?.(transcript);
+        // Auto-submit with voice transcript
+        const criteria: SearchCriteria = {
+            q: transcript.trim() || undefined,
+            city: formState.city.trim() || undefined,
+            district: formState.district.trim() || undefined,
+            address: formState.address.trim() || undefined,
+            minPrice: formState.minPrice ? Number(formState.minPrice) : undefined,
+            maxPrice: formState.maxPrice ? Number(formState.maxPrice) : undefined,
+            minArea: basicOnly ? undefined : (formState.minArea ? Number(formState.minArea) : undefined),
+            maxArea: basicOnly ? undefined : (formState.maxArea ? Number(formState.maxArea) : undefined),
+            roomType: formState.roomType || undefined,
+            amenities: basicOnly ? undefined : (formState.selectedAmenities.length > 0 ? formState.selectedAmenities : undefined),
+        };
+        onSearch(criteria);
+    }, [formState, basicOnly, onSearch, onVoiceResult]);
+
     return (
         <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 max-w-4xl mx-auto">
             {error && (
@@ -244,51 +174,36 @@ export function SearchByText({
                 </div>
             )}
 
-            {backendError && (
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                        <AlertCircle className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
-                        <p className="text-amber-900 text-sm">{backendError}</p>
-                    </div>
-                    {onUpgradeVip && (
-                        <button
-                            type="button"
-                            onClick={() => onUpgradeVip(vipUpgradePath || '/vip-plans')}
-                            className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors"
-                        >
-                            Nâng cấp VIP
-                        </button>
-                    )}
-                </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Search query (name, description) */}
+                {/* Search query + Voice */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
                         <Search className="w-4 h-4 text-primary" />
-                        Từ khóa (tên, mô tả)
+                        {t('search.aiKeyword')}
                     </label>
                     <div className="flex gap-2">
                         <input
                             type="text"
                             value={formState.q}
                             onChange={(e) => handleInputChange('q', e.target.value)}
-                            placeholder="VD: phòng có ban công, gần trường..."
+                            placeholder={t('search.aiKeywordPlaceholder')}
                             disabled={isSearching}
                             className="flex-1 px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                         />
-                        {onVoiceResult && (
-                            <VoiceSearchButton onResult={(t) => { handleInputChange('q', t); onVoiceResult(t); }} disabled={isSearching} />
-                        )}
+                        <VoiceSearchButton
+                            onResult={handleVoiceResult}
+                            onInterim={(text) => setFormState((prev) => ({ ...prev, q: text }))}
+                            disabled={isSearching}
+                            size="md"
+                        />
                     </div>
                 </div>
 
-                {/* Location – new address: province (34) → phường/xã → detail */}
+                {/* Location – province → ward → detail */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
                         <MapPin className="w-4 h-4 text-primary" />
-                        Địa điểm (Tỉnh/TP → Phường/Xã → Địa chỉ chi tiết)
+                        {t('search.locationLabel')}
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <select
@@ -297,7 +212,7 @@ export function SearchByText({
                             disabled={isSearching || locationsLoading}
                             className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                         >
-                            <option value="">Chọn tỉnh / thành phố</option>
+                            <option value="">{t('search.selectProvince')}</option>
                             {provinces.map((p) => (
                                 <option key={p.code} value={p.name}>{p.name}</option>
                             ))}
@@ -308,7 +223,7 @@ export function SearchByText({
                             disabled={!formState.city || isSearching || locationsLoading}
                             className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                         >
-                            <option value="">Chọn phường / xã</option>
+                            <option value="">{t('search.selectWard')}</option>
                             {wardOptions.map((w) => (
                                 <option key={w.code} value={w.name}>{w.name}</option>
                             ))}
@@ -317,25 +232,64 @@ export function SearchByText({
                             type="text"
                             value={formState.address}
                             onChange={(e) => handleInputChange('address', e.target.value)}
-                            placeholder="Địa chỉ chi tiết (đường, số nhà...)"
+                            placeholder={t('search.detailAddress')}
                             disabled={isSearching}
                             className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                         />
                     </div>
                 </div>
 
+                {/* Use My Location toggle */}
+                {!basicOnly && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={useMyLocation}
+                                onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setUseMyLocation(checked);
+                                    onUseMyLocationChange?.(checked);
+                                    if (checked && !geo.hasLocation) {
+                                        geo.requestLocation();
+                                    }
+                                }}
+                                className="sr-only peer"
+                                disabled={isSearching}
+                            />
+                            <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+                        </label>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <Navigation className="w-4 h-4 text-primary shrink-0" />
+                            <span className="text-sm font-medium text-foreground">{t('search.useMyLocation')}</span>
+                            {geo.loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />}
+                            {useMyLocation && geo.hasLocation && (
+                                <span className="text-xs text-green-600 dark:text-green-400 shrink-0">{t('search.locationDetected')}</span>
+                            )}
+                            {useMyLocation && geo.error && (
+                                <span className="text-xs text-destructive truncate">{geo.error}</span>
+                            )}
+                        </div>
+                        {useMyLocation && geo.hasLocation && (
+                            <span className="text-xs text-muted-foreground shrink-0">
+                                {t('search.nearbyPriority')}
+                            </span>
+                        )}
+                    </div>
+                )}
+
                 {/* Price Range */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
                         <DollarSign className="w-4 h-4 text-primary" />
-                        Khoảng giá (VNĐ)
+                        {t('search.priceRangeLabel')}
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <input
                             type="text"
                             value={formState.minPrice}
                             onChange={(e) => handleInputChange('minPrice', e.target.value)}
-                            placeholder="Giá tối thiểu"
+                            placeholder={t('search.minPrice')}
                             disabled={isSearching}
                             className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                         />
@@ -343,7 +297,7 @@ export function SearchByText({
                             type="text"
                             value={formState.maxPrice}
                             onChange={(e) => handleInputChange('maxPrice', e.target.value)}
-                            placeholder="Giá tối đa"
+                            placeholder={t('search.maxPrice')}
                             disabled={isSearching}
                             className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                         />
@@ -355,14 +309,14 @@ export function SearchByText({
                     <div className="space-y-2">
                         <label className="flex items-center gap-2 font-medium text-foreground">
                             <Maximize className="w-4 h-4 text-primary" />
-                            Diện tích (m²)
+                            {t('search.areaLabel')}
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <input
                                 type="text"
                                 value={formState.minArea}
                                 onChange={(e) => handleInputChange('minArea', e.target.value)}
-                                placeholder="Diện tích tối thiểu"
+                                placeholder={t('search.minArea')}
                                 disabled={isSearching}
                                 className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                             />
@@ -370,7 +324,7 @@ export function SearchByText({
                                 type="text"
                                 value={formState.maxArea}
                                 onChange={(e) => handleInputChange('maxArea', e.target.value)}
-                                placeholder="Diện tích tối đa"
+                                placeholder={t('search.maxArea')}
                                 disabled={isSearching}
                                 className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                             />
@@ -382,7 +336,7 @@ export function SearchByText({
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 font-medium text-foreground">
                         <Home className="w-4 h-4 text-primary" />
-                        Loại phòng
+                        {t('search.roomTypeLabel')}
                     </label>
                     <select
                         value={formState.roomType}
@@ -390,7 +344,7 @@ export function SearchByText({
                         disabled={isSearching}
                         className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
                     >
-                        <option value="">Chọn loại phòng</option>
+                        <option value="">{t('search.selectRoomType')}</option>
                         {effectiveRoomTypes.map((opt) => (
                             <option key={opt.value} value={opt.value}>
                                 {opt.label}
@@ -402,15 +356,16 @@ export function SearchByText({
                 {/* Amenities – tenant/VIP only */}
                 {!basicOnly && (
                     <div className="space-y-3">
-                        <label className="font-medium text-foreground">Tiện nghi</label>
+                        <label className="font-medium text-foreground">{t('search.amenitiesLabel')}</label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             {amenitiesList.map((amenity) => (
                                 <label
                                     key={amenity.id}
-                                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formState.selectedAmenities.includes(amenity.id)
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-border hover:border-primary/50'
-                                        } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+                                        formState.selectedAmenities.includes(amenity.id)
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-border hover:border-primary/50'
+                                    } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     <input
                                         type="checkbox"
@@ -434,7 +389,7 @@ export function SearchByText({
                         className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         <Search className="w-4 h-4" />
-                        {isSearching ? 'Đang tìm kiếm...' : 'Tìm kiếm'}
+                        {isSearching ? t('search.searching') : t('search.search')}
                     </button>
                     <button
                         type="button"
@@ -443,7 +398,7 @@ export function SearchByText({
                         className="px-6 py-3 border border-border rounded-xl font-medium hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         <RotateCcw className="w-4 h-4" />
-                        Đặt lại
+                        {t('search.reset')}
                     </button>
                 </div>
             </form>

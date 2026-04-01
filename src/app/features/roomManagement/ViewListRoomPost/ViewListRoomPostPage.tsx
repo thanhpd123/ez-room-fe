@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { RoomStatus } from '@/lib/models/room.model';
 import { getManagedRentalById } from '@/app/features/rentalManagement/shared/rental-storage';
-import { listRoomPostsByRentalId } from '../shared/room-post-storage';
+import { getRoomWishers, listRoomPostsByRentalId, type RoomWisher } from '../shared/room-post-storage';
 import {
     ROOM_POST_STATUS_OPTIONS,
     type ManagedRoomPostItem,
@@ -41,6 +41,9 @@ export function ViewListRoomPostPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [keyword, setKeyword] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | RoomStatus>('all');
+    const [openedWishersRoomId, setOpenedWishersRoomId] = useState<string | null>(null);
+    const [wishersByRoom, setWishersByRoom] = useState<Record<string, RoomWisher[]>>({});
+    const [loadingWishersRoomId, setLoadingWishersRoomId] = useState<string | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -83,6 +86,21 @@ export function ViewListRoomPostPage() {
             return matchesKeyword && matchesStatus;
         });
     }, [keyword, roomPosts, statusFilter]);
+
+    const toggleWishers = async (roomId: string) => {
+        if (openedWishersRoomId === roomId) {
+            setOpenedWishersRoomId(null);
+            return;
+        }
+        setOpenedWishersRoomId(roomId);
+
+        if (wishersByRoom[roomId]) return;
+
+        setLoadingWishersRoomId(roomId);
+        const rows = await getRoomWishers(roomId);
+        setWishersByRoom((prev) => ({ ...prev, [roomId]: rows }));
+        setLoadingWishersRoomId(null);
+    };
 
     if (!rentalId) {
         return (
@@ -233,18 +251,112 @@ export function ViewListRoomPostPage() {
                                         <span className="text-xs text-slate-500">
                                             Created: {formatDateTime(post.created_at)}
                                         </span>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                navigate(
-                                                    `/rental-management/rentals/${rentalId}/room-posts/${post.room_post_id}`
-                                                )
-                                            }
-                                            className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                                        >
-                                            ViewRoomPostDetail
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleWishers(post.room_post_id)}
+                                                className="rounded-xl border border-purple-300 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-50"
+                                            >
+                                                Wishlist queue
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/rental-management/rentals/${rentalId}/room-posts/${post.room_post_id}`
+                                                    )
+                                                }
+                                                className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                            >
+                                                ViewRoomPostDetail
+                                            </button>
+                                        </div>
                                     </div>
+
+                                    {openedWishersRoomId === post.room_post_id && (
+                                        <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-3">
+                                            <p className="mb-2 text-sm font-semibold text-purple-900">
+                                                Priority order: prepaid preorder first, then first come first serve
+                                            </p>
+                                            {loadingWishersRoomId === post.room_post_id ? (
+                                                <p className="text-sm text-slate-600">Loading wishlist...</p>
+                                            ) : (wishersByRoom[post.room_post_id] || []).length === 0 ? (
+                                                <p className="text-sm text-slate-600">No users in wishlist yet.</p>
+                                            ) : (
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left text-sm">
+                                                        <thead>
+                                                            <tr className="border-b border-purple-200 text-xs uppercase text-slate-600">
+                                                                <th className="py-2 pr-3">#</th>
+                                                                <th className="py-2 pr-3">User</th>
+                                                                <th className="py-2 pr-3">Contact</th>
+                                                                <th className="py-2 pr-3">Priority</th>
+                                                                <th className="py-2 pr-3">Favorited At</th>
+                                                                <th className="py-2 pr-3">Actions</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {(wishersByRoom[post.room_post_id] || []).map((w, idx) => (
+                                                                <tr key={w.userId} className="border-b border-purple-100 last:border-0">
+                                                                    <td className="py-2 pr-3 font-medium text-slate-800">{idx + 1}</td>
+                                                                    <td className="py-2 pr-3">
+                                                                        <div className="font-medium text-slate-900">{w.user.fullName}</div>
+                                                                        {w.preorder?.paymentStatus === 'PAID' && (
+                                                                            <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                                                                                Paid preorder
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="py-2 pr-3 text-slate-700">
+                                                                        <div>{w.user.email}</div>
+                                                                        {w.user.phone ? <div>{w.user.phone}</div> : null}
+                                                                    </td>
+                                                                    <td className="py-2 pr-3">
+                                                                        {w.hasPriorityPreorder ? (
+                                                                            <span className="inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                                                                                Preorder priority
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                                                                Normal queue
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="py-2 pr-3 text-slate-700">
+                                                                        {w.favoritedAt ? formatDateTime(w.favoritedAt) : '-'}
+                                                                    </td>
+                                                                    <td className="py-2 pr-3">
+                                                                        <div className="flex flex-wrap gap-1.5">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => navigate(`/chat/${w.userId}`)}
+                                                                                className="rounded-lg border border-blue-300 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                                                                            >
+                                                                                Message user
+                                                                            </button>
+                                                                            {w.preorder?.id ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() =>
+                                                                                        navigate('/rental-management/requests', {
+                                                                                            state: { preorderId: w.preorder?.id },
+                                                                                        })
+                                                                                    }
+                                                                                    className="rounded-lg border border-emerald-300 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+                                                                                >
+                                                                                    View preorder
+                                                                                </button>
+                                                                            ) : null}
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </article>
