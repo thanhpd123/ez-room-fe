@@ -5,45 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>EZRoom - Tìm phòng trọ thông minh</title>
-    <style>
-      .goog-te-banner-frame, .skiptranslate { display: none !important; }
-      body { top: 0 !important; }
-      .goog-te-gadget .goog-te-combo {
-        padding: 4px 8px;
-        border: 1px solid #d9d9d9;
-        border-radius: 8px;
-        font-size: 13px;
-        outline: none;
-        cursor: pointer;
-        background: transparent;
-        color: inherit;
-      }
-    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- Google Translate: load over HTTPS to avoid mixed content; optional for localhost -->
-    <script>
-      function googleTranslateElementInit() {
-        try {
-          if (typeof google !== 'undefined' && google.translate) {
-            new google.translate.TranslateElement({
-              pageLanguage: 'vi',
-              includedLanguages: 'en,vi,ja,ko,zh-CN',
-              layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-              autoDisplay: false
-            }, 'google_translate_element');
-          }
-        } catch (e) { /* ignore if translate blocked (e.g. localhost/offline) */ }
-      }
-      (function() {
-        var s = document.createElement('script');
-        s.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-        s.async = true;
-        s.onerror = function() { /* translate unavailable (ERR_CONNECTION_CLOSED etc) */ };
-        document.body.appendChild(s);
-      })();
-    </script>
   </body>
 </html>

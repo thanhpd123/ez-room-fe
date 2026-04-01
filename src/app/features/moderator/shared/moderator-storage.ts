@@ -31,97 +31,12 @@ interface ModeratorState {
     history: ModerationHistoryRecord[];
 }
 
-const DEFAULT_REPORTS: ViolationReport[] = [
-    {
-        report_id: 'report-seed-1',
-        reporter_id: 'tenant-101',
-        target_user_id: 'owner-002',
-        target_type: 'rental',
-        target_id: 'rental-seed-2',
-        category: 'misleading',
-        details: 'Listing says private kitchen but shared kitchen in reality.',
-        status: 'open',
-        created_at: '2026-02-08T09:40:00.000Z',
-    },
-    {
-        report_id: 'report-seed-2',
-        reporter_id: 'owner-008',
-        target_user_id: 'tenant-220',
-        target_type: 'review',
-        target_id: 'review-seed-2',
-        category: 'offensive',
-        details: 'Review includes insulting language and personal attacks.',
-        status: 'open',
-        created_at: '2026-02-09T03:30:00.000Z',
-    },
-    {
-        report_id: 'report-seed-3',
-        reporter_id: 'tenant-131',
-        target_user_id: 'owner-001',
-        target_type: 'room_post',
-        target_id: 'room-post-seed-1',
-        category: 'spam',
-        details: 'Duplicate room post submitted multiple times in one day.',
-        status: 'resolved',
-        action_taken: 'warning',
-        created_at: '2026-02-04T10:00:00.000Z',
-        resolved_at: '2026-02-04T14:20:00.000Z',
-    },
-];
-
-const DEFAULT_REVIEWS: ModeratedReview[] = [
-    {
-        review_id: 'review-seed-1',
-        reviewer_id: 'tenant-190',
-        rental_id: 'rental-seed-1',
-        rental_title: 'Maple Residence',
-        rating: 4,
-        content: 'Good room but the reviewer copied the same text in many posts.',
-        flag_reason: 'Potential spam pattern',
-        status: 'flagged',
-        warning_count: 0,
-        created_at: '2026-02-08T11:00:00.000Z',
-    },
-    {
-        review_id: 'review-seed-2',
-        reviewer_id: 'tenant-220',
-        rental_id: 'rental-seed-2',
-        rental_title: 'Sunrise Mini Apartment',
-        rating: 1,
-        content: 'This place is a total scam, owner is dishonest and rude.',
-        flag_reason: 'Offensive language',
-        status: 'flagged',
-        warning_count: 1,
-        created_at: '2026-02-09T02:40:00.000Z',
-    },
-    {
-        review_id: 'review-seed-3',
-        reviewer_id: 'tenant-154',
-        rental_id: 'rental-seed-1',
-        rental_title: 'Maple Residence',
-        rating: 5,
-        content: 'Clean room, responsive landlord, and stable electricity.',
-        flag_reason: 'Routine quality check',
-        status: 'approved',
-        warning_count: 0,
-        created_at: '2026-02-06T08:20:00.000Z',
-    },
-];
-
-const DEFAULT_STATE: ModeratorState = {
-    rental_decisions: {},
-    room_post_decisions: {},
-    reports: DEFAULT_REPORTS,
-    reviews: DEFAULT_REVIEWS,
-    history: [],
-};
-
 function createDefaultState(): ModeratorState {
     return {
         rental_decisions: {},
         room_post_decisions: {},
-        reports: [...DEFAULT_REPORTS],
-        reviews: [...DEFAULT_REVIEWS],
+        reports: [],
+        reviews: [],
         history: [],
     };
 }
@@ -146,7 +61,6 @@ function readState(): ModeratorState {
 
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_STATE));
         return createDefaultState();
     }
 
@@ -155,8 +69,8 @@ function readState(): ModeratorState {
         return {
             rental_decisions: parsed.rental_decisions ?? {},
             room_post_decisions: parsed.room_post_decisions ?? {},
-            reports: Array.isArray(parsed.reports) ? parsed.reports : [...DEFAULT_REPORTS],
-            reviews: Array.isArray(parsed.reviews) ? parsed.reviews : [...DEFAULT_REVIEWS],
+            reports: Array.isArray(parsed.reports) ? parsed.reports : [],
+            reviews: Array.isArray(parsed.reviews) ? parsed.reviews : [],
             history: Array.isArray(parsed.history) ? parsed.history : [],
         };
     } catch {

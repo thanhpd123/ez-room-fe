@@ -23,6 +23,8 @@ export interface Room {
     rentalId?: string;
     /** Match score 0–100 from recommendation system. Higher = better fit. */
     matchScore?: number;
+    /** Raw CLIP visual similarity 0–100. Only present on image search results. */
+    clipSimilarity?: number;
     /** Other rooms in the same rental (for "also in this rental"). */
     otherRoomsInRental?: OtherRoomInRental[];
     /** Distance in km from user's location (only when lat/lng provided). */

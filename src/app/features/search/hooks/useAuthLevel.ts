@@ -8,11 +8,14 @@ export interface AuthLevelState {
     isTenant: boolean;
     isVip: boolean;
     loading: boolean;
+    /** True once /auth/me has responded (or definitively no token). False during the
+     *  brief auth-initialization window where isVip may not yet be known. */
+    authVerified: boolean;
     refetch: () => Promise<void>;
 }
 
 export function useAuthLevel(): AuthLevelState {
-    const { user, isLoading, refreshUser } = useAuth();
+    const { user, isLoading, authVerified, refreshUser } = useAuth();
 
     const isGuest = !user;
     const isVip = user?.isVip === true;
@@ -28,6 +31,7 @@ export function useAuthLevel(): AuthLevelState {
         isTenant,
         isVip,
         loading: isLoading,
+        authVerified,
         refetch: refreshUser,
     };
 }

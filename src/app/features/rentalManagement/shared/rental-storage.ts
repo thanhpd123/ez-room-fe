@@ -2,42 +2,6 @@ import type { CreateManagedRentalInput, ManagedRentalItem } from './types';
 
 const STORAGE_KEY = 'ezroom:rental-management:rentals';
 
-const DEFAULT_RENTALS: ManagedRentalItem[] = [
-    {
-        rental_id: 'rental-seed-1',
-        user_id: 'owner-001',
-        title: 'Maple Residence',
-        summary: 'Near university area, suitable for students and office workers.',
-        description:
-            'Building with security cameras, parking, elevator, and shared laundry service.',
-        city: 'Ha Noi',
-        district: 'Dong Da',
-        address: '268 Tay Son',
-        property_type: 'boarding_house',
-        available_room: 5,
-        status: 'AVAILABLE',
-        created_at: '2026-02-05T09:00:00.000Z',
-        thumbnail_url:
-            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
-    },
-    {
-        rental_id: 'rental-seed-2',
-        user_id: 'owner-002',
-        title: 'Sunrise Mini Apartment',
-        summary: 'Compact serviced apartments with private kitchen.',
-        description: 'Access control at main gate, dedicated management team.',
-        city: 'Ho Chi Minh',
-        district: 'Binh Thanh',
-        address: '102 Dien Bien Phu',
-        property_type: 'apartment',
-        available_room: 2,
-        status: 'PENDING',
-        created_at: '2026-02-07T03:30:00.000Z',
-        thumbnail_url:
-            'https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?auto=format&fit=crop&w=800&q=80',
-    },
-];
-
 function wait(ms = 150) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
@@ -53,25 +17,20 @@ function createRentalId() {
 }
 
 function readStorage(): ManagedRentalItem[] {
-    if (typeof window === 'undefined') {
-        return [...DEFAULT_RENTALS];
-    }
+    if (typeof window === 'undefined') return [];
 
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_RENTALS));
-        return [...DEFAULT_RENTALS];
-    }
+    if (!raw) return [];
 
     try {
         const parsed = JSON.parse(raw) as ManagedRentalItem[];
-        if (!Array.isArray(parsed)) return [...DEFAULT_RENTALS];
+        if (!Array.isArray(parsed)) return [];
 
         return parsed.sort((a, b) => {
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
     } catch {
-        return [...DEFAULT_RENTALS];
+        return [];
     }
 }
 

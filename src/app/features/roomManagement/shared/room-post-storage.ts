@@ -41,12 +41,16 @@ interface ApiResponse<T> {
 }
 
 export async function listRoomPostsByRentalId(rentalId: string): Promise<ManagedRoomPostItem[]> {
-    const response = await apiRequest<ApiResponse<ManagedRoomPostItem[]>>(`/rooms?rental_id=${rentalId}`);
+    const response = await apiRequest<ApiResponse<ManagedRoomPostItem[]>>(
+        `/rooms?rental_id=${rentalId}&includeAllStatuses=true`
+    );
     return response.data || [];
 }
 
 export async function listManagedRoomPosts(): Promise<ManagedRoomPostItem[]> {
-    const response = await apiRequest<ApiResponse<ManagedRoomPostItem[]>>('/rooms');
+    const response = await apiRequest<ApiResponse<ManagedRoomPostItem[]>>(
+        '/rooms?includeAllStatuses=true'
+    );
     return response.data || [];
 }
 
@@ -177,6 +181,38 @@ export interface TenantSearchResult {
     phone: string | null;
     avatarUrl: string | null;
     gender: string | null;
+}
+
+export interface RoomWisher {
+    userId: string;
+    roomId: string;
+    favoritedAt: string | null;
+    user: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone?: string;
+        avatarUrl?: string;
+    };
+    hasPriorityPreorder: boolean;
+    preorder: {
+        id: string;
+        status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
+        paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
+        createdAt: string;
+        depositAmount: number;
+    } | null;
+}
+
+export async function getRoomWishers(roomId: string): Promise<RoomWisher[]> {
+    try {
+        const response = await apiRequest<ApiResponse<RoomWisher[]>>(
+            `/favorites/room/${encodeURIComponent(roomId)}/wishers`
+        );
+        return response.data || [];
+    } catch {
+        return [];
+    }
 }
 
 export async function searchTenants(query: string): Promise<TenantSearchResult[]> {

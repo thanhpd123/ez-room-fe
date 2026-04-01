@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Search, Image } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type SearchTabValue = 'text' | 'image';
 
@@ -38,6 +39,7 @@ function TabButton({ value, activeTab, onClick, icon, label }: TabButtonProps) {
 
 export function SearchTabs({ defaultTab = 'text', onTabChange, showImageTab = true, children }: SearchTabsProps) {
     const [activeTab, setActiveTab] = useState<SearchTabValue>(defaultTab);
+    const { t } = useTranslation();
 
     const handleTabChange = (tab: SearchTabValue) => {
         setActiveTab(tab);
@@ -53,14 +55,14 @@ export function SearchTabs({ defaultTab = 'text', onTabChange, showImageTab = tr
                     activeTab={activeTab}
                     onClick={handleTabChange}
                     icon={<Search className="w-4 h-4" />}
-                    label="Tìm theo văn bản"
+                    label={t('search.tabText')}
                 />
                 <TabButton
                     value="image"
                     activeTab={activeTab}
                     onClick={handleTabChange}
                     icon={<Image className="w-4 h-4" />}
-                    label="Tìm bằng hình ảnh"
+                    label={t('search.tabImage')}
                 />
             </div>
             )}

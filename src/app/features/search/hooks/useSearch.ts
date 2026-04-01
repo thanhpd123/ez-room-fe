@@ -2,8 +2,32 @@ import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Room, SearchCriteria } from '../types';
 import { smartSearchRequest, advancedSearchRequest, searchByImageRequest, nearbySearchRequest } from '@/lib/api';
-import type { SmartSearchRoomItem, ApiErrorWithCode } from '@/lib/api';
+import type { SmartSearchRoomItem } from '@/lib/api';
 import { useAuth } from '@/app/context/useAuth';
+import { translateBatch } from '@/lib/translate-api';
+
+/** True if text contains Vietnamese diacritics → already Vietnamese. */
+function isVietnamese(text: string): boolean {
+    return /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(text);
+}
+
+/**
+ * If the query looks like English (no Vietnamese chars, has letters), translate
+ * it to Vietnamese so the AI search embeddings can match correctly.
+ * Returns the original string when Vietnamese or translation fails.
+ */
+async function ensureVietnamese(query: string): Promise<{ text: string; wasTranslated: boolean }> {
+    const trimmed = query.trim();
+    if (!trimmed || isVietnamese(trimmed) || !/[a-zA-Z]/.test(trimmed)) {
+        return { text: trimmed, wasTranslated: false };
+    }
+    try {
+        const [translated] = await translateBatch([trimmed], 'en', 'vi');
+        return { text: translated || trimmed, wasTranslated: translated !== trimmed };
+    } catch {
+        return { text: trimmed, wasTranslated: false };
+    }
+}
 
 function smartSearchItemToRoom(r: SmartSearchRoomItem): Room {
     const loc = r.location;
@@ -22,14 +46,9 @@ function smartSearchItemToRoom(r: SmartSearchRoomItem): Room {
         rentalId: r.rentalId,
         matchScore: r.matchScore,
         otherRoomsInRental: r.otherRoomsInRental,
-        distanceKm: (r as unknown as Record<string, unknown>).distanceKm as number | undefined,
-        nearbyPOIs: (r as unknown as Record<string, unknown>).nearbyPOIs as Room['nearbyPOIs'],
+        distanceKm: (r as Record<string, unknown>).distanceKm as number | undefined,
+        nearbyPOIs: (r as Record<string, unknown>).nearbyPOIs as Room['nearbyPOIs'],
     };
-}
-
-function isVipFilterError(err: unknown): err is ApiErrorWithCode {
-    const e = err as ApiErrorWithCode;
-    return e?.code === 'VIP_REQUIRED_FOR_ADVANCED_FILTERS';
 }
 
 interface UseSearchReturn {
@@ -37,14 +56,14 @@ interface UseSearchReturn {
     isSearching: boolean;
     hasSearched: boolean;
     searchByText: (criteria: SearchCriteria) => void;
-    searchByImage: (imageFile: File, options?: { district?: string }) => void;
+    searchByImage: (imageFile: File, options?: { district?: string; textHint?: string }) => void;
     searchNearby: (lat: number, lng: number, radius?: number) => void;
     resetSearch: () => void;
     imageSearchError: string | null;
     searchError: string | null;
     searchMode: string | null;
-    textSearchError: string | null;
-    vipUpgradePath: string | null;
+    /** When a non-Vietnamese query was auto-translated, this holds the Vietnamese equivalent. */
+    translatedQuery: string | null;
 }
 
 export function useSearch(isLoggedIn = false): UseSearchReturn {
@@ -56,125 +75,112 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
     const [imageSearchError, setImageSearchError] = useState<string | null>(null);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [searchMode, setSearchMode] = useState<string | null>(null);
-    const [textSearchError, setTextSearchError] = useState<string | null>(null);
-    const [vipUpgradePath, setVipUpgradePath] = useState<string | null>(null);
     const [lastCriteria, setLastCriteria] = useState<SearchCriteria | null>(null);
+    const [translatedQuery, setTranslatedQuery] = useState<string | null>(null);
 
-    const searchByText = useCallback(
-        async (criteria: SearchCriteria) => {
-            setIsSearching(true);
-            setHasSearched(false);
-            setImageSearchError(null);
-            setSearchError(null);
-            setSearchMode(null);
-            setTextSearchError(null);
-            setVipUpgradePath(null);
+    const searchByText = useCallback(async (criteria: SearchCriteria) => {
+        setIsSearching(true);
+        setHasSearched(false);
+        setImageSearchError(null);
+        setSearchError(null);
+        setSearchMode(null);
+        setTranslatedQuery(null);
 
-            const params = {
-                q: criteria.q || undefined,
-                city: criteria.city?.trim() || undefined,
-                district: criteria.district?.trim() || criteria.location?.trim() || undefined,
-                address: criteria.address?.trim() || undefined,
-                minPrice: criteria.minPrice,
-                maxPrice: criteria.maxPrice,
-                roomType: criteria.roomType || undefined,
-                minArea: criteria.minArea,
-                maxArea: criteria.maxArea,
-                amenities: criteria.amenities?.length ? criteria.amenities : undefined,
-                limit: 500,
-                lat: criteria.lat,
-                lng: criteria.lng,
-            };
+        // Auto-translate English queries to Vietnamese so the AI embeddings can match
+        let queryText = criteria.q?.trim() || '';
+        if (queryText) {
+            const { text, wasTranslated } = await ensureVietnamese(queryText);
+            queryText = text;
+            if (wasTranslated) setTranslatedQuery(text);
+        }
 
-            try {
-                let res;
-                if (isLoggedIn) {
-                    try {
-                        res = await advancedSearchRequest(params, { token: accessToken });
-                        setSearchMode((res as { searchMode?: string }).searchMode || 'advanced');
-                    } catch {
-                        try {
-                            res = await smartSearchRequest(params);
-                        } catch (err: unknown) {
-                            if (isVipFilterError(err)) {
-                                const e = err as ApiErrorWithCode;
-                                setTextSearchError(e.message || 'Bộ lọc nâng cao yêu cầu tài khoản VIP');
-                                setVipUpgradePath(e.upgradePath || '/vip-plans');
-                                setResults([]);
-                                return;
-                            }
-                            throw err;
-                        }
-                        setSearchMode('basic');
-                        setSearchError('Tìm kiếm nâng cao tạm thời không khả dụng, đã chuyển sang tìm kiếm thường.');
-                    }
-                } else {
-                    try {
-                        res = await smartSearchRequest(params);
-                    } catch (err: unknown) {
-                        if (isVipFilterError(err)) {
-                            const e = err as ApiErrorWithCode;
-                            setTextSearchError(e.message || 'Bộ lọc nâng cao yêu cầu tài khoản VIP');
-                            setVipUpgradePath(e.upgradePath || '/vip-plans');
-                            setResults([]);
-                            return;
-                        }
-                        throw err;
-                    }
+        const params = {
+            q: queryText || undefined,
+            city: criteria.city?.trim() || undefined,
+            district: criteria.district?.trim() || criteria.location?.trim() || undefined,
+            address: criteria.address?.trim() || undefined,
+            minPrice: criteria.minPrice,
+            maxPrice: criteria.maxPrice,
+            roomType: criteria.roomType || undefined,
+            minArea: criteria.minArea,
+            maxArea: criteria.maxArea,
+            amenities: criteria.amenities?.length ? criteria.amenities : undefined,
+            limit: 500,
+            lat: criteria.lat,
+            lng: criteria.lng,
+        };
+
+        try {
+            let res;
+            if (isLoggedIn) {
+                try {
+                    res = await advancedSearchRequest(params, { token: accessToken });
+                    setSearchMode((res as { searchMode?: string }).searchMode || 'advanced');
+                } catch {
+                    // Fallback to public smart search when auth token is stale or advanced search is unavailable.
+                    res = await smartSearchRequest(params);
                     setSearchMode('basic');
+                    setSearchError('Tìm kiếm nâng cao tạm thời không khả dụng, đã chuyển sang tìm kiếm thường.');
                 }
-                setResults((res.data || []).map(smartSearchItemToRoom));
-                setLastCriteria(criteria);
-            } catch (err) {
-                const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm';
-                setSearchError(message);
-                setResults([]);
-            } finally {
-                setIsSearching(false);
-                setHasSearched(true);
+            } else {
+                res = await smartSearchRequest(params);
+                setSearchMode('basic');
             }
-        },
-        [isLoggedIn, accessToken]
-    );
+            setResults((res.data || []).map(smartSearchItemToRoom));
+            setLastCriteria(criteria);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm';
+            setSearchError(message);
+            setResults([]);
+        } finally {
+            setIsSearching(false);
+            setHasSearched(true);
+        }
+    }, [isLoggedIn, accessToken]);
 
-    const searchNearby = useCallback(
-        async (lat: number, lng: number, radius?: number) => {
-            setIsSearching(true);
-            setHasSearched(false);
-            setImageSearchError(null);
-            setSearchError(null);
-            setSearchMode(null);
-            setTextSearchError(null);
-            setVipUpgradePath(null);
+    const searchNearby = useCallback(async (lat: number, lng: number, radius?: number) => {
+        setIsSearching(true);
+        setHasSearched(false);
+        setImageSearchError(null);
+        setSearchError(null);
+        setSearchMode(null);
 
-            try {
-                const res = await nearbySearchRequest({ lat, lng, radius, limit: 100 }, { token: accessToken });
-                setSearchMode('nearby');
-                setResults((res.data || []).map(smartSearchItemToRoom));
-            } catch (err) {
-                const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm gần bạn';
-                setSearchError(message);
-                setResults([]);
-            } finally {
-                setIsSearching(false);
-                setHasSearched(true);
-            }
-        },
-        [accessToken]
-    );
+        try {
+            const res = await nearbySearchRequest({ lat, lng, radius, limit: 100 }, { token: accessToken });
+            setSearchMode('nearby');
+            setResults((res.data || []).map(smartSearchItemToRoom));
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm gần bạn';
+            setSearchError(message);
+            setResults([]);
+        } finally {
+            setIsSearching(false);
+            setHasSearched(true);
+        }
+    }, [accessToken]);
 
     const searchByImage = useCallback(
-        (imageFile: File, options?: { district?: string }) => {
+        async (imageFile: File, options?: { district?: string; textHint?: string }) => {
             setIsSearching(true);
             setHasSearched(false);
             setImageSearchError(null);
             setSearchError(null);
             setSearchMode(null);
-            setTextSearchError(null);
-            setVipUpgradePath(null);
+            setTranslatedQuery(null);
 
+            // Translate English text hint to Vietnamese for CLIP multimodal search
+            let textHint = options?.textHint?.trim() || '';
+            if (textHint) {
+                const { text, wasTranslated } = await ensureVietnamese(textHint);
+                textHint = text;
+                if (wasTranslated) setTranslatedQuery(text);
+            }
+
+            // Reuse last advanced criteria so image becomes just one more factor,
+            // falling back to district from options if no previous criteria.
             const base = lastCriteria || {};
             const paramsForImage = {
+                text_hint: textHint || undefined,
                 q: base.q || undefined,
                 city: base.city?.trim() || undefined,
                 district: (options?.district || base.district || base.location)?.trim() || undefined,
@@ -209,6 +215,7 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
                             available: true,
                             rentalId: (r as { rentalId?: string }).rentalId || r.id,
                             matchScore: (r as { matchScore?: number }).matchScore,
+                            clipSimilarity: (r as { clipSimilarity?: number }).clipSimilarity,
                             otherRoomsInRental: (r as { otherRoomsInRental?: Room['otherRoomsInRental'] }).otherRoomsInRental,
                         }))
                     );
@@ -233,10 +240,9 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
         setImageSearchError(null);
         setSearchError(null);
         setSearchMode(null);
-        setTextSearchError(null);
-        setVipUpgradePath(null);
     }, []);
 
+    // Auto-search from URL params (re-runs when auth level resolves or URL changes)
     useEffect(() => {
         const district = searchParams.get('district');
         const city = searchParams.get('city');
@@ -283,7 +289,6 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
         imageSearchError,
         searchError,
         searchMode,
-        textSearchError,
-        vipUpgradePath,
+        translatedQuery,
     };
 }

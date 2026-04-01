@@ -33,13 +33,10 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 
     const refreshFavorites = useCallback(async () => {
         if (!authVerified || !accessToken) {
+            // Guest: load from localStorage
             const stored = localStorage.getItem('favoriteRooms');
             if (stored) {
-                try {
-                    setFavorites(JSON.parse(stored));
-                } catch {
-                    setFavorites([]);
-                }
+                try { setFavorites(JSON.parse(stored)); } catch { setFavorites([]); }
             } else {
                 setFavorites([]);
             }
@@ -51,17 +48,11 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
             const res = await getMyFavoritesRequest({ token: accessToken });
             const list = (res.data || []).map(mapApiRoomToFavorite);
             setFavorites(list);
+            // Wipe stale guest favorites so they never bleed into the logged-in view
+            localStorage.removeItem('favoriteRooms');
         } catch {
-            const stored = localStorage.getItem('favoriteRooms');
-            if (stored) {
-                try {
-                    setFavorites(JSON.parse(stored));
-                } catch {
-                    setFavorites([]);
-                }
-            } else {
-                setFavorites([]);
-            }
+            // Don't fall back to potentially stale localStorage when logged in
+            setFavorites([]);
         } finally {
             setIsLoading(false);
             setIsLoaded(true);

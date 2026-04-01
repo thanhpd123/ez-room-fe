@@ -22,6 +22,7 @@ export function RegisterPage() {
         phone: '',
         password: '',
         confirmPassword: '',
+        role: 'TENANT' as 'TENANT' | 'LANDLORD',
     });
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
@@ -53,6 +54,7 @@ export function RegisterPage() {
                 phone: form.phone.trim() || undefined,
                 password: form.password,
                 confirmPassword: form.confirmPassword,
+                role: form.role,
             });
             setShowProfileReminder(true);
         } catch (err: unknown) {
@@ -156,6 +158,33 @@ export function RegisterPage() {
                             </div>
                         </div>
                         <div>
+                            <label className="block text-sm font-medium text-foreground mb-1.5">Vai trò tài khoản</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setForm((f) => ({ ...f, role: 'TENANT' }))}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                                        form.role === 'TENANT'
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border text-foreground hover:bg-muted'
+                                    }`}
+                                >
+                                    Tenant
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setForm((f) => ({ ...f, role: 'LANDLORD' }))}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                                        form.role === 'LANDLORD'
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border text-foreground hover:bg-muted'
+                                    }`}
+                                >
+                                    Landlord
+                                </button>
+                            </div>
+                        </div>
+                        <div>
                             <div className="flex items-center justify-between gap-2 mb-1.5">
                                 <label className="block text-sm font-medium text-foreground">Mật khẩu</label>
                                 <button
@@ -249,11 +278,8 @@ export function RegisterPage() {
                     <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-xl p-6">
                         <h3 className="text-lg font-semibold text-foreground">Hoan nghênh bạn đến EzRoom</h3>
                         <p className="text-sm text-muted-foreground mt-2">
-                            Tài khoản mới luôn là <strong>Tenant</strong>. Để đăng ký thành <strong>Landlord</strong>, vui lòng cập nhật:
-                            hồ sơ cá nhân, sở thích tìm phòng, phong cách sống và CCCD (Căn Cước Công Dân) theo chính sách xác minh.
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-2">
-                            Bạn có thể bỏ qua bước này và cập nhật sau trong trang hồ sơ.
+                            Tài khoản của bạn đã được tạo với vai trò <strong>{form.role === 'LANDLORD' ? 'Landlord' : 'Tenant'}</strong>.
+                            Bạn có thể đăng nhập ngay để bắt đầu sử dụng EzRoom.
                         </p>
                         <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:justify-end">
                             <button

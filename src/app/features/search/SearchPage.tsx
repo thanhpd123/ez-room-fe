@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     SearchTabs,
     SearchByText,
     SearchByImage,
     SearchResults,
-    SearchRecommendBlock,
     NearbyPlaceholder,
 } from './components';
 import { useSearch, useAuthLevel } from './hooks';
@@ -12,8 +13,10 @@ import { Header } from '@/app/features/home/components';
 
 export function SearchPage() {
     const navigate = useNavigate();
-    const { isGuest, isTenant, isVip, loading: authLoading } = useAuthLevel();
+    const { t } = useTranslation();
+    const { isGuest, isTenant, isVip, loading: authLoading, authVerified } = useAuthLevel();
     const isLoggedIn = !authLoading && !isGuest;
+    const [useMyLocation, setUseMyLocation] = useState(false);
 
     const {
         results,
@@ -26,38 +29,47 @@ export function SearchPage() {
         imageSearchError,
         searchError,
         searchMode,
-        textSearchError,
-        vipUpgradePath,
+        translatedQuery,
     } = useSearch(isLoggedIn);
 
-    const showImageTab = isTenant || isVip;
+    // While /auth/me hasn't responded yet, show the tab optimistically for any logged-in user
+    // so VIP users never see it flash away during the brief auth-initialization window.
+    // Once authVerified, trust the actual isVip/isTenant values.
+    const showImageTab = authVerified ? (isTenant || isVip) : !isGuest;
     const basicOnly = !authLoading && isGuest;
 
     return (
         <div className="min-h-screen bg-background">
             <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
 
-            <section className="relative bg-linear-to-br from-primary/10 via-background to-accent/5 py-6 sm:py-10 lg:py-14">
+            {/* Hero section with search */}
+            <section className="relative bg-gradient-to-br from-primary/10 via-background to-accent/5 py-6 sm:py-10 lg:py-14">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center mb-4 sm:mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading mb-2">
-                        {isLoggedIn ? 'Tìm kiếm nâng cao' : 'Tìm kiếm phòng trọ'}
+                        {isLoggedIn ? t('search.pageTitle') : t('search.pageTitleGuest')}
                     </h1>
                     <p className="text-muted-foreground text-base sm:text-lg">
-                        {isLoggedIn
-                            ? 'Tìm phòng phù hợp nhất với AI, sở thích và lối sống của bạn'
-                            : 'Đăng nhập để sử dụng tìm kiếm thông minh với AI'}
-                        {showImageTab && ' • Tìm bằng hình ảnh'}
+                        {isLoggedIn ? t('search.aiSubtitle') : t('search.guestSubtitle')}
+                        {showImageTab && ' • AI Text-to-Image • AI Image Search'}
                     </p>
-                    {isLoggedIn && searchMode && (
-                        <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                            {searchMode === 'ai_embedding' && '🤖 AI Embedding Search'}
-                            {searchMode === 'smart_keyword' && '🔍 Smart Keyword Search'}
-                            {searchMode === 'image' && '🖼️ Image Search'}
-                            {searchMode === 'basic' && '📝 Basic Search'}
-                            {searchMode === 'advanced' && '⚡ Advanced Search'}
-                            {searchMode === 'nearby' && '📍 Nearby Search'}
-                        </div>
-                    )}
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                        {isLoggedIn && searchMode && (
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                {searchMode === 'ai_embedding' && '🤖 AI Embedding Search'}
+                                {searchMode === 'smart_keyword' && '🔍 Smart Keyword Search'}
+                                {searchMode === 'clip_visual' && '🖼️ CLIP Visual Search'}
+                                {searchMode === 'clip_multimodal' && '🧠 CLIP Multimodal Search (Image + Text)'}
+                                {searchMode === 'basic' && '📝 Basic Search'}
+                                {searchMode === 'advanced' && '⚡ Advanced Search'}
+                                {searchMode === 'nearby' && '📍 Nearby Search'}
+                            </div>
+                        )}
+                        {translatedQuery && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                🌐 Searching as: <span className="font-semibold">"{translatedQuery}"</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -69,10 +81,7 @@ export function SearchPage() {
                                         onSearch={searchByText}
                                         isSearching={isSearching}
                                         basicOnly={basicOnly}
-                                        onVoiceResult={showImageTab ? () => {} : undefined}
-                                        backendError={textSearchError}
-                                        vipUpgradePath={vipUpgradePath}
-                                        onUpgradeVip={(path) => navigate(path || '/vip-plans')}
+                                        onUseMyLocationChange={setUseMyLocation}
                                     />
                                 ) : (
                                     <SearchByImage
@@ -89,23 +98,23 @@ export function SearchPage() {
                     {basicOnly && (
                         <div className="mt-4 text-center">
                             <p className="text-sm text-muted-foreground mb-2">
-                                Đăng nhập để sử dụng tìm kiếm AI thông minh, gợi ý cá nhân và tìm kiếm bằng ảnh
+                                {t('search.guestLoginPrompt')}
                             </p>
                             <button
                                 type="button"
                                 onClick={() => navigate('/login')}
                                 className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
                             >
-                                Đăng nhập ngay →
+                                {t('search.loginNow')}
                             </button>
                         </div>
                     )}
                 </div>
             </section>
 
+            {/* Main content */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-                {(isTenant || isVip) && <SearchRecommendBlock />}
-                {(isTenant || isVip) && (
+                {useMyLocation && (
                     <NearbyPlaceholder
                         onSearchNearby={searchNearby}
                         isSearching={isSearching}

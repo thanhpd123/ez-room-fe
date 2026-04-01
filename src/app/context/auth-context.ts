@@ -11,6 +11,7 @@ export interface AuthUser {
     status?: string;
     createdAt?: string;
     isVip?: boolean;
+    vipExpiresAt?: string | null;
 }
 
 export interface AuthContextValue {

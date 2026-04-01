@@ -52,6 +52,7 @@ function readInitialStoredAuth(): {
                 role: u.role,
                 gender: u.gender ?? undefined,
                 isVip: u.isVip === true,
+                vipExpiresAt: u.vipExpiresAt ?? null,
             },
             accessToken: token,
             isLoading: false,
@@ -77,6 +78,7 @@ function readStoredUser(): AuthUser | null {
             role: u.role,
             gender: u.gender ?? undefined,
             isVip: u.isVip === true,
+            vipExpiresAt: u.vipExpiresAt ?? null,
         };
     } catch {
         return null;
@@ -92,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Only true when we have no token (guest) or after /auth/me has responded; prevents parallel 401s from /favorites and /search/recommend.
     const [authVerified, setAuthVerified] = useState<boolean>(() => !initialStoredAuth.accessToken);
 
-    const setUserFromBackend = useCallback((data: { user: { id: string; email: string | null; full_name: string | null; avatar_url: string | null; role?: string; phone?: string | null; gender?: string | null; isVip?: boolean } }) => {
+    const setUserFromBackend = useCallback((data: { user: { id: string; email: string | null; full_name: string | null; avatar_url: string | null; role?: string; phone?: string | null; gender?: string | null; isVip?: boolean; vip_expires_at?: string | null } }) => {
         const u = data.user;
         setUser({
             id: u.id,
@@ -103,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone: u.phone ?? undefined,
             gender: u.gender ?? undefined,
             isVip: u.isVip === true,
+            vipExpiresAt: u.vip_expires_at ?? null,
         });
     }, []);
 
@@ -129,7 +132,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setSession(session);
-        setUser(mapSupabaseUser(supaSession.user));
+        const supaUser = mapSupabaseUser(supaSession.user);
+        // Preserve extended profile fields (gender, phone, role, isVip) from localStorage
+        // until /auth/me responds with the authoritative data. Without this, a brief
+        // window exists where supaUser (which lacks these fields) overwrites the stored user,
+        // causing gender/role to flicker on every page load.
+        const storedUser = readStoredUser();
+        if (storedUser && supaUser && storedUser.id === supaUser.id) {
+            setUser({ ...storedUser, ...supaUser });
+        } else {
+            setUser(supaUser);
+        }
         setAccessToken(supaSession.access_token);
         setAuthVerified(false);
     }, []);
@@ -204,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             role: u.role,
                             gender: u.gender ?? null,
                             isVip: u.isVip === true,
+                            vipExpiresAt: u.vip_expires_at ?? null,
                         })
                     );
                 }
@@ -270,6 +284,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 role: u.role,
                 gender: u.gender ?? null,
                 isVip: u.isVip === true,
+                vipExpiresAt: u.vip_expires_at ?? null,
             };
             localStorage.setItem('ezroom_user', JSON.stringify(stored));
         }

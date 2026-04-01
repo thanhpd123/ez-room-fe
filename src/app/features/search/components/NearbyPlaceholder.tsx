@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MapPin, Navigation, Loader2, School, Utensils, Hospital, ShoppingBag, Bus, Trees, Shield, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useGeolocation } from '@/app/hooks/useGeolocation';
 import type { NearbyPOICategory } from '../types';
 
@@ -30,6 +31,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 
 export function NearbyPlaceholder({ onSearchNearby, isSearching, isLoggedIn }: NearbySearchBlockProps) {
     const geo = useGeolocation();
+    const { t } = useTranslation();
     const [radius, setRadius] = useState(5);
     const [showDetails, setShowDetails] = useState(false);
 
@@ -48,16 +50,16 @@ export function NearbyPlaceholder({ onSearchNearby, isSearching, isLoggedIn }: N
         <div className="mb-8 p-6 rounded-2xl border border-border bg-card">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground mb-3">
                 <Navigation className="w-5 h-5 text-primary" />
-                Tìm phòng gần bạn
+                {t('nearby.title')}
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-                Cho phép truy cập vị trí để tìm phòng trọ gần nhất, kèm thông tin tiện ích xung quanh (trường học, nhà hàng, bệnh viện, siêu thị...).
+                {t('nearby.desc')}
             </p>
 
             <div className="flex flex-wrap items-center gap-3 mb-4">
                 {/* Radius selector */}
                 <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-foreground">Bán kính:</label>
+                    <label className="text-sm font-medium text-foreground">{t('nearby.radius')}</label>
                     <select
                         value={radius}
                         onChange={(e) => setRadius(Number(e.target.value))}
@@ -78,17 +80,17 @@ export function NearbyPlaceholder({ onSearchNearby, isSearching, isLoggedIn }: N
                     {geo.loading ? (
                         <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            Đang lấy vị trí...
+                            {t('nearby.gettingLocation')}
                         </>
                     ) : isSearching ? (
                         <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            Đang tìm kiếm...
+                            {t('search.searching')}
                         </>
                     ) : (
                         <>
                             <MapPin className="w-4 h-4" />
-                            Tìm phòng gần tôi
+                            {t('nearby.findNearby')}
                         </>
                     )}
                 </button>
@@ -97,11 +99,11 @@ export function NearbyPlaceholder({ onSearchNearby, isSearching, isLoggedIn }: N
                 {geo.hasLocation && (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400 text-xs font-medium">
                         <MapPin className="w-3 h-3" />
-                        Đã xác định vị trí
+                        {t('nearby.locationDetected')}
                         <button
                             onClick={geo.clearLocation}
                             className="ml-1 text-green-500 hover:text-green-700 transition-colors"
-                            title="Xóa vị trí"
+                            title={t('nearby.clearLocation')}
                         >
                             ✕
                         </button>
@@ -122,30 +124,19 @@ export function NearbyPlaceholder({ onSearchNearby, isSearching, isLoggedIn }: N
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
                 {showDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                Xem các loại tiện ích được đánh giá
+                {t('nearby.showCategories')}
             </button>
 
             {showDetails && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                    {Object.entries(CATEGORY_ICONS).map(([key, icon]) => {
-                        const labels: Record<string, string> = {
-                            education: 'Trường học',
-                            food: 'Nhà hàng/Café',
-                            healthcare: 'Bệnh viện/Nhà thuốc',
-                            shopping: 'Cửa hàng/Siêu thị',
-                            transport: 'Giao thông',
-                            park: 'Công viên',
-                            safety: 'Công an',
-                        };
-                        return (
-                            <span
-                                key={key}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs"
-                            >
-                                {icon} {labels[key]}
-                            </span>
-                        );
-                    })}
+                    {Object.entries(CATEGORY_ICONS).map(([key, icon]) => (
+                        <span
+                            key={key}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs"
+                        >
+                            {icon} {t(`nearby.categories.${key}`)}
+                        </span>
+                    ))}
                 </div>
             )}
         </div>

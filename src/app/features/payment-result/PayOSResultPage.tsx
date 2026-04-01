@@ -1,4 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { verifyPreorderPaymentRequest } from '@/lib/api';
 
 function normalizeStatus(searchParams: URLSearchParams): 'success' | 'cancel' | 'pending' {
     const code = (searchParams.get('code') || '').toUpperCase();
@@ -12,9 +14,44 @@ function normalizeStatus(searchParams: URLSearchParams): 'success' | 'cancel' | 
 
 export function PayOSResultPage() {
     const [searchParams] = useSearchParams();
+    const [verifying, setVerifying] = useState(false);
+    const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+    const [verifiedSuccess, setVerifiedSuccess] = useState(false);
 
     const preorderId = searchParams.get('preorderId') || '';
+    const orderCode = searchParams.get('orderCode') || '';
     const state = normalizeStatus(searchParams);
+
+    useEffect(() => {
+        let mounted = true;
+        if (!preorderId || !orderCode) return;
+
+        setVerifying(true);
+        verifyPreorderPaymentRequest(preorderId, orderCode)
+            .then((res) => {
+                if (!mounted) return;
+                const paymentStatus = (res?.data?.payment?.status || '').toUpperCase();
+                if (paymentStatus === 'SUCCESS') {
+                    setVerifiedSuccess(true);
+                    setVerifyMessage('Thanh toán đã được đồng bộ vào hệ thống.');
+                } else if (paymentStatus === 'PENDING') {
+                    setVerifyMessage('Thanh toán đang chờ xử lý. Vui lòng kiểm tra lại sau ít phút.');
+                } else {
+                    setVerifyMessage('Thanh toán chưa thành công hoặc đã bị hủy.');
+                }
+            })
+            .catch((err) => {
+                if (!mounted) return;
+                setVerifyMessage(err instanceof Error ? err.message : 'Không thể đồng bộ trạng thái thanh toán.');
+            })
+            .finally(() => {
+                if (mounted) setVerifying(false);
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, [preorderId, orderCode]);
 
     const title = state === 'success'
         ? 'Thanh toán đặt cọc thành công'
@@ -23,7 +60,7 @@ export function PayOSResultPage() {
             : 'Đã nhận trạng thái thanh toán';
 
     const description = state === 'success'
-        ? 'Hệ thống đã ghi nhận giao dịch. Vui lòng chờ chủ trọ xác nhận yêu cầu đặt cọc của bạn.'
+        ? 'Hệ thống đang xác minh và ghi nhận giao dịch của bạn.'
         : state === 'cancel'
             ? 'Bạn có thể quay lại trang phòng để thực hiện đặt cọc lại khi cần.'
             : 'Kết quả thanh toán đang được đồng bộ. Bạn có thể kiểm tra lại trong giây lát.';
@@ -40,12 +77,18 @@ export function PayOSResultPage() {
                     </p>
                 )}
 
+                {(verifying || verifyMessage) && (
+                    <p className={`text-sm mb-6 ${verifiedSuccess ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                        {verifying ? 'Đang đồng bộ trạng thái thanh toán...' : verifyMessage}
+                    </p>
+                )}
+
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Link
-                        to="/history"
+                        to="/profile"
                         className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
                     >
-                        Xem lịch sử thuê
+                        Xem đặt cọc của tôi
                     </Link>
                     <Link
                         to="/browse"

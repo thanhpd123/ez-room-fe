@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Search, ArrowUpDown, RotateCcw } from 'lucide-react';
 import type { Room, SortOption } from '../types';
 import { SORT_OPTIONS } from '../constants';
@@ -17,6 +18,7 @@ interface SearchResultsProps {
 
 export function SearchResults({ results, isSearching, hasSearched, searchError = null, onReset }: SearchResultsProps) {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [sortBy, setSortBy] = useState<SortOption>('relevant');
     const { isFavorite, addFavorite, removeFavorite } = useFavorites();
 
@@ -56,7 +58,7 @@ export function SearchResults({ results, isSearching, hasSearched, searchError =
             <div className="mt-12 text-center py-12">
                 <div className="inline-flex items-center gap-3 text-primary">
                     <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    <span className="font-medium">Đang tìm kiếm...</span>
+                    <span className="font-medium">{t('search.searching')}</span>
                 </div>
             </div>
         );
@@ -78,11 +80,10 @@ export function SearchResults({ results, isSearching, hasSearched, searchError =
                         </div>
                         <div className="space-y-2">
                             <h3 className="text-lg font-semibold text-foreground">
-                                Không tìm thấy kết quả phù hợp
+                                {t('search.results.noResults')}
                             </h3>
                             <p className="text-foreground/60 max-w-md">
-                                Không có phòng trọ nào khớp với tiêu chí tìm kiếm của bạn. Hãy thử
-                                điều chỉnh bộ lọc hoặc tìm kiếm với các tiêu chí khác.
+                                {t('search.results.noResultsHint')}
                             </p>
                             {searchError && (
                                 <p className="text-destructive text-sm max-w-md">
@@ -96,7 +97,7 @@ export function SearchResults({ results, isSearching, hasSearched, searchError =
                                 className="px-6 py-3 border border-border rounded-xl font-medium hover:bg-muted transition-all flex items-center gap-2"
                             >
                                 <RotateCcw className="w-4 h-4" />
-                                Thử tìm kiếm khác
+                                {t('search.results.tryOther')}
                             </button>
                         )}
                     </div>
@@ -110,9 +111,9 @@ export function SearchResults({ results, isSearching, hasSearched, searchError =
             {/* Results Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 className="text-xl font-semibold text-foreground">Kết quả tìm kiếm</h2>
+                    <h2 className="text-xl font-semibold text-foreground">{t('search.results.title')}</h2>
                     <p className="text-foreground/60 mt-1">
-                        Tìm thấy {results.length} phòng trọ phù hợp
+                        {t('search.results.found', { count: results.length })}
                     </p>
                 </div>
 
@@ -126,7 +127,7 @@ export function SearchResults({ results, isSearching, hasSearched, searchError =
                     >
                         {SORT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
-                                {opt.label}
+                                {t(opt.labelKey)}
                             </option>
                         ))}
                     </select>

@@ -142,6 +142,7 @@ export async function registerRequest(payload: {
     phone?: string;
     password: string;
     confirmPassword: string;
+    role: 'TENANT' | 'LANDLORD';
 }): Promise<{ success: boolean; user: Record<string, unknown>; message: string }> {
     const res = await fetch(getApiUrl('/auth/register'), {
         method: 'POST',
@@ -164,6 +165,7 @@ export async function registerOAuthRequest(payload: {
     email: string;
     fullName: string;
     phone?: string;
+    role: 'TENANT' | 'LANDLORD';
 }): Promise<{ success: boolean; user: Record<string, unknown> }> {
     const res = await fetch(getApiUrl('/auth/register-oauth'), {
         method: 'POST',
@@ -172,75 +174,6 @@ export async function registerOAuthRequest(payload: {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Đăng ký thất bại');
-    return data;
-}
-
-export async function registerLandlordRequest(body: {
-    citizenCardNumber?: string;
-    citizenCardFrontImageUrl?: string;
-    citizenCardBackImageUrl?: string;
-}): Promise<{
-    success: boolean;
-    message: string;
-    user?: { id: string; role: string };
-    checks?: {
-        profile: boolean;
-        lifestyle: boolean;
-        preference: boolean;
-        citizenCardVerified: boolean;
-        citizenCardStatus: string;
-    };
-}> {
-    const res = await authFetch('/auth/register-landlord', {
-        method: 'POST',
-        body: JSON.stringify(body || {}),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        const error = new Error(data?.message || 'Đăng ký chủ nhà thất bại') as Error & { checks?: unknown };
-        if (data?.checks) error.checks = data.checks;
-        throw error;
-    }
-    return data;
-}
-
-export interface CitizenCardVerificationResponse {
-    id?: string;
-    citizenCardNumber?: string;
-    citizenCardFrontImageUrl?: string;
-    citizenCardBackImageUrl?: string;
-    status?: 'PENDING' | 'VERIFIED' | 'REJECTED';
-    reviewNote?: string | null;
-    submittedAt?: string;
-    reviewedAt?: string | null;
-    reviewedBy?: string | null;
-}
-
-export async function getCitizenCardRequest(): Promise<{
-    success: boolean;
-    citizenCard: CitizenCardVerificationResponse | null;
-}> {
-    const res = await authFetch('/auth/citizen-card');
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message || 'Tải CCCD thất bại');
-    return data;
-}
-
-export async function upsertCitizenCardRequest(body: {
-    citizenCardNumber: string;
-    citizenCardFrontImageUrl: string;
-    citizenCardBackImageUrl: string;
-}): Promise<{
-    success: boolean;
-    message: string;
-    citizenCard: CitizenCardVerificationResponse;
-}> {
-    const res = await authFetch('/auth/citizen-card', {
-        method: 'PUT',
-        body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message || 'Gửi CCCD thất bại');
     return data;
 }
 
@@ -320,6 +253,7 @@ export interface UserPreferenceResponse {
     max_distance_km?: number | null;
     transport_nearby?: boolean | null;
     pet_friendly?: boolean | null;
+    preferred_gender?: string | null;
     preferred_roommate_age_min?: number | null;
     preferred_roommate_age_max?: number | null;
     lifestyle_match_weight?: number | null;
@@ -389,6 +323,7 @@ export async function upsertPreferenceRequest(body: {
     max_distance_km?: number | null;
     transport_nearby?: boolean | null;
     pet_friendly?: boolean | null;
+    preferred_gender?: string | null;
     preferred_roommate_age_min?: number | null;
     preferred_roommate_age_max?: number | null;
     lifestyle_match_weight?: number | null;
@@ -690,6 +625,61 @@ export async function createPreorderDepositPaymentRequest(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Không thể tạo thanh toán đặt cọc');
+    return data;
+}
+
+export async function resumePreorderPaymentRequest(preorderId: string): Promise<{
+    success: boolean;
+    data: {
+        preorderId: string;
+        roomId: string;
+        depositAmount: number;
+        room: { id: string; room_name: string | null; price: number } | null;
+        payment: {
+            provider: 'PAYOS';
+            orderCode: string;
+            checkoutUrl: string | null;
+            status: string;
+        };
+    };
+}> {
+    const res = await authFetch(`/preorders/${encodeURIComponent(preorderId)}/resume-payment`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể lấy lại link thanh toán');
+    return data;
+}
+
+export async function cancelUnpaidPreorderRequest(preorderId: string, reason?: string): Promise<{
+    success: boolean;
+    message: string;
+    data: MyPreorderItem;
+}> {
+    const res = await authFetch(`/preorders/${encodeURIComponent(preorderId)}/cancel`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể hủy thanh toán đặt cọc');
+    return data;
+}
+
+export async function verifyPreorderPaymentRequest(preorderId: string, orderCode: string): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+        preorder: MyPreorderItem | null;
+        payment: {
+            orderCode: string;
+            status: string;
+            payosStatus: string | null;
+        };
+    };
+}> {
+    const res = await authFetch(
+        `/preorders/${encodeURIComponent(preorderId)}/verify-payment?orderCode=${encodeURIComponent(orderCode)}`
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể xác minh thanh toán đặt cọc');
     return data;
 }
 
@@ -1995,6 +1985,8 @@ export async function searchByImageRequest(
     imageFile: File,
     options?: {
         token?: string | null;
+        /** Optional text hint blended with image embedding (CLIP multimodal: 70% image + 30% text). */
+        text_hint?: string;
         q?: string;
         city?: string;
         district?: string;
@@ -2025,6 +2017,7 @@ export async function searchByImageRequest(
 
     const form = new FormData();
     form.append('file', imageFile);
+    if (options?.text_hint) form.append('text_hint', options.text_hint);
     if (options?.q) form.append('q', options.q);
     if (options?.city) form.append('city', options.city);
     if (options?.district) form.append('district', options.district);
@@ -2169,6 +2162,31 @@ export async function verifyVipPurchaseRequest(orderCode: string): Promise<{
     if (!res.ok) {
         throw new Error(json?.message || 'Không thể xác minh thanh toán VIP');
     }
+    return json;
+}
+
+export interface VipPurchaseHistory {
+    id: string;
+    packageName: string;
+    durationDays: number;
+    targetRole: string | null;
+    startDate: string;
+    endDate: string;
+    pricePaid: number;
+    createdAt: string | null;
+}
+
+export interface VipStatusData {
+    isVip: boolean;
+    vipExpiresAt: string | null;
+    daysRemaining: number;
+    purchases: VipPurchaseHistory[];
+}
+
+export async function getMyVipStatusRequest(): Promise<{ success: boolean; data: VipStatusData }> {
+    const res = await authFetch('/vip/my-status');
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Không thể tải trạng thái VIP');
     return json;
 }
 
