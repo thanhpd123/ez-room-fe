@@ -48,6 +48,7 @@ const AdminFinancePage = lazy(() => import('@/app/features/admin').then((m) => (
 const AdminSettingsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminSettingsPage })));
 const AdminModeratorsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminModeratorsPage })));
 const AdminBlogPostsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminBlogPostsPage })));
+const AdminVipPackagesPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminVipPackagesPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
 const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
 const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) => ({ default: m.FindRoommatePage })));
@@ -274,6 +275,7 @@ const routes = [
             { path: 'wallets', element: <Suspense fallback={<PageLoader />}><AdminWalletsPage /></Suspense> },
             { path: 'settings', element: <Suspense fallback={<PageLoader />}><AdminSettingsPage /></Suspense> },
             { path: 'blogs', element: <Suspense fallback={<PageLoader />}><AdminBlogPostsPage /></Suspense> },
+            { path: 'vip', element: <Suspense fallback={<PageLoader />}><AdminVipPackagesPage /></Suspense> },
         ],
     },
 ];

@@ -243,36 +243,36 @@ export function HomePage() {
                                 ? `${(room.price / 1_000_000).toFixed(room.price % 1_000_000 === 0 ? 0 : 1)} triệu/tháng`
                                 : `${room.price.toLocaleString('vi-VN')} đ/tháng`;
                             return (
-                            <div
-                                key={room.id}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => handleRoomClick(room.id)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleRoomClick(room.id)}
-                                className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/20 transition-all duration-200 cursor-pointer group/card"
-                            >
-                                <div className="relative h-48 overflow-hidden">
-                                    <ImageWithFallback
-                                        src={room.images?.[0] || ''}
-                                        alt={room.title}
-                                        className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
-                                </div>
-                                <div className="p-4">
-                                    <Title level={5} className="!font-heading !mb-1 truncate group-hover/card:text-primary transition-colors">{room.title}</Title>
-                                    <p className="text-sm font-semibold text-accent mb-2">{priceStr}</p>
-                                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                        <MapPin className="w-4 h-4 shrink-0" />
-                                        <span className="truncate">
-                                            {room.location ? [room.location.district, room.location.city].filter(Boolean).join(', ') : '—'}
-                                        </span>
+                                <div
+                                    key={room.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => handleRoomClick(room.id)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleRoomClick(room.id)}
+                                    className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/20 transition-all duration-200 cursor-pointer group/card"
+                                >
+                                    <div className="relative h-48 overflow-hidden">
+                                        <ImageWithFallback
+                                            src={room.images?.[0] || ''}
+                                            alt={room.title}
+                                            className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
                                     </div>
-                                    <button type="button" className="mt-3 w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 active:scale-[0.98] transition-all">
-                                        {t('home.viewDetail')}
-                                    </button>
+                                    <div className="p-4">
+                                        <Title level={5} className="!font-heading !mb-1 truncate group-hover/card:text-primary transition-colors">{room.title}</Title>
+                                        <p className="text-sm font-semibold text-accent mb-2">{priceStr}</p>
+                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                            <MapPin className="w-4 h-4 shrink-0" />
+                                            <span className="truncate">
+                                                {room.location ? [room.location.district, room.location.city].filter(Boolean).join(', ') : '—'}
+                                            </span>
+                                        </div>
+                                        <button type="button" className="mt-3 w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 active:scale-[0.98] transition-all">
+                                            {t('home.viewDetail')}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
                             );
                         })}
                     </div>

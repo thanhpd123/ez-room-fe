@@ -564,14 +564,14 @@ export function ModeratorDashboardPage() {
                                             style={{
                                                 backgroundColor:
                                                     item.target_type === 'rental' ? '#e6f4ff' :
-                                                    item.target_type === 'room_post' ? '#e6fffb' :
-                                                    item.target_type === 'report' ? '#fff2f0' :
-                                                    item.target_type === 'review' ? '#fffbe6' : '#f0f0ff',
+                                                        item.target_type === 'room_post' ? '#e6fffb' :
+                                                            item.target_type === 'report' ? '#fff2f0' :
+                                                                item.target_type === 'review' ? '#fffbe6' : '#f0f0ff',
                                                 color:
                                                     item.target_type === 'rental' ? '#1677ff' :
-                                                    item.target_type === 'room_post' ? '#13c2c2' :
-                                                    item.target_type === 'report' ? '#ff4d4f' :
-                                                    item.target_type === 'review' ? '#faad14' : '#722ed1',
+                                                        item.target_type === 'room_post' ? '#13c2c2' :
+                                                            item.target_type === 'report' ? '#ff4d4f' :
+                                                                item.target_type === 'review' ? '#faad14' : '#722ed1',
                                                 flexShrink: 0,
                                             }}
                                         />

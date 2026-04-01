@@ -261,8 +261,8 @@ export function LandlordDashboardPage() {
                                 </Text>
                                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
                                     <Text>
-                                        Đơn đang cho thuê: <strong>{performance.bookingStats.active}</strong> | 
-                                        Đơn đã hủy: <strong>{performance.bookingStats.cancelled}</strong> | 
+                                        Đơn đang cho thuê: <strong>{performance.bookingStats.active}</strong> |
+                                        Đơn đã hủy: <strong>{performance.bookingStats.cancelled}</strong> |
                                         Tổng cộng: <strong>{performance.bookingStats.total}</strong>
                                     </Text>
                                 </div>

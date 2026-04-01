@@ -34,7 +34,8 @@ export function VipPlansPage() {
     const [pageError, setPageError] = useState<string | null>(null);
     const [purchasePendingId, setPurchasePendingId] = useState<string | null>(null);
     const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
-    const [verifyState, setVerifyState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [verifyState, setVerifyState] = useState<'idle' | 'loading' | 'pending' | 'success' | 'error'>('idle');
+    const [verifyOrderCode, setVerifyOrderCode] = useState<string>('');
     const source = (searchParams.get('source') || 'direct').toLowerCase();
 
     useEffect(() => {
@@ -92,6 +93,8 @@ export function VipPlansPage() {
         const type = (searchParams.get('type') || '').toLowerCase();
         if (!orderCode) return;
 
+        setVerifyOrderCode(orderCode);
+
         if (type === 'cancel') {
             setVerifyState('error');
             setVerifyMessage('Bạn đã hủy thanh toán VIP. Có thể thử lại bất kỳ lúc nào.');
@@ -109,8 +112,8 @@ export function VipPlansPage() {
                     setVerifyMessage(res?.message || 'Kích hoạt VIP thành công.');
                     trackEvent('vip_verify_result', { source, status: 'success' });
                 } else {
-                    setVerifyState('error');
-                    setVerifyMessage(res?.message || 'Thanh toán chưa được xác nhận.');
+                    setVerifyState('pending');
+                    setVerifyMessage(res?.message || 'Thanh toán đang chờ xác nhận. Bạn có thể kiểm tra lại sau vài giây.');
                     trackEvent('vip_verify_result', {
                         source,
                         status: 'not_confirmed',
@@ -129,6 +132,25 @@ export function VipPlansPage() {
             mounted = false;
         };
     }, [searchParams, source]);
+
+    const handleRetryVerify = async () => {
+        if (!verifyOrderCode) return;
+        setVerifyState('loading');
+        try {
+            const res = await verifyVipPurchaseRequest(verifyOrderCode);
+            const confirmed = res?.data?.confirmed === true;
+            if (confirmed) {
+                setVerifyState('success');
+                setVerifyMessage(res?.message || 'Kích hoạt VIP thành công.');
+                return;
+            }
+            setVerifyState('pending');
+            setVerifyMessage(res?.message || 'Thanh toán vẫn đang chờ xác nhận.');
+        } catch (err) {
+            setVerifyState('error');
+            setVerifyMessage(err instanceof Error ? err.message : 'Không thể xác minh thanh toán VIP.');
+        }
+    };
 
     const roleLabel = useMemo(() => {
         return activeRole === 'TENANT' ? 'Người thuê' : 'Chủ trọ';
@@ -218,10 +240,21 @@ export function VipPlansPage() {
                             ? 'border-emerald-300 bg-emerald-50'
                             : verifyState === 'loading'
                                 ? 'border-sky-300 bg-sky-50'
-                                : 'border-amber-300 bg-amber-50'
+                                : verifyState === 'pending'
+                                    ? 'border-blue-300 bg-blue-50'
+                                    : 'border-amber-300 bg-amber-50'
                             }`}
                     >
                         <p className="text-sm font-medium text-foreground">{verifyMessage}</p>
+                        {verifyState === 'pending' && (
+                            <button
+                                type="button"
+                                onClick={() => void handleRetryVerify()}
+                                className="mt-3 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-100"
+                            >
+                                Kiểm tra lại trạng thái thanh toán
+                            </button>
+                        )}
                     </section>
                 )}
 
