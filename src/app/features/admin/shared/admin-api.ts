@@ -943,6 +943,8 @@ export interface FinanceSummaryData {
         refunds: { completedCount: number; completedAmount: number };
         platformFees: { entries: number; amount: number };
         pendingPaymentOrders: number;
+        pendingPaymentAmount: number;
+        paymentOrdersByStatus: Record<string, { count: number; amount: number }>;
     };
 }
 

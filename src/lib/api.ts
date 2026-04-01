@@ -290,17 +290,17 @@ export async function authFetch(
     const fetchWithToken = async (token: string | null): Promise<Response> => {
         const url = getApiUrl(path);
         const headers: HeadersInit = {};
-        
+
         // Only set Content-Type if body is not FormData (let browser handle FormData)
         if (!(options.body instanceof FormData)) {
             headers['Content-Type'] = 'application/json';
         }
-        
+
         // Merge with any custom headers
         if (options.headers) {
             Object.assign(headers, options.headers);
         }
-        
+
         if (token) {
             (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
         }
@@ -544,6 +544,21 @@ export interface CreatePreorderDepositPaymentResponse {
     };
 }
 
+export interface VerifyPreorderPaymentResponse {
+    success: boolean;
+    message: string;
+    data: {
+        status: 'success' | 'cancel' | 'pending';
+        confirmed: boolean;
+        preorderId: string;
+        orderCode: string;
+        paymentOrderStatus: string;
+        preorderStatus: string | null;
+        preorderPaymentStatus: string | null;
+        depositAmount: number;
+    };
+}
+
 export async function createPreorderDepositPaymentRequest(
     body: CreatePreorderDepositPaymentRequest
 ): Promise<CreatePreorderDepositPaymentResponse> {
@@ -553,6 +568,20 @@ export async function createPreorderDepositPaymentRequest(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Không thể tạo thanh toán đặt cọc');
+    return data;
+}
+
+export async function verifyPreorderPaymentRequest(params: {
+    orderCode?: string;
+    preorderId?: string;
+}): Promise<VerifyPreorderPaymentResponse> {
+    const search = new URLSearchParams();
+    if (params.orderCode) search.set('orderCode', params.orderCode);
+    if (params.preorderId) search.set('preorderId', params.preorderId);
+    const qs = search.toString();
+    const res = await authFetch(`/preorders/verify-payment${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể xác minh thanh toán đặt cọc');
     return data;
 }
 
@@ -1558,7 +1587,7 @@ export async function getRoomByIdForSearchRoomateRequest(roomId: string): Promis
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
     const url = getApiUrl(`/rooms/${roomId}/search-roommate`);
     const res = await fetch(url, { headers });
     const json = await res.json().catch(() => ({}));

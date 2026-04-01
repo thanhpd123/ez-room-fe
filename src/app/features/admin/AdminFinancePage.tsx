@@ -84,6 +84,15 @@ export function AdminFinancePage() {
         [summaryByType]
     );
 
+    const paymentStatusTags = useMemo(() => {
+        const byStatus = summary?.kpis.paymentOrdersByStatus || {};
+        return Object.entries(byStatus).map(([status, payload]) => (
+            <Tag key={status} color={status === 'SUCCESS' ? 'green' : status === 'PENDING' ? 'gold' : 'default'}>
+                {status}: {payload.count} | {formatMoney(payload.amount)}
+            </Tag>
+        ));
+    }, [summary]);
+
     const chartData = useMemo(() => {
         if (!summary) return [];
         return [
@@ -221,8 +230,9 @@ export function AdminFinancePage() {
                     <Card>
                         <Statistic
                             title={t('admin.finance.kpis.pendingOrders')}
-                            value={summary?.kpis.pendingPaymentOrders || 0}
+                            value={formatMoney(summary?.kpis.pendingPaymentAmount || 0)}
                         />
+                        <Text type="secondary">Số đơn đang chờ: {summary?.kpis.pendingPaymentOrders || 0}</Text>
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={8}>
@@ -234,6 +244,14 @@ export function AdminFinancePage() {
                     </Card>
                 </Col>
             </Row>
+
+            <Card title="Trạng thái thanh toán" style={{ marginTop: 16 }}>
+                {paymentStatusTags.length > 0 ? (
+                    <Space wrap>{paymentStatusTags}</Space>
+                ) : (
+                    <Text type="secondary">Chưa có dữ liệu trạng thái trong khoảng thời gian đã chọn.</Text>
+                )}
+            </Card>
 
             <Card title={t('admin.finance.charts.title')} style={{ marginTop: 16 }}>
                 <ResponsiveContainer width="100%" height={320}>

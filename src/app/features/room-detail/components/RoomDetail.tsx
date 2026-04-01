@@ -147,12 +147,6 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
       return;
     }
 
-    const selectedMonths = Number(depositMonthsOption);
-    if (!Number.isFinite(selectedMonths) || selectedMonths <= 0) {
-      setDepositError('Vui lòng chọn số tháng đặt cọc hợp lệ.');
-      return;
-    }
-
     setDepositError('');
 
     try {
@@ -160,7 +154,6 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
 
       const response = await createPreorderDepositPaymentRequest({
         roomId: room.id,
-        depositMonths: selectedMonths,
         depositAmount: normalized,
         buyerName: user.fullName || undefined,
         buyerEmail: user.email || undefined,
@@ -460,8 +453,8 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                     if (depositError) setDepositError('');
                   }}
                   className={`rounded-lg border px-2 py-2 text-sm font-medium transition-colors ${depositMonthsOption === choice.value
-                      ? 'border-amber-500 bg-amber-50 text-amber-700'
-                      : 'border-border bg-white text-foreground hover:bg-muted'
+                    ? 'border-amber-500 bg-amber-50 text-amber-700'
+                    : 'border-border bg-white text-foreground hover:bg-muted'
                     }`}
                   disabled={depositSubmitting}
                 >
