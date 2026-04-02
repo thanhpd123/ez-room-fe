@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Header } from '@/app/features/home/components';
@@ -8,7 +8,7 @@ import {
     Briefcase, Users, Home, Calendar, Star, Shield, Languages,
     Thermometer, Volume2, UtensilsCrossed, ChevronDown,
     CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw,
-    CheckCircle2, XCircle, Clock3, ArrowRight,
+    CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye, ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { ImageUpload } from '@/app/components/ImageUpload';
@@ -23,12 +23,19 @@ import {
     getMyBookingsRequest,
     resumePreorderPaymentRequest,
     cancelUnpaidPreorderRequest,
+    createFeedbackRequest,
+    getFeedbackByRentalPeriodRequest,
+    checkRoommateRatingRequest,
     type LifestyleProfileResponse,
     type UserPreferenceResponse,
     type MyPreorderItem,
     type MyBookingItem,
 } from '@/lib/api';
 import { trackEvent } from '@/lib/analytics';
+import { ReviewModal, ViewFeedbackModal, ReportModal } from '@/app/features/booking-history/components';
+import { RoommateRatingModal } from './RoommateRatingModal';
+import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+import type { ReviewData, ReportData, FeedbackStatus } from '@/app/features/booking-history/types';
 import type { ProvinceItem, WardItem } from '@/lib/provinces-api';
 
 type Tab = 'profile' | 'lifestyle' | 'preference' | 'bookings';
@@ -405,6 +412,17 @@ export function ProfilePage() {
     const [bookings, setBookings] = useState<MyBookingItem[]>([]);
     const [bookingsLoading, setBookingsLoading] = useState(false);
     const [bookingsError, setBookingsError] = useState<string | null>(null);
+
+    // Review / Report modal state
+    type ModalState = 'none' | 'review' | 'viewFeedback' | 'report';
+    const [modalState, setModalState] = useState<ModalState>('none');
+    const [selectedBookingItem, setSelectedBookingItem] = useState<MyBookingItem | null>(null);
+    const [viewFeedbackData, setViewFeedbackData] = useState<{
+        rating: number; comment: string | null;
+        cleanlinessRating?: number | null; locationRating?: number | null;
+        valueRating?: number | null; landlordRating?: number | null;
+        status: FeedbackStatus; moderatorNote?: string | null;
+    } | null>(null);
 
     useEffect(() => {
         if (user) setProfileForm({ fullName: user.fullName ?? '', phone: user.phone ?? '', avatarUrl: user.avatarUrl ?? '', gender: user.gender ?? '' });
@@ -984,15 +1002,82 @@ export function ProfilePage() {
                                             {t('profile.noRentals')}
                                         </div>
                                     ) : (
-                                        <div className="space-y-3">
+                                        <div className="space-y-4">
                                             {bookings.map((b) => (
-                                                <BookingCard key={b.id} item={b} onViewRoom={() => navigate(`/room/${b.roomId}`)} t={t} />
+                                                <ProfileBookingCard
+                                                    key={b.id}
+                                                    item={b}
+                                                    onWriteReview={() => { setSelectedBookingItem(b); setModalState('review'); }}
+                                                    onViewReview={async () => {
+                                                        setSelectedBookingItem(b);
+                                                        setModalState('viewFeedback');
+                                                        try {
+                                                            const res = await getFeedbackByRentalPeriodRequest(b.rentalPeriodId || b.id);
+                                                            if (res.data) {
+                                                                setViewFeedbackData({
+                                                                    rating: res.data.rating, comment: res.data.comment,
+                                                                    cleanlinessRating: res.data.cleanlinessRating,
+                                                                    locationRating: res.data.locationRating,
+                                                                    valueRating: res.data.valueRating,
+                                                                    landlordRating: res.data.landlordRating,
+                                                                    status: res.data.status as FeedbackStatus,
+                                                                    moderatorNote: res.data.moderatorNote,
+                                                                });
+                                                            } else { setViewFeedbackData(null); }
+                                                        } catch { setViewFeedbackData(null); }
+                                                    }}
+                                                    onReport={() => { setSelectedBookingItem(b); setModalState('report'); }}
+                                                    onContactLandlord={() => navigate(`/chat?booking=${b.id}`)}
+                                                    onViewRoom={() => navigate(`/room/${b.roomId}`)}
+                                                />
                                             ))}
                                         </div>
                                     )}
                                 </div>
                             </>
                         )}
+
+                        {/* Modals for review / report */}
+                        <ReviewModal
+                            isOpen={modalState === 'review'}
+                            onClose={() => { setModalState('none'); setSelectedBookingItem(null); }}
+                            onSubmit={async (data: ReviewData) => {
+                                if (!selectedBookingItem?.rentalPeriodId || !selectedBookingItem?.roomId) return;
+                                await createFeedbackRequest({
+                                    rentalPeriodId: selectedBookingItem.rentalPeriodId,
+                                    roomId: selectedBookingItem.roomId,
+                                    rating: data.rating, comment: data.comment,
+                                    cleanlinessRating: data.cleanlinessRating,
+                                    locationRating: data.locationRating,
+                                    valueRating: data.valueRating,
+                                    landlordRating: data.landlordRating,
+                                });
+                                setModalState('none'); setSelectedBookingItem(null);
+                                loadBookings();
+                            }}
+                            propertyName={selectedBookingItem?.roomName || selectedBookingItem?.propertyName || ''}
+                            existingRating={selectedBookingItem?.feedbackStatus === 'REJECTED' ? selectedBookingItem?.userRating : undefined}
+                            isEditMode={selectedBookingItem?.feedbackStatus === 'REJECTED'}
+                        />
+                        <ViewFeedbackModal
+                            isOpen={modalState === 'viewFeedback'}
+                            onClose={() => { setModalState('none'); setSelectedBookingItem(null); setViewFeedbackData(null); }}
+                            propertyName={selectedBookingItem?.roomName || selectedBookingItem?.propertyName || ''}
+                            rating={viewFeedbackData?.rating ?? 0}
+                            comment={viewFeedbackData?.comment ?? null}
+                            cleanlinessRating={viewFeedbackData?.cleanlinessRating}
+                            locationRating={viewFeedbackData?.locationRating}
+                            valueRating={viewFeedbackData?.valueRating}
+                            landlordRating={viewFeedbackData?.landlordRating}
+                            status={viewFeedbackData?.status ?? 'PENDING'}
+                            moderatorNote={viewFeedbackData?.moderatorNote}
+                        />
+                        <ReportModal
+                            isOpen={modalState === 'report'}
+                            onClose={() => { setModalState('none'); setSelectedBookingItem(null); }}
+                            onSubmit={() => { setModalState('none'); }}
+                            propertyName={selectedBookingItem?.roomName || selectedBookingItem?.propertyName || ''}
+                        />
                     </div>
                 )}
             </main>
@@ -1190,7 +1275,7 @@ function PreorderCard({
     );
 }
 
-// ─── BookingCard ─────────────────────────────────────────────────────────────
+// ─── ProfileBookingCard (full-featured with Review, Report, Contact, Roommates) ──
 
 const BOOKING_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
     active:    { label: 'Đang thuê',   icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
@@ -1198,63 +1283,250 @@ const BOOKING_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckC
     cancelled: { label: 'Đã hủy',      icon: XCircle,      color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
 };
 
-function BookingCard({ item, onViewRoom, t }: { item: MyBookingItem; onViewRoom: () => void; t: TFunc }) {
+const FEEDBACK_STATUS_CFG: Record<string, { bg: string; text: string; label: string }> = {
+    PENDING:  { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Đang chờ duyệt' },
+    APPROVED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã công khai' },
+    REJECTED: { bg: 'bg-red-100',   text: 'text-red-800',   label: 'Bị từ chối' },
+};
+
+function ProfileBookingCard({ item, onWriteReview, onViewReview, onReport, onContactLandlord, onViewRoom }: {
+    item: MyBookingItem;
+    onWriteReview: () => void;
+    onViewReview: () => void;
+    onReport: () => void;
+    onContactLandlord: () => void;
+    onViewRoom: () => void;
+}) {
     const statusCfg = BOOKING_STATUS_CONFIG[item.status] ?? BOOKING_STATUS_CONFIG.completed;
     const StatusIcon = statusCfg.icon;
+    const [showRoommates, setShowRoommates] = useState(false);
+    const [ratingTarget, setRatingTarget] = useState<{ id: string; fullName: string } | null>(null);
+    const [ratedIds, setRatedIds] = useState<Set<string>>(new Set());
 
     const startFmt = item.startDate
         ? new Date(item.startDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
         : '—';
     const endFmt = item.endDate
         ? new Date(item.endDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-        : t('profile.ongoing');
+        : 'Đang thuê';
+
+    const roommates = item.roommates || [];
+
+    // Check which roommates already have ratings
+    useEffect(() => {
+        if (roommates.length === 0) return;
+        Promise.all(
+            roommates.map((rm) =>
+                checkRoommateRatingRequest(rm.id, item.rentalPeriodId)
+                    .then((r) => (r.data ? rm.id : null))
+                    .catch(() => null)
+            )
+        ).then((results) => {
+            const rated = new Set(results.filter(Boolean) as string[]);
+            setRatedIds(rated);
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [item.rentalPeriodId]);
 
     return (
-        <div className="bg-card border border-border rounded-2xl p-4 hover:shadow-sm transition-shadow">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                {item.propertyImage && (
-                    <img src={item.propertyImage} alt="" className="w-full sm:w-20 h-14 sm:h-14 rounded-xl object-cover border border-border shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 flex-wrap">
-                        <div>
-                            <p className="font-semibold text-sm text-foreground truncate">{item.roomName}</p>
-                            <p className="text-xs text-muted-foreground truncate">{item.propertyName}</p>
-                        </div>
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${statusCfg.bg} ${statusCfg.color}`}>
-                            <StatusIcon className="w-3 h-3" />{statusCfg.label}
-                        </span>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />{startFmt} → {endFmt}
-                        </span>
-                        {item.landlordName && (
-                            <span className="flex items-center gap-1">
-                                <User className="w-3.5 h-3.5" />{item.landlordName}
-                            </span>
-                        )}
-                        {item.address && (
-                            <span className="flex items-center gap-1 truncate max-w-xs">
-                                <MapPin className="w-3.5 h-3.5 shrink-0" />{item.address}
-                            </span>
-                        )}
-                    </div>
-
-                    {item.userRating != null && (
-                        <div className="mt-2 flex items-center gap-1 text-xs">
-                            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                            <span className="font-medium text-foreground">{item.userRating}/5</span>
-                            <span className="text-muted-foreground">· {t('profile.yourRating')}</span>
+        <div className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
+            <div className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                    {/* Image */}
+                    {item.propertyImage && (
+                        <div className="w-full sm:w-36 h-28 sm:h-24 shrink-0">
+                            <ImageWithFallback
+                                src={item.propertyImage}
+                                alt={item.roomName}
+                                className="w-full h-full object-cover rounded-xl"
+                            />
                         </div>
                     )}
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                                <h4 className="font-semibold text-sm text-foreground truncate">{item.roomName}</h4>
+                                <p className="text-xs text-muted-foreground truncate">{item.propertyName}</p>
+                            </div>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${statusCfg.bg} ${statusCfg.color}`}>
+                                <StatusIcon className="w-3 h-3" />{statusCfg.label}
+                            </span>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            {item.address && (
+                                <span className="flex items-center gap-1 truncate max-w-xs">
+                                    <MapPin className="w-3.5 h-3.5 shrink-0" />{item.address}
+                                </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" />{startFmt} - {endFmt}
+                            </span>
+                            {item.landlordName && (
+                                <span className="flex items-center gap-1">
+                                    <User className="w-3.5 h-3.5" />{item.landlordName}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* User rating */}
+                        {item.hasReview && item.userRating != null && (
+                            <div className="mt-2 flex items-center gap-2">
+                                <div className="flex items-center gap-0.5">
+                                    {[...Array(5)].map((_, i) => (
+                                        <Star key={i} className={`w-3.5 h-3.5 ${i < item.userRating! ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />
+                                    ))}
+                                </div>
+                                <span className="text-xs text-muted-foreground">Đánh giá của bạn</span>
+                            </div>
+                        )}
+
+                        {/* Feedback status */}
+                        {item.hasReview && item.feedbackStatus && (
+                            <div className="mt-2">
+                                {(() => {
+                                    const fbCfg = FEEDBACK_STATUS_CFG[item.feedbackStatus] || { bg: 'bg-muted', text: 'text-foreground/70', label: item.feedbackStatus };
+                                    return (
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${fbCfg.bg} ${fbCfg.text}`}>
+                                            {fbCfg.label}
+                                        </span>
+                                    );
+                                })()}
+                                {item.feedbackStatus === 'REJECTED' && item.moderatorNote && (
+                                    <p className="mt-1 text-xs text-muted-foreground italic">{item.moderatorNote}</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <button type="button" onClick={onViewRoom}
-                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
-                    <ExternalLink className="w-3.5 h-3.5" />{t('profile.viewRoom')}
-                </button>
+                {/* Roommates section */}
+                {roommates.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                        <button
+                            type="button"
+                            onClick={() => setShowRoommates(!showRoommates)}
+                            className="flex items-center gap-2 text-xs font-medium text-foreground hover:text-primary transition-colors w-full"
+                        >
+                            <Users className="w-3.5 h-3.5 text-primary" />
+                            <span>Bạn cùng trọ ({roommates.length})</span>
+                            {/* Avatar group */}
+                            <div className="flex -space-x-2 ml-1">
+                                {roommates.slice(0, 4).map((rm) => (
+                                    rm.avatarUrl ? (
+                                        <img key={rm.id} src={rm.avatarUrl} alt={rm.fullName}
+                                            className="w-6 h-6 rounded-full border-2 border-card object-cover" title={rm.fullName} />
+                                    ) : (
+                                        <div key={rm.id} className="w-6 h-6 rounded-full border-2 border-card bg-primary/10 flex items-center justify-center" title={rm.fullName}>
+                                            <User className="w-3 h-3 text-primary" />
+                                        </div>
+                                    )
+                                ))}
+                                {roommates.length > 4 && (
+                                    <div className="w-6 h-6 rounded-full border-2 border-card bg-muted flex items-center justify-center">
+                                        <span className="text-[10px] font-bold text-muted-foreground">+{roommates.length - 4}</span>
+                                    </div>
+                                )}
+                            </div>
+                            <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${showRoommates ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {showRoommates && (
+                            <div className="mt-2 space-y-2">
+                                {roommates.map((rm) => (
+                                    <div key={rm.id} className="flex items-center gap-3 p-2.5 bg-muted/40 rounded-xl">
+                                        {rm.avatarUrl ? (
+                                            <img src={rm.avatarUrl} alt={rm.fullName} className="w-9 h-9 rounded-full object-cover border border-border" />
+                                        ) : (
+                                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center border border-border">
+                                                <User className="w-4 h-4 text-primary" />
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-foreground truncate">{rm.fullName}</p>
+                                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                                                {rm.phone && (
+                                                    <span className="flex items-center gap-1">
+                                                        <Phone className="w-3 h-3" />{rm.phone}
+                                                    </span>
+                                                )}
+                                                {rm.email && (
+                                                    <span className="flex items-center gap-1">
+                                                        <Mail className="w-3 h-3" />{rm.email}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {ratedIds.has(rm.id) ? (
+                                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-medium border border-green-200 shrink-0">
+                                                <Star className="w-3 h-3 fill-green-500 text-green-500" />
+                                                Đã đánh giá
+                                            </span>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => setRatingTarget({ id: rm.id, fullName: rm.fullName })}
+                                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-xs font-medium shrink-0"
+                                            >
+                                                <Star className="w-3 h-3" />
+                                                Trải nghiệm sống chung
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Roommate Rating Modal */}
+                {ratingTarget && (
+                    <RoommateRatingModal
+                        isOpen={true}
+                        onClose={() => setRatingTarget(null)}
+                        onSuccess={() => setRatedIds((prev) => new Set([...prev, ratingTarget.id]))}
+                        targetId={ratingTarget.id}
+                        targetName={ratingTarget.fullName}
+                        rentalPeriodId={item.rentalPeriodId}
+                    />
+                )}
+
+                {/* Action buttons */}
+                <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-2">
+                    {item.canReview && (
+                        <button onClick={onWriteReview}
+                            className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all text-xs font-medium flex items-center gap-1.5 shadow-sm">
+                            <Star className="w-3.5 h-3.5" />
+                            {item.feedbackStatus === 'REJECTED' ? 'Gửi lại đánh giá' : 'Đánh giá'}
+                        </button>
+                    )}
+                    {item.canReviewDisabled && (
+                        <button disabled title="Có thể đánh giá sau ít phút nữa"
+                            className="px-3 py-1.5 bg-muted text-muted-foreground rounded-lg cursor-not-allowed text-xs font-medium flex items-center gap-1.5">
+                            <Star className="w-3.5 h-3.5" />Đánh giá
+                        </button>
+                    )}
+                    {item.hasReview && (
+                        <button onClick={onViewReview}
+                            className="px-3 py-1.5 border border-primary text-primary rounded-lg hover:bg-primary/5 transition-all text-xs font-medium flex items-center gap-1.5">
+                            <Eye className="w-3.5 h-3.5" />Xem đánh giá
+                        </button>
+                    )}
+                    <button onClick={onContactLandlord}
+                        className="px-3 py-1.5 border border-border rounded-lg hover:bg-muted transition-all text-xs font-medium flex items-center gap-1.5">
+                        <MessageCircle className="w-3.5 h-3.5" />Liên hệ chủ nhà
+                    </button>
+                    <button onClick={onReport}
+                        className="px-3 py-1.5 border border-border rounded-lg hover:bg-destructive/5 hover:border-destructive/20 text-foreground/70 hover:text-destructive transition-all text-xs font-medium flex items-center gap-1.5">
+                        <Flag className="w-3.5 h-3.5" />Báo cáo
+                    </button>
+                    <button onClick={onViewRoom}
+                        className="px-3 py-1.5 border border-border rounded-lg hover:bg-muted transition-all text-xs font-medium flex items-center gap-1.5 ml-auto">
+                        <ExternalLink className="w-3.5 h-3.5" />Xem phòng
+                    </button>
+                </div>
             </div>
         </div>
     );
