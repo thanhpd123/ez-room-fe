@@ -153,7 +153,7 @@ export function ViewRoomPostDetailPage() {
                     ← Quay lại danh sách phòng
                 </button>
                 <div className="flex gap-2">
-                    {roomPost.status === 'AVAILABLE' && (
+                    {(roomPost.status === 'AVAILABLE' || roomPost.status === 'RENTED') && (
                         <button
                             type="button"
                             onClick={() => setShowCreateContract(true)}

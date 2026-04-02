@@ -726,6 +726,7 @@ export interface MyBookingItem {
     moderatorNote?: string;
     canReview: boolean;
     canReviewDisabled: boolean;
+    roommates?: { id: string; fullName: string; email: string | null; phone: string | null; avatarUrl: string | null }[];
 }
 
 export async function getMyBookingsRequest(): Promise<{
@@ -944,6 +945,32 @@ export async function inviteRoommateRequest(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Gửi lời mời ở ghép thất bại');
+    return data;
+}
+
+export async function createRoommateRatingRequest(body: {
+    targetId: string;
+    rentalPeriodId: string;
+    overallRating: number;
+    comment?: string;
+}): Promise<{ success: boolean; message: string; data: { id: string } }> {
+    const res = await authFetch('/roommate/experiences', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi đánh giá thất bại');
+    return data;
+}
+
+export async function checkRoommateRatingRequest(
+    targetId: string,
+    rentalPeriodId: string
+): Promise<{ success: boolean; data: { id: string; overall_rating: number; comment: string | null } | null }> {
+    const params = new URLSearchParams({ targetId, rentalPeriodId });
+    const res = await authFetch(`/roommate/experiences/check?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi kiểm tra đánh giá');
     return data;
 }
 
