@@ -665,26 +665,28 @@ export interface ModerationQueueItem {
     assigned_at: string | null;
 }
 
-export async function listModerationQueue(params?: {
+export async function listModerationQueue(filters: {
     status?: string;
     priority?: string;
     category?: string;
     assignedTo?: string;
+    sortBy?: 'asc' | 'desc';
     page?: number;
     limit?: number;
 }): Promise<{
     data: ModerationQueueItem[];
     pagination: { page: number; limit: number; total: number; totalPages: number };
 }> {
-    const searchParams = new URLSearchParams();
-    if (params?.status) searchParams.set('status', params.status);
-    if (params?.priority) searchParams.set('priority', params.priority);
-    if (params?.category) searchParams.set('category', params.category);
-    if (params?.assignedTo) searchParams.set('assignedTo', params.assignedTo);
-    if (params?.page) searchParams.set('page', String(params.page));
-    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const params = new URLSearchParams();
+    if (filters.page) params.set('page', filters.page.toString());
+    if (filters.limit) params.set('limit', filters.limit.toString());
+    if (filters.status) params.set('status', filters.status);
+    if (filters.priority) params.set('priority', filters.priority);
+    if (filters.category) params.set('category', filters.category);
+    if (filters.assignedTo) params.set('assignedTo', filters.assignedTo);
+    if (filters.sortBy) params.set('sortBy', filters.sortBy);
 
-    const res = await authFetch(`/moderator/queue?${searchParams.toString()}`);
+    const res = await authFetch(`/moderator/queue?${params.toString()}`);
     const json = await res.json();
     if (!res.ok) throw new Error(json?.message || 'Lỗi tải moderation queue');
 
@@ -831,12 +833,15 @@ export async function listModerators(): Promise<ModeratorListItem[]> {
     }
 }
 
-export async function releaseQueueItem(queueItemId: string): Promise<void> {
-    const res = await authFetch(`/moderator/queue/${encodeURIComponent(queueItemId)}/release`, {
+export async function releaseQueueItem(id: string) {
+    const res = await authFetch(`/moderator/queue/${id}/release`, {
         method: 'PATCH',
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.message || 'Trả task thất bại');
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Không thể trả task');
+    }
+    return res.json();
 }
 
 export interface QueueLockStatus {
@@ -861,17 +866,27 @@ export async function checkQueueStatus(targetType: string, targetId: string): Pr
 }
 
 export async function getModeratorOverview() {
-    const [rentalItems, roomPostItems, reports, reviewsResult] = await Promise.all([
-        listRentalModerationItems(),
-        listRoomPostModerationItems(),
-        listViolationReports(),
-        listModeratedReviews({ status: 'PENDING', limit: 1 }),
-    ]);
-
+    try {
+        const res = await authFetch('/moderator/overview');
+        const json = await res.json();
+        if (res.ok && json.data) {
+            return json.data;
+        }
+    } catch (err) {
+        console.error('Failed to fetch moderator overview:', err);
+    }
+    
+    // Fallback to zeros if API fails
     return {
-        pendingRentalCount: rentalItems.filter((item) => item.moderation_status === 'pending_review').length,
-        pendingRoomPostCount: roomPostItems.filter((item) => item.moderation_status === 'pending_review').length,
-        openReportCount: reports.filter((item) => item.status === 'open').length,
-        flaggedReviewCount: reviewsResult.pagination.total,
+        openQueueCount: 0,
+        pendingRentalCount: 0,
+        pendingRoomPostCount: 0,
+        openReportCount: 0,
+        flaggedReviewCount: 0,
+        resolvedReportCount: 0,
+        approvedRentalCount: 0,
+        approvedRoomPostCount: 0,
+        approvedReviewCount: 0,
+        rejectedReviewCount: 0,
     };
 }

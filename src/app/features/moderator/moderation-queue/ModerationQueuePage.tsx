@@ -193,6 +193,7 @@ export function ModerationQueuePage() {
     const [priorityFilter, setPriorityFilter] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('');
     const [myTasksOnly, setMyTasksOnly] = useState(false);
+    const [sortBy, setSortBy] = useState<'asc' | 'desc'>('asc');
     const [actingId, setActingId] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -228,6 +229,7 @@ export function ModerationQueuePage() {
                 priority: priorityFilter || undefined,
                 category: categoryFilter || undefined,
                 assignedTo: myTasksOnly && user?.id ? user.id : undefined,
+                sortBy: sortBy,
                 page: currentPage,
                 limit: 10,
             });
@@ -239,7 +241,7 @@ export function ModerationQueuePage() {
         } finally {
             setIsLoading(false);
         }
-    }, [statusFilter, priorityFilter, categoryFilter, myTasksOnly, user?.id, currentPage]);
+    }, [statusFilter, priorityFilter, categoryFilter, myTasksOnly, sortBy, user?.id, currentPage]);
 
     useEffect(() => {
         void load();
@@ -248,7 +250,7 @@ export function ModerationQueuePage() {
     // Reset queue page when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, priorityFilter, categoryFilter, myTasksOnly]);
+    }, [statusFilter, priorityFilter, categoryFilter, myTasksOnly, sortBy]);
 
     const handleClaim = async (e: React.MouseEvent, item: ModerationQueueItem) => {
         e.stopPropagation();
@@ -405,7 +407,7 @@ export function ModerationQueuePage() {
                         ))}
                     </select>
                 </div>
-                <label className="flex cursor-pointer items-center gap-2">
+                <label className="flex cursor-pointer items-center gap-2 mr-4">
                     <input
                         type="checkbox"
                         checked={myTasksOnly}
@@ -414,6 +416,16 @@ export function ModerationQueuePage() {
                     />
                     <span className="text-sm text-slate-600">Chỉ task của tôi</span>
                 </label>
+                <div>
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as 'asc' | 'desc')}
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+                    >
+                        <option value="asc">Thời gian: Sớm nhất</option>
+                        <option value="desc">Thời gian: Muộn nhất</option>
+                    </select>
+                </div>
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
