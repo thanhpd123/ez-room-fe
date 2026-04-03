@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+    App,
     Alert,
     Button,
     Card,
@@ -15,7 +16,6 @@ import {
     Table,
     Tag,
     Typography,
-    message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
@@ -50,6 +50,7 @@ function formatMoney(value: number | string | null | undefined) {
 
 export function AdminFinancePage() {
     const { t } = useTranslation();
+    const { message } = App.useApp();
     const screens = Grid.useBreakpoint();
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
@@ -167,11 +168,7 @@ export function AdminFinancePage() {
         ];
     }, [summary, t]);
 
-    const pendingDrawerWidth = useMemo(() => {
-        if (!screens.md) return '100%';
-        if (!screens.lg) return 820;
-        return 980;
-    }, [screens.lg, screens.md]);
+    const pendingDrawerSize = useMemo(() => (screens.lg ? 'large' : 'default'), [screens.lg]);
 
     const columns: ColumnsType<ReconciliationItem> = [
         {
@@ -219,7 +216,7 @@ export function AdminFinancePage() {
             key: 'purpose',
             width: 170,
             render: (_, row) => (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Tag color="blue">{row.purpose}</Tag>
                     <Text type="secondary">{row.source}</Text>
                 </Space>
@@ -229,7 +226,7 @@ export function AdminFinancePage() {
             title: 'Người dùng',
             key: 'user',
             render: (_, row) => (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Text strong>{row.user.fullName || 'N/A'}</Text>
                     <Text type="secondary">{row.user.email || 'N/A'}</Text>
                 </Space>
@@ -239,7 +236,7 @@ export function AdminFinancePage() {
             title: 'Mã giao dịch',
             key: 'txn',
             render: (_, row) => (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Text>{row.orderCode || row.id}</Text>
                     <Text type="secondary">
                         {row.refType ? `${row.refType}/${row.refId || 'N/A'}` : row.walletId || 'N/A'}
@@ -259,7 +256,7 @@ export function AdminFinancePage() {
             key: 'status',
             width: 180,
             render: (_, row) => (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Tag color="gold">{row.status}</Tag>
                     <Text type="secondary">
                         {row.waitingHours}h · {row.agingBucket}
@@ -365,7 +362,7 @@ export function AdminFinancePage() {
                             title={t('admin.finance.kpis.pendingOrders')}
                             value={formatMoney(summary?.kpis.pendingPaymentAmount || 0)}
                         />
-                        <Space style={{ marginTop: 8 }} direction="vertical" size={4}>
+                        <Space style={{ marginTop: 8 }} orientation="vertical" size={4}>
                             <Text type="secondary">Số đơn đang chờ: {summary?.kpis.pendingPaymentOrders || 0}</Text>
                             <Button
                                 type="link"
@@ -442,7 +439,7 @@ export function AdminFinancePage() {
             <Drawer
                 title="Pending Payments"
                 placement="right"
-                width={pendingDrawerWidth}
+                size={pendingDrawerSize}
                 onClose={() => setPendingDrawerOpen(false)}
                 open={pendingDrawerOpen}
                 extra={
@@ -561,9 +558,9 @@ export function AdminFinancePage() {
                 okText="Xác nhận hủy"
                 cancelText="Đóng"
                 okButtonProps={{ danger: true, loading: Boolean(actionLoadingId) }}
-                destroyOnClose
+                destroyOnHidden
             >
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                     <Text>
                         Bạn sắp hủy đơn: <Text strong>{cancelTarget?.orderCode || cancelTarget?.id || 'N/A'}</Text>
                     </Text>

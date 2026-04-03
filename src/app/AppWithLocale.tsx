@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ConfigProvider } from 'antd';
+import { App, ConfigProvider } from 'antd';
 import enUS from 'antd/locale/en_US';
 import viVN from 'antd/locale/vi_VN';
 import { RouterProvider } from 'react-router-dom';
@@ -16,14 +16,16 @@ export function AppWithLocale() {
 
     return (
         <ConfigProvider theme={ezRoomTheme} locale={antdLocale}>
-            <AuthProvider>
-                <FavoritesProvider>
-                    <ChatBoxProvider>
-                        <RouterProvider router={router} />
-                        <FloatingChatBox />
-                    </ChatBoxProvider>
-                </FavoritesProvider>
-            </AuthProvider>
+            <App>
+                <AuthProvider>
+                    <FavoritesProvider>
+                        <ChatBoxProvider>
+                            <RouterProvider router={router} />
+                            <FloatingChatBox />
+                        </ChatBoxProvider>
+                    </FavoritesProvider>
+                </AuthProvider>
+            </App>
         </ConfigProvider>
     );
 }
