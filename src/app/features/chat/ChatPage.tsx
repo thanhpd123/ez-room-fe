@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Header } from '@/app/features/home/components';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import {
     getConversationsRequest,
@@ -179,11 +178,9 @@ export function ChatPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background flex flex-col">
-            <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
-
+        <div className="flex flex-col h-[calc(100vh-5rem)] max-w-5xl mx-auto w-full">
             {/* Chat box container - Messenger style */}
-            <div className="flex-1 flex flex-col md:flex-row max-w-5xl mx-auto w-full md:h-[calc(100vh-4rem)] md:my-4 md:rounded-2xl md:overflow-hidden md:shadow-xl md:border md:border-border">
+            <div className="flex-1 flex flex-col md:flex-row rounded-lg overflow-hidden border border-border bg-card">
                 {/* Conversation list - left sidebar */}
                 <aside className="w-full md:w-72 lg:w-80 border-b md:border-b-0 md:border-r border-border bg-card flex-shrink-0 flex flex-col">
                     <div className="p-3 border-b border-border">

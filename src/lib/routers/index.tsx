@@ -28,6 +28,7 @@ const ViewListRoomPostPage = lazy(() => import('@/app/features/roomManagement').
 const ViewRoomPostDetailPage = lazy(() => import('@/app/features/roomManagement').then((m) => ({ default: m.ViewRoomPostDetailPage })));
 const RequestsPage = lazy(() => import('@/app/features/rentalManagement/requests').then((m) => ({ default: m.RequestsPage })));
 const ReviewsPage = lazy(() => import('@/app/features/rentalManagement/reviews').then((m) => ({ default: m.ReviewsPage })));
+const TenantReviewsPage = lazy(() => import('@/app/features/rentalManagement').then((m) => ({ default: m.TenantReviewsPage })));
 const EditRentalPage = lazy(() => import('@/app/features/rentalManagement/EditRental/EditRentalPage').then((m) => ({ default: m.EditRentalPage })));
 const EditRoomPostPage = lazy(() => import('@/app/features/roomManagement/EditRoomPost/EditRoomPostPage').then((m) => ({ default: m.EditRoomPostPage })));
 const HandleReportsPage = lazy(() => import('@/app/features/moderator/handle-reports').then((m) => ({ default: m.HandleReportsPage })));
@@ -140,41 +141,11 @@ export const router = createBrowserRouter([
         ),
     },
     {
-        path: '/wallet',
-        element: (
-            <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                    <WalletPage />
-                </Suspense>
-            </ProtectedRoute>
-        ),
-    },
-    {
         path: '/roommate',
         element: (
             <ProtectedRoute>
                 <Suspense fallback={<PageLoader />}>
                     <FindRoommatePage />
-                </Suspense>
-            </ProtectedRoute>
-        ),
-    },
-    {
-        path: '/chat',
-        element: (
-            <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                    <ChatPage />
-                </Suspense>
-            </ProtectedRoute>
-        ),
-    },
-    {
-        path: '/chat/:userId',
-        element: (
-            <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                    <ChatPage />
                 </Suspense>
             </ProtectedRoute>
         ),
@@ -205,6 +176,10 @@ export const router = createBrowserRouter([
             { path: 'rentals/:rentalId/room-posts/:roomPostId/edit', element: <Suspense fallback={<PageLoader />}><EditRoomPostPage /></Suspense> },
             { path: 'requests', element: <Suspense fallback={<PageLoader />}><RequestsPage /></Suspense> },
             { path: 'reviews', element: <Suspense fallback={<PageLoader />}><ReviewsPage /></Suspense> },
+            { path: 'tenant-reviews', element: <Suspense fallback={<PageLoader />}><TenantReviewsPage /></Suspense> },
+            { path: 'wallet', element: <Suspense fallback={<PageLoader />}><WalletPage /></Suspense> },
+            { path: 'messages', element: <Suspense fallback={<PageLoader />}><ChatPage /></Suspense> },
+            { path: 'messages/:userId', element: <Suspense fallback={<PageLoader />}><ChatPage /></Suspense> },
         ],
     },
     {

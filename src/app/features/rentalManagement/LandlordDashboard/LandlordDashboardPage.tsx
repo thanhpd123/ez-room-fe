@@ -214,7 +214,7 @@ export function LandlordDashboardPage() {
                                     value={performance.occupancyRate}
                                     suffix="%"
                                     prefix={<PercentageOutlined style={{ color: '#1677ff' }} />}
-                                    valueStyle={{ fontSize: 20 }}
+                                    styles={{ content: { fontSize: 20 } }}
                                 />
                             </Card>
                         </Col>
@@ -236,7 +236,7 @@ export function LandlordDashboardPage() {
                                     value={performance.cancellationRate}
                                     suffix="%"
                                     prefix={<LineChartOutlined style={{ color: '#ff4d4f' }} />}
-                                    valueStyle={{ fontSize: 20, color: '#ff4d4f' }}
+                                    styles={{ content: { fontSize: 20, color: '#ff4d4f' } }}
                                 />
                             </Card>
                         </Col>
@@ -247,7 +247,7 @@ export function LandlordDashboardPage() {
                                     value={performance.conversionRate}
                                     suffix="%"
                                     prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
-                                    valueStyle={{ fontSize: 20, color: '#722ed1' }}
+                                    styles={{ content: { fontSize: 20, color: '#722ed1' } }}
                                 />
                             </Card>
                         </Col>
