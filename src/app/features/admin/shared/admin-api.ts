@@ -990,6 +990,143 @@ export interface FinanceReconciliationData {
     mismatches: ReconciliationItem[];
 }
 
+export type PendingOrderPurpose =
+    | 'ALL'
+    | 'PREORDER_DEPOSIT'
+    | 'WALLET_TOPUP'
+    | 'VIP_PURCHASE'
+    | 'WITHDRAWAL';
+
+export interface PendingPaymentOrderItem {
+    id: string;
+    source: 'PAYMENT_ORDER' | 'WALLET_TRANSACTION';
+    purpose: Exclude<PendingOrderPurpose, 'ALL'>;
+    status: string;
+    amount: number;
+    createdAt: string | null;
+    waitingHours: number;
+    agingBucket: 'LT_30M' | 'FROM_30M_TO_2H' | 'FROM_2H_TO_24H' | 'GE_24H';
+    orderCode: string | null;
+    refType: string | null;
+    refId: string | null;
+    walletId: string | null;
+    description: string | null;
+    user: {
+        id: string | null;
+        fullName: string | null;
+        email: string | null;
+        phone: string | null;
+    };
+}
+
+export interface PendingPaymentOrdersData {
+    filters: {
+        purpose: PendingOrderPurpose;
+        search: string | null;
+        sortBy: 'createdAt' | 'amount' | string;
+        order: 'asc' | 'desc' | string;
+        createdAfter: string | null;
+        createdBefore: string | null;
+    };
+    summary: {
+        total: number;
+        totalAmount: number;
+        byPurpose: Record<string, { count: number; amount: number }>;
+        byAgingBucket: Record<string, number>;
+    };
+    items: PendingPaymentOrderItem[];
+}
+
+export interface GetPendingPaymentOrdersParams {
+    page?: number;
+    limit?: number;
+    purpose?: PendingOrderPurpose;
+    search?: string;
+    sortBy?: 'createdAt' | 'amount';
+    order?: 'asc' | 'desc';
+    createdAfter?: string;
+    createdBefore?: string;
+}
+
+export async function getPendingPaymentOrders(params: GetPendingPaymentOrdersParams = {}): Promise<{
+    data: PendingPaymentOrdersData | null;
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/finance/pending-orders'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            data: res.data.data,
+            pagination: res.data.pagination,
+        };
+    } catch (error) {
+        console.error('getPendingPaymentOrders error:', error);
+        return {
+            data: null,
+            pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function cancelPendingPaymentOrder(
+    source: 'PAYMENT_ORDER' | 'WALLET_TRANSACTION',
+    itemId: string,
+    reason?: string
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const payload = reason?.trim() ? { reason: reason.trim() } : {};
+        const res = await axios.patch(
+            getApiUrl(`/admin/finance/pending-orders/${source}/${itemId}/cancel`),
+            payload,
+            { headers: getAuthHeader() }
+        );
+        return {
+            success: true,
+            message: res.data.message || 'Đã hủy đơn pending',
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi hủy đơn pending',
+        };
+    }
+}
+
+export async function runPreorderReconciliationNow(batchSize?: number): Promise<{
+    success: boolean;
+    message: string;
+    data?: {
+        batchSize: number;
+        summary: {
+            scanned: number;
+            fixed: number;
+            skipped: number;
+            errors: number;
+        };
+    };
+}> {
+    try {
+        const payload = Number.isFinite(Number(batchSize)) ? { batchSize: Number(batchSize) } : {};
+        const res = await axios.post(getApiUrl('/admin/finance/reconciliation/run'), payload, {
+            headers: getAuthHeader(),
+        });
+        return {
+            success: true,
+            message: res.data.message || 'Đã chạy reconcile',
+            data: res.data.data,
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi chạy reconcile thủ công',
+        };
+    }
+}
+
 export async function getFinanceReconciliation(params: DateRangeParams & { page?: number; limit?: number } = {}): Promise<{
     data: FinanceReconciliationData | null;
     pagination: PaginationInfo;

@@ -4,13 +4,18 @@ import {
     Button,
     Card,
     Col,
+    Drawer,
+    Grid,
     Input,
+    Modal,
+    Select,
     Row,
     Space,
     Statistic,
     Table,
     Tag,
     Typography,
+    message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
@@ -25,9 +30,14 @@ import {
     YAxis,
 } from 'recharts';
 import {
+    cancelPendingPaymentOrder,
     getFinanceReconciliation,
     getFinanceSummary,
+    getPendingPaymentOrders,
+    runPreorderReconciliationNow,
     type FinanceSummaryData,
+    type PendingOrderPurpose,
+    type PendingPaymentOrderItem,
     type ReconciliationItem,
 } from './shared/admin-api';
 
@@ -40,6 +50,7 @@ function formatMoney(value: number | string | null | undefined) {
 
 export function AdminFinancePage() {
     const { t } = useTranslation();
+    const screens = Grid.useBreakpoint();
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
 
@@ -50,6 +61,19 @@ export function AdminFinancePage() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
     const [total, setTotal] = useState(0);
+    const [pendingPurpose, setPendingPurpose] = useState<PendingOrderPurpose>('ALL');
+    const [pendingSearch, setPendingSearch] = useState('');
+    const [pendingOrders, setPendingOrders] = useState<PendingPaymentOrderItem[]>([]);
+    const [pendingPage, setPendingPage] = useState(1);
+    const [pendingPageSize, setPendingPageSize] = useState(10);
+    const [pendingTotal, setPendingTotal] = useState(0);
+    const [pendingByPurpose, setPendingByPurpose] = useState<Record<string, { count: number; amount: number }>>({});
+    const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+    const [reconcileLoading, setReconcileLoading] = useState(false);
+    const [cancelModalOpen, setCancelModalOpen] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancelTarget, setCancelTarget] = useState<PendingPaymentOrderItem | null>(null);
+    const [pendingDrawerOpen, setPendingDrawerOpen] = useState(false);
 
     const loadData = async (nextPage = page, nextPageSize = pageSize) => {
         setLoading(true);
@@ -69,10 +93,34 @@ export function AdminFinancePage() {
         setLoading(false);
     };
 
+    const loadPendingData = async (nextPage = pendingPage, nextPageSize = pendingPageSize) => {
+        setLoading(true);
+        const pendingData = await getPendingPaymentOrders({
+            page: nextPage,
+            limit: nextPageSize,
+            purpose: pendingPurpose,
+            search: pendingSearch || undefined,
+            sortBy: 'createdAt',
+            order: 'desc',
+            createdAfter: from || undefined,
+            createdBefore: to || undefined,
+        });
+        setPendingOrders(pendingData.data?.items || []);
+        setPendingByPurpose(pendingData.data?.summary.byPurpose || {});
+        setPendingTotal(pendingData.pagination.total || 0);
+        setLoading(false);
+    };
+
     useEffect(() => {
         void loadData(1, pageSize);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        setPendingPage(1);
+        void loadPendingData(1, pendingPageSize);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pendingPurpose]);
 
     const mismatchTypeTags = useMemo(
         () =>
@@ -119,6 +167,12 @@ export function AdminFinancePage() {
         ];
     }, [summary, t]);
 
+    const pendingDrawerWidth = useMemo(() => {
+        if (!screens.md) return '100%';
+        if (!screens.lg) return 820;
+        return 980;
+    }, [screens.lg, screens.md]);
+
     const columns: ColumnsType<ReconciliationItem> = [
         {
             title: 'Mismatch',
@@ -159,6 +213,81 @@ export function AdminFinancePage() {
         },
     ];
 
+    const pendingColumns: ColumnsType<PendingPaymentOrderItem> = [
+        {
+            title: 'Loại đơn',
+            key: 'purpose',
+            width: 170,
+            render: (_, row) => (
+                <Space direction="vertical" size={0}>
+                    <Tag color="blue">{row.purpose}</Tag>
+                    <Text type="secondary">{row.source}</Text>
+                </Space>
+            ),
+        },
+        {
+            title: 'Người dùng',
+            key: 'user',
+            render: (_, row) => (
+                <Space direction="vertical" size={0}>
+                    <Text strong>{row.user.fullName || 'N/A'}</Text>
+                    <Text type="secondary">{row.user.email || 'N/A'}</Text>
+                </Space>
+            ),
+        },
+        {
+            title: 'Mã giao dịch',
+            key: 'txn',
+            render: (_, row) => (
+                <Space direction="vertical" size={0}>
+                    <Text>{row.orderCode || row.id}</Text>
+                    <Text type="secondary">
+                        {row.refType ? `${row.refType}/${row.refId || 'N/A'}` : row.walletId || 'N/A'}
+                    </Text>
+                </Space>
+            ),
+        },
+        {
+            title: 'Số tiền',
+            dataIndex: 'amount',
+            key: 'amount',
+            width: 150,
+            render: (value: number) => <Text>{formatMoney(value)}</Text>,
+        },
+        {
+            title: 'Trạng thái',
+            key: 'status',
+            width: 180,
+            render: (_, row) => (
+                <Space direction="vertical" size={0}>
+                    <Tag color="gold">{row.status}</Tag>
+                    <Text type="secondary">
+                        {row.waitingHours}h · {row.agingBucket}
+                    </Text>
+                </Space>
+            ),
+        },
+        {
+            title: 'Thao tác',
+            key: 'actions',
+            width: 160,
+            render: (_, row) => (
+                <Button
+                    size="small"
+                    danger
+                    loading={actionLoadingId === row.id}
+                    onClick={() => {
+                        setCancelTarget(row);
+                        setCancelReason('');
+                        setCancelModalOpen(true);
+                    }}
+                >
+                    Hủy pending
+                </Button>
+            ),
+        },
+    ];
+
     return (
         <div>
             <Title level={2}>{t('admin.finance.title')}</Title>
@@ -185,6 +314,10 @@ export function AdminFinancePage() {
                         onClick={() => {
                             setPage(1);
                             void loadData(1, pageSize);
+                            if (pendingDrawerOpen) {
+                                setPendingPage(1);
+                                void loadPendingData(1, pendingPageSize);
+                            }
                         }}
                         loading={loading}
                     >
@@ -232,7 +365,20 @@ export function AdminFinancePage() {
                             title={t('admin.finance.kpis.pendingOrders')}
                             value={formatMoney(summary?.kpis.pendingPaymentAmount || 0)}
                         />
-                        <Text type="secondary">Số đơn đang chờ: {summary?.kpis.pendingPaymentOrders || 0}</Text>
+                        <Space style={{ marginTop: 8 }} direction="vertical" size={4}>
+                            <Text type="secondary">Số đơn đang chờ: {summary?.kpis.pendingPaymentOrders || 0}</Text>
+                            <Button
+                                type="link"
+                                style={{ padding: 0 }}
+                                onClick={() => {
+                                    setPendingDrawerOpen(true);
+                                    setPendingPage(1);
+                                    void loadPendingData(1, pendingPageSize);
+                                }}
+                            >
+                                Xem pending payments
+                            </Button>
+                        </Space>
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={8}>
@@ -292,6 +438,145 @@ export function AdminFinancePage() {
                     scroll={{ x: 960 }}
                 />
             </Card>
+
+            <Drawer
+                title="Pending Payments"
+                placement="right"
+                width={pendingDrawerWidth}
+                onClose={() => setPendingDrawerOpen(false)}
+                open={pendingDrawerOpen}
+                extra={
+                    <Button
+                        loading={reconcileLoading}
+                        onClick={async () => {
+                            setReconcileLoading(true);
+                            const res = await runPreorderReconciliationNow(100);
+                            if (res.success) {
+                                const summary = res.data?.summary;
+                                message.success(
+                                    summary
+                                        ? `Reconcile xong: scanned=${summary.scanned}, fixed=${summary.fixed}, skipped=${summary.skipped}, errors=${summary.errors}`
+                                        : res.message
+                                );
+                                void loadData(page, pageSize);
+                                void loadPendingData(pendingPage, pendingPageSize);
+                            } else {
+                                message.error(res.message);
+                            }
+                            setReconcileLoading(false);
+                        }}
+                    >
+                        Chạy Reconcile Ngay
+                    </Button>
+                }
+            >
+                <Space wrap style={{ marginBottom: 12 }}>
+                    <Select
+                        value={pendingPurpose}
+                        onChange={(value) => setPendingPurpose(value)}
+                        style={{ width: 220 }}
+                        options={[
+                            { value: 'ALL', label: 'Tất cả' },
+                            { value: 'PREORDER_DEPOSIT', label: 'Preorder Deposit' },
+                            { value: 'WALLET_TOPUP', label: 'Wallet Topup' },
+                            { value: 'WITHDRAWAL', label: 'Withdrawal' },
+                            { value: 'VIP_PURCHASE', label: 'VIP Purchase' },
+                        ]}
+                    />
+                    <Input.Search
+                        value={pendingSearch}
+                        onChange={(e) => setPendingSearch(e.target.value)}
+                        onSearch={() => {
+                            setPendingPage(1);
+                            void loadPendingData(1, pendingPageSize);
+                        }}
+                        placeholder="Tìm theo user/email/mã giao dịch"
+                        style={{ width: 320, maxWidth: '100%' }}
+                        allowClear
+                    />
+                    <Button
+                        onClick={() => {
+                            setPendingPage(1);
+                            void loadPendingData(1, pendingPageSize);
+                        }}
+                    >
+                        Refresh
+                    </Button>
+                </Space>
+
+                <Space wrap style={{ marginBottom: 12 }}>
+                    {Object.entries(pendingByPurpose).map(([type, payload]) => (
+                        <Tag key={type} color="gold">
+                            {type}: {payload.count} | {formatMoney(payload.amount)}
+                        </Tag>
+                    ))}
+                </Space>
+
+                <Table
+                    rowKey={(row) => `${row.source}-${row.id}`}
+                    columns={pendingColumns}
+                    dataSource={pendingOrders}
+                    loading={loading}
+                    pagination={{
+                        current: pendingPage,
+                        pageSize: pendingPageSize,
+                        total: pendingTotal,
+                        showSizeChanger: true,
+                        onChange: (nextPage, nextPageSize) => {
+                            setPendingPage(nextPage);
+                            setPendingPageSize(nextPageSize);
+                            void loadPendingData(nextPage, nextPageSize);
+                        },
+                    }}
+                    scroll={{ x: 960 }}
+                />
+            </Drawer>
+
+            <Modal
+                title="Xác nhận hủy đơn pending"
+                open={cancelModalOpen}
+                onCancel={() => {
+                    if (actionLoadingId) return;
+                    setCancelModalOpen(false);
+                    setCancelTarget(null);
+                    setCancelReason('');
+                }}
+                onOk={async () => {
+                    if (!cancelTarget) return;
+                    setActionLoadingId(cancelTarget.id);
+                    const source = cancelTarget.source === 'PAYMENT_ORDER' ? 'PAYMENT_ORDER' : 'WALLET_TRANSACTION';
+                    const res = await cancelPendingPaymentOrder(source, cancelTarget.id, cancelReason);
+                    if (res.success) {
+                        message.success(res.message);
+                        setCancelModalOpen(false);
+                        setCancelTarget(null);
+                        setCancelReason('');
+                        void loadPendingData(pendingPage, pendingPageSize);
+                        void loadData(page, pageSize);
+                    } else {
+                        message.error(res.message);
+                    }
+                    setActionLoadingId(null);
+                }}
+                okText="Xác nhận hủy"
+                cancelText="Đóng"
+                okButtonProps={{ danger: true, loading: Boolean(actionLoadingId) }}
+                destroyOnClose
+            >
+                <Space direction="vertical" style={{ width: '100%' }}>
+                    <Text>
+                        Bạn sắp hủy đơn: <Text strong>{cancelTarget?.orderCode || cancelTarget?.id || 'N/A'}</Text>
+                    </Text>
+                    <Input.TextArea
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                        placeholder="Nhập lý do hủy (không bắt buộc)"
+                        maxLength={180}
+                        showCount
+                        autoSize={{ minRows: 3, maxRows: 5 }}
+                    />
+                </Space>
+            </Modal>
         </div>
     );
 }
