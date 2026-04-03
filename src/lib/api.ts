@@ -616,6 +616,34 @@ export interface CreatePreorderDepositPaymentResponse {
     };
 }
 
+export interface VerifyPreorderPaymentResponse {
+    success: boolean;
+    message: string;
+    data: {
+        status: 'success' | 'cancel' | 'pending';
+        confirmed: boolean;
+        preorderId: string;
+        orderCode: string;
+        paymentOrderStatus: string;
+        preorderStatus: string | null;
+        preorderPaymentStatus: string | null;
+        depositAmount: number;
+    };
+}
+
+export interface VerifyPreorderPaymentLegacyResponse {
+    success: boolean;
+    message: string;
+    data: {
+        preorder: MyPreorderItem | null;
+        payment: {
+            orderCode: string;
+            status: string;
+            payosStatus: string | null;
+        };
+    };
+}
+
 export async function createPreorderDepositPaymentRequest(
     body: CreatePreorderDepositPaymentRequest
 ): Promise<CreatePreorderDepositPaymentResponse> {
@@ -625,6 +653,37 @@ export async function createPreorderDepositPaymentRequest(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Không thể tạo thanh toán đặt cọc');
+    return data;
+}
+
+export async function verifyPreorderPaymentRequest(params: {
+    orderCode?: string;
+    preorderId?: string;
+}): Promise<VerifyPreorderPaymentResponse>;
+export async function verifyPreorderPaymentRequest(
+    preorderId: string,
+    orderCode: string
+): Promise<VerifyPreorderPaymentLegacyResponse>;
+export async function verifyPreorderPaymentRequest(
+    preorderIdOrParams: string | { orderCode?: string; preorderId?: string },
+    maybeOrderCode?: string
+): Promise<VerifyPreorderPaymentResponse | VerifyPreorderPaymentLegacyResponse> {
+    const search = new URLSearchParams();
+    const isObjectParams = typeof preorderIdOrParams === 'object' && preorderIdOrParams !== null;
+
+    if (isObjectParams) {
+        if (preorderIdOrParams.orderCode) search.set('orderCode', preorderIdOrParams.orderCode);
+        if (preorderIdOrParams.preorderId) search.set('preorderId', preorderIdOrParams.preorderId);
+    } else {
+        const preorderId = preorderIdOrParams;
+        if (preorderId) search.set('preorderId', preorderId);
+        if (maybeOrderCode) search.set('orderCode', maybeOrderCode);
+    }
+
+    const qs = search.toString();
+    const res = await authFetch(`/preorders/verify-payment${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể xác minh thanh toán đặt cọc');
     return data;
 }
 
@@ -660,26 +719,6 @@ export async function cancelUnpaidPreorderRequest(preorderId: string, reason?: s
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Không thể hủy thanh toán đặt cọc');
-    return data;
-}
-
-export async function verifyPreorderPaymentRequest(preorderId: string, orderCode: string): Promise<{
-    success: boolean;
-    message: string;
-    data: {
-        preorder: MyPreorderItem | null;
-        payment: {
-            orderCode: string;
-            status: string;
-            payosStatus: string | null;
-        };
-    };
-}> {
-    const res = await authFetch(
-        `/preorders/${encodeURIComponent(preorderId)}/verify-payment?orderCode=${encodeURIComponent(orderCode)}`
-    );
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message || 'Không thể xác minh thanh toán đặt cọc');
     return data;
 }
 
@@ -1713,7 +1752,7 @@ export async function getRoomByIdForSearchRoomateRequest(roomId: string): Promis
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
     const url = getApiUrl(`/rooms/${roomId}/search-roommate`);
     const res = await fetch(url, { headers });
     const json = await res.json().catch(() => ({}));
@@ -1976,7 +2015,7 @@ export async function recordInteractionRequest(
  */
 export function recordRoomView(roomId: string): void {
     if (!roomId) return;
-    recordInteractionRequest(roomId, 'view').catch(() => {});
+    recordInteractionRequest(roomId, 'view').catch(() => { });
 }
 
 /**

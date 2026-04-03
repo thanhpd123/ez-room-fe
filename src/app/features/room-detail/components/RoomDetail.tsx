@@ -463,8 +463,8 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                     if (depositError) setDepositError('');
                   }}
                   className={`rounded-lg border px-2 py-2 text-sm font-medium transition-colors ${depositMonthsOption === choice.value
-                      ? 'border-amber-500 bg-amber-50 text-amber-700'
-                      : 'border-border bg-white text-foreground hover:bg-muted'
+                    ? 'border-amber-500 bg-amber-50 text-amber-700'
+                    : 'border-border bg-white text-foreground hover:bg-muted'
                     }`}
                   disabled={depositSubmitting}
                 >

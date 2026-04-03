@@ -1,5 +1,5 @@
-import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { verifyPreorderPaymentRequest } from '@/lib/api';
 
 function normalizeStatus(searchParams: URLSearchParams): 'success' | 'cancel' | 'pending' {
@@ -7,63 +7,81 @@ function normalizeStatus(searchParams: URLSearchParams): 'success' | 'cancel' | 
     const status = (searchParams.get('status') || '').toUpperCase();
     const type = (searchParams.get('type') || '').toLowerCase();
 
-    if (code === '00' || status === 'PAID' || status === 'SUCCESS') return 'success';
     if (type === 'cancel' || status === 'CANCELLED') return 'cancel';
+    if (code === '00' || status === 'PAID' || status === 'SUCCESS') return 'success';
     return 'pending';
 }
 
 export function PayOSResultPage() {
     const [searchParams] = useSearchParams();
-    const [verifying, setVerifying] = useState(false);
     const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
     const [verifiedSuccess, setVerifiedSuccess] = useState(false);
 
     const preorderId = searchParams.get('preorderId') || '';
     const orderCode = searchParams.get('orderCode') || '';
-    const state = normalizeStatus(searchParams);
+    const initialState = normalizeStatus(searchParams);
+    const [state, setState] = useState<'success' | 'cancel' | 'pending'>(initialState);
+    const shouldAttemptVerify = initialState !== 'cancel' && (!!orderCode || !!preorderId);
+    const [verifyError, setVerifyError] = useState<string | null>(null);
+    const [verifyDone, setVerifyDone] = useState(!shouldAttemptVerify);
+    const verifying = shouldAttemptVerify && !verifyDone;
 
     useEffect(() => {
-        let mounted = true;
-        if (!preorderId || !orderCode) return;
+        if (!shouldAttemptVerify) {
+            return;
+        }
 
-        setVerifying(true);
-        verifyPreorderPaymentRequest(preorderId, orderCode)
+        let cancelled = false;
+        verifyPreorderPaymentRequest({
+            orderCode: orderCode || undefined,
+            preorderId: preorderId || undefined,
+        })
             .then((res) => {
-                if (!mounted) return;
-                const paymentStatus = (res?.data?.payment?.status || '').toUpperCase();
-                if (paymentStatus === 'SUCCESS') {
+                if (cancelled) return;
+                const nextState = res.data?.status || 'pending';
+                setState(nextState);
+
+                if (nextState === 'success') {
                     setVerifiedSuccess(true);
                     setVerifyMessage('Thanh toán đã được đồng bộ vào hệ thống.');
-                } else if (paymentStatus === 'PENDING') {
+                } else if (nextState === 'pending') {
                     setVerifyMessage('Thanh toán đang chờ xử lý. Vui lòng kiểm tra lại sau ít phút.');
                 } else {
                     setVerifyMessage('Thanh toán chưa thành công hoặc đã bị hủy.');
                 }
             })
             .catch((err) => {
-                if (!mounted) return;
+                if (cancelled) return;
+                setVerifyError(err instanceof Error ? err.message : 'Xác minh thất bại');
                 setVerifyMessage(err instanceof Error ? err.message : 'Không thể đồng bộ trạng thái thanh toán.');
+                setState(initialState === 'success' ? 'pending' : initialState);
             })
             .finally(() => {
-                if (mounted) setVerifying(false);
+                if (!cancelled) setVerifyDone(true);
             });
 
         return () => {
-            mounted = false;
+            cancelled = true;
         };
-    }, [preorderId, orderCode]);
+    }, [shouldAttemptVerify, orderCode, preorderId, initialState]);
 
-    const title = state === 'success'
-        ? 'Thanh toán đặt cọc thành công'
-        : state === 'cancel'
-            ? 'Bạn đã hủy thanh toán'
-            : 'Đã nhận trạng thái thanh toán';
+    const title = verifying
+        ? 'Đang xác minh giao dịch...'
+        : state === 'success'
+            ? 'Thanh toán đặt cọc thành công'
+            : state === 'cancel'
+                ? 'Bạn đã hủy thanh toán'
+                : 'Đã nhận trạng thái thanh toán';
 
-    const description = state === 'success'
-        ? 'Hệ thống đang xác minh và ghi nhận giao dịch của bạn.'
-        : state === 'cancel'
-            ? 'Bạn có thể quay lại trang phòng để thực hiện đặt cọc lại khi cần.'
-            : 'Kết quả thanh toán đang được đồng bộ. Bạn có thể kiểm tra lại trong giây lát.';
+    const description = verifying
+        ? 'Vui lòng đợi trong giây lát để hệ thống đối soát trạng thái thanh toán với PayOS.'
+        : state === 'success'
+            ? 'Hệ thống đã ghi nhận giao dịch. Vui lòng chờ chủ trọ xác nhận yêu cầu đặt cọc của bạn.'
+            : state === 'cancel'
+                ? 'Bạn có thể quay lại trang phòng để thực hiện đặt cọc lại khi cần.'
+                : verifyError
+                    ? `Không thể xác minh tự động: ${verifyError}. Kết quả thanh toán có thể đang chờ đồng bộ.`
+                    : 'Kết quả thanh toán đang được đồng bộ. Bạn có thể kiểm tra lại trong giây lát.';
 
     return (
         <main className="min-h-screen bg-background flex items-center justify-center px-4">
@@ -84,6 +102,14 @@ export function PayOSResultPage() {
                 )}
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    {!verifying && (
+                        <Link
+                            to="/history"
+                            className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+                        >
+                            Xem lịch sử thuê
+                        </Link>
+                    )}
                     <Link
                         to="/profile"
                         className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
