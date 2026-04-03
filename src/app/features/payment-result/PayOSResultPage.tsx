@@ -14,49 +14,56 @@ function normalizeStatus(searchParams: URLSearchParams): 'success' | 'cancel' | 
 
 export function PayOSResultPage() {
     const [searchParams] = useSearchParams();
+    const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+    const [verifiedSuccess, setVerifiedSuccess] = useState(false);
 
     const preorderId = searchParams.get('preorderId') || '';
     const orderCode = searchParams.get('orderCode') || '';
     const initialState = normalizeStatus(searchParams);
     const [state, setState] = useState<'success' | 'cancel' | 'pending'>(initialState);
-    const [verifying, setVerifying] = useState(initialState !== 'cancel' && (!!orderCode || !!preorderId));
+    const shouldAttemptVerify = initialState !== 'cancel' && (!!orderCode || !!preorderId);
     const [verifyError, setVerifyError] = useState<string | null>(null);
+    const [verifyDone, setVerifyDone] = useState(!shouldAttemptVerify);
+    const verifying = shouldAttemptVerify && !verifyDone;
 
     useEffect(() => {
-        if (initialState === 'cancel') {
-            setState('cancel');
-            setVerifying(false);
-            return;
-        }
-
-        if (!orderCode && !preorderId) {
-            setVerifying(false);
+        if (!shouldAttemptVerify) {
             return;
         }
 
         let cancelled = false;
-        setVerifying(true);
         verifyPreorderPaymentRequest({
             orderCode: orderCode || undefined,
             preorderId: preorderId || undefined,
         })
             .then((res) => {
                 if (cancelled) return;
-                setState(res.data?.status || 'pending');
+                const nextState = res.data?.status || 'pending';
+                setState(nextState);
+
+                if (nextState === 'success') {
+                    setVerifiedSuccess(true);
+                    setVerifyMessage('Thanh toán đã được đồng bộ vào hệ thống.');
+                } else if (nextState === 'pending') {
+                    setVerifyMessage('Thanh toán đang chờ xử lý. Vui lòng kiểm tra lại sau ít phút.');
+                } else {
+                    setVerifyMessage('Thanh toán chưa thành công hoặc đã bị hủy.');
+                }
             })
             .catch((err) => {
                 if (cancelled) return;
                 setVerifyError(err instanceof Error ? err.message : 'Xác minh thất bại');
+                setVerifyMessage(err instanceof Error ? err.message : 'Không thể đồng bộ trạng thái thanh toán.');
                 setState(initialState === 'success' ? 'pending' : initialState);
             })
             .finally(() => {
-                if (!cancelled) setVerifying(false);
+                if (!cancelled) setVerifyDone(true);
             });
 
         return () => {
             cancelled = true;
         };
-    }, [initialState, orderCode, preorderId]);
+    }, [shouldAttemptVerify, orderCode, preorderId, initialState]);
 
     const title = verifying
         ? 'Đang xác minh giao dịch...'
@@ -88,22 +95,34 @@ export function PayOSResultPage() {
                     </p>
                 )}
 
-                {!verifying && (
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {(verifying || verifyMessage) && (
+                    <p className={`text-sm mb-6 ${verifiedSuccess ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                        {verifying ? 'Đang đồng bộ trạng thái thanh toán...' : verifyMessage}
+                    </p>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    {!verifying && (
                         <Link
                             to="/history"
                             className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
                         >
                             Xem lịch sử thuê
                         </Link>
-                        <Link
-                            to="/browse"
-                            className="inline-flex items-center justify-center rounded-lg border border-border px-5 py-2.5 text-foreground font-medium hover:bg-muted transition-colors"
-                        >
-                            Tìm phòng khác
-                        </Link>
-                    </div>
-                )}
+                    )}
+                    <Link
+                        to="/profile"
+                        className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+                    >
+                        Xem đặt cọc của tôi
+                    </Link>
+                    <Link
+                        to="/browse"
+                        className="inline-flex items-center justify-center rounded-lg border border-border px-5 py-2.5 text-foreground font-medium hover:bg-muted transition-colors"
+                    >
+                        Tìm phòng khác
+                    </Link>
+                </div>
             </section>
         </main>
     );

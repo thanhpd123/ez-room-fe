@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Input, Select, Button, Alert, Checkbox } from 'antd';
-import { SearchOutlined, FilterOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
+import { Input, Select, Button, Alert } from 'antd';
+import { SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { PRICE_OPTIONS } from '../constants';
 import { ROOM_TYPE_OPTIONS } from '@/lib/constants/room-types';
 import { useProvinces } from '@/app/hooks/useProvinces';
 import { useRoomTypes } from '@/app/hooks/useRoomTypes';
-import { useAmenities } from '@/app/hooks/useAmenities';
-import { useAuthLevel } from '@/app/features/search/hooks/useAuthLevel';
+import { VoiceSearchButton } from '@/app/components/VoiceSearchButton';
 
 interface SearchFormProps {
     onSearch: (query: string, filters: SearchFilters) => void;
@@ -25,13 +25,11 @@ export interface SearchFilters {
     maxArea?: number;
 }
 
-export function SearchForm({ onSearch, onLogin }: SearchFormProps) {
+export function SearchForm({ onSearch }: SearchFormProps) {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const { provinces, getWardsFor, loading: locationsLoading, error: locationsError } = useProvinces();
-    const { options: roomTypeOptions, loading: roomTypesLoading } = useRoomTypes();
-    const { amenities: amenitiesList, loading: amenitiesLoading } = useAmenities();
-    const { isGuest, loading: authLoading } = useAuthLevel();
-    const showGuestOverlay = !authLoading && isGuest;
+    const { options: roomTypeOptions } = useRoomTypes();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState<SearchFilters>({
@@ -41,20 +39,19 @@ export function SearchForm({ onSearch, onLogin }: SearchFormProps) {
         priceRange: '',
         roomType: '',
     });
-    const [advancedExpanded, setAdvancedExpanded] = useState(false);
-    const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-    const [minArea, setMinArea] = useState('');
-    const [maxArea, setMaxArea] = useState('');
+
+    const doSearch = (query: string) => {
+        onSearch(query, { ...filters });
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const payload: SearchFilters = { ...filters };
-        if (!showGuestOverlay && (selectedAmenities.length > 0 || minArea || maxArea)) {
-            if (selectedAmenities.length > 0) payload.amenities = selectedAmenities;
-            if (minArea && !Number.isNaN(Number(minArea))) payload.minArea = Number(minArea);
-            if (maxArea && !Number.isNaN(Number(maxArea))) payload.maxArea = Number(maxArea);
-        }
-        onSearch(searchQuery, payload);
+        doSearch(searchQuery);
+    };
+
+    const handleVoiceResult = (transcript: string) => {
+        setSearchQuery(transcript);
+        doSearch(transcript);
     };
 
     const handleFilterChange = (key: keyof SearchFilters, value: string) => {
@@ -63,12 +60,6 @@ export function SearchForm({ onSearch, onLogin }: SearchFormProps) {
             if (key === 'city') next.district = '';
             return next;
         });
-    };
-
-    const toggleAmenity = (id: string) => {
-        setSelectedAmenities((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-        );
     };
 
     const cityOptions = provinces.map((p) => ({ value: p.name, label: p.name }));
@@ -82,21 +73,33 @@ export function SearchForm({ onSearch, onLogin }: SearchFormProps) {
     return (
         <div className="bg-card/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 p-4 sm:p-6 lg:p-8 w-full max-w-2xl mx-auto ring-2 ring-white/10">
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-                <Input
-                    size="large"
-                    placeholder={t('search.placeholder')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    prefix={<SearchOutlined className="text-muted-foreground" />}
-                    className="rounded-xl [&_.ant-input]:rounded-xl"
-                />
+                <div className="flex gap-2">
+                    <Input
+                        id="home-search-query"
+                        name="searchQuery"
+                        aria-label={t('search.placeholder') || 'Tìm theo tên, mô tả phòng'}
+                        size="large"
+                        placeholder={t('search.placeholder') || 'Tìm theo tên, mô tả phòng...'}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        prefix={<SearchOutlined className="text-muted-foreground" />}
+                        className="flex-1 rounded-xl [&_.ant-input]:rounded-xl"
+                    />
+                    <VoiceSearchButton
+                        onResult={handleVoiceResult}
+                        onInterim={(text) => setSearchQuery(text)}
+                        size="md"
+                    />
+                </div>
 
                 {locationsError && (
                     <Alert type="warning" title={locationsError} showIcon className="rounded-xl" />
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Select
+                        id="home-search-city"
+                        aria-label={t('search.city') || 'Tỉnh / Thành phố'}
                         size="large"
                         placeholder={t('search.city')}
                         value={filters.city || undefined}
@@ -108,6 +111,8 @@ export function SearchForm({ onSearch, onLogin }: SearchFormProps) {
                         className="w-full rounded-xl [&_.ant-select-selector]:rounded-xl"
                     />
                     <Select
+                        id="home-search-ward"
+                        aria-label={t('search.ward') || 'Quận / Huyện'}
                         size="large"
                         placeholder={t('search.ward')}
                         value={filters.district || undefined}
@@ -119,18 +124,9 @@ export function SearchForm({ onSearch, onLogin }: SearchFormProps) {
                         notFoundContent={!filters.city ? undefined : t('search.noWards')}
                         className="w-full rounded-xl [&_.ant-select-selector]:rounded-xl"
                     />
-                    <Input
-                        size="large"
-                        placeholder={t('search.detailAddress')}
-                        value={filters.address}
-                        onChange={(e) => handleFilterChange('address', e.target.value)}
-                        className="rounded-xl [&_.ant-input]:rounded-xl"
-                        allowClear
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Select
+                        id="home-search-price"
+                        aria-label={t('search.priceRange') || 'Khoảng giá'}
                         size="large"
                         placeholder={t('search.priceRange')}
                         value={filters.priceRange || undefined}
@@ -140,82 +136,38 @@ export function SearchForm({ onSearch, onLogin }: SearchFormProps) {
                         className="w-full rounded-xl [&_.ant-select-selector]:rounded-xl"
                     />
                     <Select
+                        id="home-search-room-type"
+                        aria-label={t('search.roomType') || 'Loại phòng'}
                         size="large"
-                        placeholder={t('search.roomType')}
+                        placeholder={t('search.roomType') || 'Loại phòng'}
                         value={filters.roomType || undefined}
                         onChange={(v) => handleFilterChange('roomType', v || '')}
                         options={roomTypeOptionsFormatted}
                         allowClear
-                        loading={roomTypesLoading}
-                        notFoundContent={roomTypesLoading ? undefined : t('search.noRoomTypes')}
                         className="w-full rounded-xl [&_.ant-select-selector]:rounded-xl"
                     />
                 </div>
 
-                {/* Advanced search: toggle button */}
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-1">
-                    <Button type="primary" htmlType="submit" size="large" className="flex-1 rounded-xl font-semibold h-11 sm:h-12 min-h-[44px] touch-manipulation shadow-md hover:shadow-lg transition-shadow active:scale-[0.98]">
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        size="large"
+                        icon={<SearchOutlined />}
+                        className="flex-1 rounded-xl font-semibold h-11 sm:h-12 min-h-[44px] touch-manipulation shadow-md hover:shadow-lg transition-shadow active:scale-[0.98]"
+                    >
                         {t('search.search')}
                     </Button>
                     <Button
                         size="large"
                         type="default"
-                        onClick={() => setAdvancedExpanded((prev) => !prev)}
-                        className="rounded-xl h-11 sm:h-12 min-h-[44px] flex items-center justify-center gap-2 touch-manipulation"
-                        icon={<FilterOutlined />}
+                        onClick={() => navigate('/search')}
+                        className="rounded-xl h-11 sm:h-12 min-h-[44px] flex items-center justify-center gap-2 touch-manipulation border-primary text-primary hover:!text-primary hover:!border-primary"
+                        icon={<ThunderboltOutlined />}
                     >
-                        {t('search.advancedSearch')}
-                        {advancedExpanded ? <UpOutlined className="text-xs" /> : <DownOutlined className="text-xs" />}
+                        {t('search.advancedSearch') || 'Tìm kiếm nâng cao'}
                     </Button>
                 </div>
-
-                {/* Advanced section: amenities, area – tenant/VIP only */}
-                {advancedExpanded && (
-                    <div className={`rounded-xl border p-4 space-y-4 ${showGuestOverlay ? 'opacity-60 relative' : ''}`}>
-                        {showGuestOverlay && (
-                            <div className="absolute inset-0 rounded-xl bg-background/80 flex flex-col items-center justify-center gap-3 z-10">
-                                <p className="text-sm font-medium text-center px-4">
-                                    Đăng nhập để sử dụng tiện nghi và gợi ý cá nhân
-                                </p>
-                                <Button type="primary" size="middle" onClick={onLogin}>
-                                    Đăng nhập
-                                </Button>
-                            </div>
-                        )}
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Tiện nghi</label>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {amenitiesList.map((a) => (
-                                    <Checkbox
-                                        key={a.id}
-                                        checked={selectedAmenities.includes(a.id)}
-                                        onChange={() => !showGuestOverlay && toggleAmenity(a.id)}
-                                        disabled={showGuestOverlay || amenitiesLoading}
-                                    >
-                                        {a.name}
-                                    </Checkbox>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Diện tích (m²)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                <Input
-                                    placeholder="Tối thiểu"
-                                    value={minArea}
-                                    onChange={(e) => setMinArea(e.target.value)}
-                                    disabled={showGuestOverlay}
-                                />
-                                <Input
-                                    placeholder="Tối đa"
-                                    value={maxArea}
-                                    onChange={(e) => setMaxArea(e.target.value)}
-                                    disabled={showGuestOverlay}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )}
             </form>
         </div>
     );

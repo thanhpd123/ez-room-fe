@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Heart, Trash2, MapPin, Maximize } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useFavorites } from '@/app/context/FavoritesContext';
 
 export function FavoritesPage() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { favorites, removeFavorite } = useFavorites();
 
     return (
@@ -17,11 +19,11 @@ export function FavoritesPage() {
                             className="flex items-center gap-2 text-foreground hover:text-primary transition-colors font-medium"
                         >
                             <ArrowLeft className="w-5 h-5" strokeWidth={2} />
-                            Quay lại
+                            {t('favorites.back')}
                         </button>
                         <div className="flex items-center gap-2">
                             <Heart className="w-5 h-5 text-accent fill-accent" strokeWidth={2} />
-                            <span className="font-medium text-foreground">{favorites.length} phòng đã lưu</span>
+                            <span className="font-medium text-foreground">{t('favorites.savedCount', { count: favorites.length })}</span>
                         </div>
                     </div>
                 </div>
@@ -29,8 +31,8 @@ export function FavoritesPage() {
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
                 <div className="mb-10">
-                    <h1 className="font-heading text-3xl font-bold text-foreground mb-2">Phòng trọ yêu thích</h1>
-                    <p className="text-muted-foreground">Danh sách các phòng trọ bạn đã lưu để xem lại sau</p>
+                    <h1 className="font-heading text-3xl font-bold text-foreground mb-2">{t('favorites.title')}</h1>
+                    <p className="text-muted-foreground">{t('favorites.subtitle')}</p>
                 </div>
 
                 {favorites.length > 0 && (
@@ -38,9 +40,9 @@ export function FavoritesPage() {
                         <div className="flex items-start gap-3">
                             <Heart className="w-5 h-5 text-accent fill-accent flex-shrink-0 mt-0.5" strokeWidth={2} />
                             <div>
-                                <p className="font-semibold text-foreground mb-1">Mẹo sử dụng</p>
+                                <p className="font-semibold text-foreground mb-1">{t('favorites.tip')}</p>
                                 <p className="text-sm text-muted-foreground leading-relaxed">
-                                    Lưu các phòng trọ yêu thích để so sánh và xem lại sau. Bạn có thể xóa bất kỳ phòng nào khỏi danh sách bằng cách nhấn vào icon thùng rác.
+                                    {t('favorites.tipDesc')}
                                 </p>
                             </div>
                         </div>
@@ -60,7 +62,7 @@ export function FavoritesPage() {
                                         {!room.available && (
                                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                                                 <span className="bg-card text-foreground px-4 py-2 rounded-xl font-medium text-sm">
-                                                    Đã cho thuê
+                                                    {t('favorites.rented')}
                                                 </span>
                                             </div>
                                         )}
@@ -84,14 +86,14 @@ export function FavoritesPage() {
                                         <div className="flex items-center justify-between gap-4 pt-2">
                                             <div>
                                                 <p className="text-2xl font-bold text-primary">{(room.price / 1000000).toFixed(1)}M</p>
-                                                <p className="text-sm text-muted-foreground">/tháng</p>
+                                                <p className="text-sm text-muted-foreground">{t('favorites.perMonth')}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     type="button"
                                                     onClick={() => removeFavorite(room.id)}
                                                     className="p-2.5 rounded-xl border border-border hover:border-destructive/50 hover:bg-destructive/5 transition-colors group"
-                                                    title="Xóa khỏi danh sách yêu thích"
+                                                    title={t('favorites.removeTitle')}
                                                 >
                                                     <Trash2 className="w-5 h-5 text-muted-foreground group-hover:text-destructive transition-colors" strokeWidth={2} />
                                                 </button>
@@ -100,7 +102,7 @@ export function FavoritesPage() {
                                                     onClick={() => navigate(`/room/${room.id}`)}
                                                     className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors whitespace-nowrap shadow-sm"
                                                 >
-                                                    Xem chi tiết
+                                                    {t('favorites.viewDetail')}
                                                 </button>
                                             </div>
                                         </div>
@@ -114,16 +116,16 @@ export function FavoritesPage() {
                         <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-accent/10 mb-6">
                             <Heart className="w-12 h-12 text-accent" strokeWidth={2} />
                         </div>
-                        <h3 className="font-heading text-xl font-bold text-foreground mb-2">Chưa có phòng yêu thích</h3>
+                        <h3 className="font-heading text-xl font-bold text-foreground mb-2">{t('favorites.empty')}</h3>
                         <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
-                            Bạn chưa lưu phòng trọ nào. Hãy tìm kiếm và nhấn vào icon trái tim để lưu những phòng bạn thích!
+                            {t('favorites.emptyDesc')}
                         </p>
                         <button
                             type="button"
                             onClick={() => navigate('/search')}
                             className="px-6 py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors shadow-sm"
                         >
-                            Khám phá phòng trọ
+                            {t('favorites.explore')}
                         </button>
                     </div>
                 )}

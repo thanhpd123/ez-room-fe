@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Camera, Heart, Search } from 'lucide-react';
 import { Header, Footer } from '@/app/features/home/components';
 import { getPublicRoomsRequest, type PublicRoomItem } from '@/lib/api';
@@ -7,41 +8,29 @@ import './RoomsPage.css';
 
 const PAGE_SIZE = 10;
 
-const ROOM_TYPE_TABS = [
-    { label: 'Tất cả', value: '' },
-    { label: 'Phòng riêng', value: 'single' },
-    { label: 'Phòng ghép', value: 'shared' },
-    { label: 'Studio', value: 'studio' },
-    { label: 'Apartment', value: 'apartment' },
-];
-
-const SORT_TABS = [
-    { label: 'Mới đăng', value: 'newest' },
-    { label: 'Đề xuất', value: 'recommended' },
-];
-
-function formatPrice(price: number): string {
+function formatPrice(price: number, tPerMillion: string, tPerDong: string): string {
     if (price >= 1_000_000) {
         const millions = price / 1_000_000;
-        return `${Number.isInteger(millions) ? millions : millions.toFixed(1)} triệu/tháng`;
+        return `${Number.isInteger(millions) ? millions : millions.toFixed(1)} ${tPerMillion}`;
     }
-    return `${price.toLocaleString('vi-VN')} đ/tháng`;
+    return `${price.toLocaleString('vi-VN')} ${tPerDong}`;
 }
 
 function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Vừa xong';
-    if (mins < 60) return `${mins} phút trước`;
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours} giờ trước`;
+    if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
-    if (days < 7) return `${days} ngày trước`;
-    return new Date(dateStr).toLocaleDateString('vi-VN');
+    if (days < 7) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString();
 }
 
 export function RoomsPage() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [searchParams, setSearchParams] = useSearchParams();
     const [rooms, setRooms] = useState<PublicRoomItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -120,14 +109,20 @@ export function RoomsPage() {
 
             {/* Hero */}
             <div className="rooms-hero">
-                <h1>Tìm phòng trọ</h1>
-                <p>Khám phá hàng trăm phòng trọ chất lượng trên EzRoom</p>
+                <h1>{t('rooms.title')}</h1>
+                <p>{t('rooms.subtitle')}</p>
             </div>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Category tabs */}
                 <div className="rooms-category-bar">
-                    {ROOM_TYPE_TABS.map((tab) => (
+                    {([
+                        { label: t('rooms.typeAll'), value: '' },
+                        { label: t('rooms.typeSingle'), value: 'single' },
+                        { label: t('rooms.typeShared'), value: 'shared' },
+                        { label: t('rooms.typeStudio'), value: 'studio' },
+                        { label: t('rooms.typeApartment'), value: 'apartment' },
+                    ] as { label: string; value: string }[]).map((tab) => (
                         <button
                             key={tab.value}
                             type="button"
@@ -141,7 +136,10 @@ export function RoomsPage() {
 
                 {/* Sort tabs + stats */}
                 <div className="rooms-sort-bar">
-                    {SORT_TABS.map((tab) => (
+                    {([
+                        { label: t('rooms.sortNewest'), value: 'newest' },
+                        { label: t('rooms.sortRecommended'), value: 'recommended' },
+                    ] as { label: string; value: string }[]).map((tab) => (
                         <button
                             key={tab.value}
                             type="button"
@@ -155,10 +153,9 @@ export function RoomsPage() {
 
                 <div className="rooms-stats">
                     <span>
-                        {loading ? '...' : `Hiện có ${pagination.total} phòng`}
-                        {activeType && ` loại "${ROOM_TYPE_TABS.find(t => t.value === activeType)?.label}"`}
+                        {loading ? '...' : t('rooms.showing', { total: pagination.total })}
                     </span>
-                    <span>Trang {pagination.page}/{pagination.pages || 1}</span>
+                    <span>{t('rooms.page', { page: pagination.page, total: pagination.pages || 1 })}</span>
                 </div>
 
                 {/* Room list */}
@@ -180,13 +177,13 @@ export function RoomsPage() {
                         <div className="rooms-empty-icon">
                             <Search />
                         </div>
-                        <p className="text-muted-foreground text-base">Không tìm thấy phòng trọ nào</p>
+                        <p className="text-muted-foreground text-base">{t('rooms.empty')}</p>
                         <button
                             type="button"
                             className="mt-3 text-primary font-semibold hover:underline"
                             onClick={() => handleTypeChange('')}
                         >
-                            Xem tất cả phòng
+                            {t('rooms.viewAll')}
                         </button>
                     </div>
                 ) : (
@@ -194,7 +191,7 @@ export function RoomsPage() {
                         const images = room.images || [];
                         const loc = room.rental?.location;
                         const address = loc ? [loc.district, loc.city].filter(Boolean).join(', ') : '';
-                        const name = room.roomName || room.title || 'Phòng trọ';
+                        const name = room.roomName || room.title || t('rooms.title');
                         const desc = room.description || '';
                         const amenities = room.amenities || [];
                         const created = room.createdAt;
@@ -240,7 +237,7 @@ export function RoomsPage() {
                                     <h3 className="room-card-title">{name}</h3>
 
                                     <div className="room-card-meta">
-                                        <span className="room-card-price">{formatPrice(room.price)}</span>
+                                        <span className="room-card-price">{formatPrice(room.price, t('listing.pricePerMillion'), t('listing.pricePerDong'))}</span>
                                         {room.sizeM2 && (
                                             <span className="room-card-area">{room.sizeM2} m²</span>
                                         )}
@@ -273,7 +270,7 @@ export function RoomsPage() {
                                                 {(room.rental?.title || '?')[0]}
                                             </div>
                                             <div>
-                                                <div className="room-card-owner-name">{room.rental?.title || 'Chủ nhà'}</div>
+                                                <div className="room-card-owner-name">{room.rental?.title || t('rooms.landlordFallback')}</div>
                                                 <div className="room-card-owner-date">{created ? timeAgo(created) : ''}</div>
                                             </div>
                                         </div>
@@ -281,7 +278,7 @@ export function RoomsPage() {
                                             type="button"
                                             className="room-card-heart"
                                             onClick={(e) => { e.stopPropagation(); }}
-                                            title="Yêu thích"
+                                            title={t('rooms.favorite')}
                                         >
                                             <Heart size={20} />
                                         </button>

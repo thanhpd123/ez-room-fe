@@ -15,6 +15,7 @@ import { usePublicRentals } from './hooks/usePublicRentals';
 import { usePopularAreas } from './hooks/usePopularAreas';
 import { useRecommendedRooms } from './hooks/useRecommendedRooms';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+import { T } from '@/app/components/T';
 import { MapPin } from 'lucide-react';
 import { buildSearchUrl } from '@/lib/utils/searchUrlBuilder';
 import { getPublicRoomsRequest, type PublicRoomItem } from '@/lib/api';
@@ -145,10 +146,10 @@ export function HomePage() {
                         {featuredRooms.map((room) => {
                             const loc = room.rental?.location;
                             const locationStr = loc ? [loc.district, loc.city].filter(Boolean).join(', ') : '—';
-                            const name = room.roomName || room.title || 'Phòng trọ';
+                            const name = room.roomName || room.title || t('home.suggestions');
                             const priceStr = room.price >= 1_000_000
-                                ? `${(room.price / 1_000_000).toFixed(room.price % 1_000_000 === 0 ? 0 : 1)} triệu/tháng`
-                                : `${room.price.toLocaleString('vi-VN')} đ/tháng`;
+                                ? `${(room.price / 1_000_000).toFixed(room.price % 1_000_000 === 0 ? 0 : 1)} ${t('listing.pricePerMillion')}`
+                                : `${room.price.toLocaleString('vi-VN')} ${t('listing.pricePerDong')}`;
                             return (
                                 <div
                                     key={room.id}
@@ -167,11 +168,11 @@ export function HomePage() {
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
                                     </div>
                                     <div className="p-4">
-                                        <Title level={5} className="!font-heading !mb-1 truncate group-hover/card:text-primary transition-colors">{name}</Title>
+                                        <Title level={5} className="!font-heading !mb-1 truncate group-hover/card:text-primary transition-colors"><T>{name}</T></Title>
                                         <p className="text-sm font-semibold text-accent mb-2">{priceStr}</p>
                                         <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                             <MapPin className="w-4 h-4 shrink-0" />
-                                            <span className="truncate">{locationStr}</span>
+                                            <span className="truncate"><T>{locationStr}</T></span>
                                         </div>
                                         <button
                                             type="button"
@@ -192,10 +193,10 @@ export function HomePage() {
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
                     <div>
                         <Title level={2} className="!text-foreground !mb-2 !font-heading">
-                            {isLoggedIn ? t('home.recommendedTitle', 'Gợi ý cho bạn') : t('home.recommendedLoginTitle', 'Gợi ý cá nhân')}
+                            {isLoggedIn ? t('home.recommendedTitle') : t('home.recommendedLoginTitle')}
                         </Title>
                         <Paragraph type="secondary" className="!mb-0">
-                            {isLoggedIn ? (recommendHint || t('home.recommendedSubtitle', 'Phòng phù hợp sở thích và phòng bạn đã lưu')) : t('home.recommendedLoginSubtitle', 'Đăng nhập để xem gợi ý phòng dựa trên sở thích và phòng yêu thích của bạn')}
+                            {isLoggedIn ? (recommendHint || t('home.recommendedSubtitle')) : t('home.recommendedLoginSubtitle')}
                         </Paragraph>
                     </div>
                     {isLoggedIn && recommendedRooms.length > 0 && (
@@ -211,9 +212,9 @@ export function HomePage() {
                 </div>
                 {!isLoggedIn ? (
                     <div className="rounded-2xl border-2 border-dashed border-border bg-muted/20 p-8 sm:p-12 text-center">
-                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">{t('home.recommendedLoginDesc', 'Gợi ý dựa trên lối sống, ngân sách, khu vực ưa thích và các phòng bạn đã lưu.')}</p>
+                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">{t('home.recommendedLoginDesc')}</p>
                         <Button type="primary" size="large" className="rounded-xl font-semibold" onClick={handleLogin}>
-                            {t('home.loginToSeeRecommend', 'Đăng nhập để xem gợi ý')}
+                            {t('home.loginToSeeRecommend')}
                         </Button>
                     </div>
                 ) : recommendLoading ? (
@@ -231,7 +232,7 @@ export function HomePage() {
                     </div>
                 ) : recommendedRooms.length === 0 ? (
                     <div className="py-12 text-center rounded-2xl border-2 border-dashed border-border bg-muted/20">
-                        <Paragraph type="secondary" className="!mb-0 text-base">{t('home.noRecommended', 'Chưa có gợi ý. Cập nhật sở thích hoặc lưu vài phòng để nhận gợi ý phù hợp hơn.')}</Paragraph>
+                        <Paragraph type="secondary" className="!mb-0 text-base">{t('home.noRecommended')}</Paragraph>
                         <button type="button" onClick={() => navigate('/search')} className="mt-4 text-primary font-semibold hover:underline">
                             {t('home.viewAll')}
                         </button>
@@ -240,8 +241,8 @@ export function HomePage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                         {recommendedRooms.slice(0, 8).map((room) => {
                             const priceStr = room.price >= 1_000_000
-                                ? `${(room.price / 1_000_000).toFixed(room.price % 1_000_000 === 0 ? 0 : 1)} triệu/tháng`
-                                : `${room.price.toLocaleString('vi-VN')} đ/tháng`;
+                                ? `${(room.price / 1_000_000).toFixed(room.price % 1_000_000 === 0 ? 0 : 1)} ${t('listing.pricePerMillion')}`
+                                : `${room.price.toLocaleString('vi-VN')} ${t('listing.pricePerDong')}`;
                             return (
                                 <div
                                     key={room.id}
@@ -260,12 +261,12 @@ export function HomePage() {
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
                                     </div>
                                     <div className="p-4">
-                                        <Title level={5} className="!font-heading !mb-1 truncate group-hover/card:text-primary transition-colors">{room.title}</Title>
+                                        <Title level={5} className="!font-heading !mb-1 truncate group-hover/card:text-primary transition-colors"><T>{room.title}</T></Title>
                                         <p className="text-sm font-semibold text-accent mb-2">{priceStr}</p>
                                         <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                             <MapPin className="w-4 h-4 shrink-0" />
                                             <span className="truncate">
-                                                {room.location ? [room.location.district, room.location.city].filter(Boolean).join(', ') : '—'}
+                                                <T>{room.location ? [room.location.district, room.location.city].filter(Boolean).join(', ') : '—'}</T>
                                             </span>
                                         </div>
                                         <button type="button" className="mt-3 w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 active:scale-[0.98] transition-all">

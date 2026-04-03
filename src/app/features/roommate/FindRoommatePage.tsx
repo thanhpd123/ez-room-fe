@@ -37,7 +37,8 @@ import {
     inviteRoommateRequest,
     searchRoommatesRequest,
     getTopSearchersByAreaRequest,
-    getRoommateProfileRequest,
+    getPreferenceRequest,
+    fetchAuthMe,
     type RoommateSuggestionItem,
     type RoommateMatchItem,
     type MyActiveRoomItem,
@@ -164,7 +165,11 @@ export function FindRoommatePage() {
         area: string; budgetMax: number | ''; roomType: string; gender: string;
     }>({ area: '', budgetMax: '', roomType: '', gender: '' });
 
-    const hasGender = user?.gender && String(user.gender).trim() && String(user.gender).toLowerCase() !== 'không tiết lộ';
+    // Use a local fresh gender state so the banner hides immediately after a profile update
+    // without requiring a full auth context refresh (cached user can be stale).
+    const [myGender, setMyGender] = useState<string | null | undefined>(user?.gender);
+
+    const hasGender = myGender && String(myGender).trim() && String(myGender).toLowerCase() !== 'không tiết lộ';
 
     const hasActiveFilter = !!filterArea || filterBudgetMax !== '' || !!filterRoomType || !!filterGender;
     const hasAppliedFilter = !!appliedFilter.area || appliedFilter.budgetMax !== '' || !!appliedFilter.roomType || !!appliedFilter.gender;
@@ -264,18 +269,25 @@ export function FindRoommatePage() {
         loadSuggestions();
     }, [user?.id]);
 
+    // Fetch fresh user data to ensure gender check is not stale after a profile update
+    useEffect(() => {
+        if (!user?.id) return;
+        fetchAuthMe()
+            .then((r) => { if (r.user?.gender !== undefined) setMyGender(r.user.gender ?? null); })
+            .catch(() => {});
+    }, [user?.id]);
+
     // Fetch current user's preferred_districts for quick-select chips
     useEffect(() => {
         if (!user?.id) return;
-        getRoommateProfileRequest(user.id)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .then((r: any) => {
-                const districts = r.data?.preference?.preferred_districts;
+        getPreferenceRequest()
+            .then((r) => {
+                const districts = r.preference?.preferred_districts;
                 if (Array.isArray(districts) && districts.length > 0) {
                     setMyPreferredDistricts(districts);
                 }
             })
-            .catch(() => {/* silent — chips are optional */});
+            .catch(() => {});
     }, [user?.id]);
 
     useEffect(() => {

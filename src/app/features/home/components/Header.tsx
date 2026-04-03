@@ -7,8 +7,9 @@ import type { MenuProps } from 'antd';
 import { useFavorites } from '@/app/context/FavoritesContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { useChatBox } from '@/app/context/ChatBoxContext';
-import { supportedLngs, type SupportedLang } from '@/i18n';
+import { supportedLngs, type SupportedLng } from '@/i18n';
 import { trackEvent } from '@/lib/analytics';
+import { useAppLanguage, type AppLanguage } from '@/app/context/useAppLanguage';
 import {
     getNotificationsRequest,
     getUnreadCountRequest,
@@ -23,7 +24,7 @@ interface HeaderProps {
     onRegister?: () => void;
 }
 
-const langLabels: Record<SupportedLang, string> = { en: 'English', vi: 'Tiếng Việt' };
+const langLabels: Record<SupportedLng, string> = { en: 'English', vi: 'Tiếng Việt' };
 
 /** Format relative time in Vietnamese */
 function timeAgo(dateStr: string): string {
@@ -77,15 +78,16 @@ function parseRoomPreview(data: Record<string, unknown>): RoomPreview {
 export function Header({ onLogin, onRegister }: HeaderProps) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const { favorites } = useFavorites();
     const { user, signOut } = useAuth();
     const chatBox = useChatBox();
+    const { language, isTranslating, switchLanguage } = useAppLanguage();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const showVipCta =
+    const showVipNav =
         user != null &&
-        (user.role === 'TENANT' || user.role === 'LANDLORD') &&
-        user.isVip !== true;
+        (user.role === 'TENANT' || user.role === 'LANDLORD');
+    const showVipCta = showVipNav && user.isVip !== true;
 
     // Notification state
     const [notifOpen, setNotifOpen] = useState(false);
@@ -207,8 +209,13 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
 
     const langMenuItems: MenuProps['items'] = supportedLngs.map((lng) => ({
         key: lng,
-        label: langLabels[lng],
-        onClick: () => i18n.changeLanguage(lng),
+        label: (
+            <span className="flex items-center gap-2">
+                {langLabels[lng as keyof typeof langLabels]}
+                {language === lng && <span className="text-xs text-primary font-semibold">✓</span>}
+            </span>
+        ),
+        onClick: () => switchLanguage(lng as AppLanguage),
     }));
 
     const handleLogin = () => {
@@ -238,8 +245,18 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
 
                     <nav className="hidden md:flex items-center gap-6 lg:gap-8">
                         {navLink('/home', t('nav.home'))}
-                        {navLink('/rooms', 'Phòng Trọ')}
+                        {navLink('/rooms', t('nav.rooms'))}
                         {navLink('/roommate', t('nav.findRoommate'))}
+                        {showVipNav && user?.isVip === true && (
+                            <Link
+                                to="/vip-management"
+                                onClick={() => trackEvent('vip_management_clicked', { source: 'header_desktop' })}
+                                className="relative py-2 transition-colors font-medium no-underline flex items-center gap-1.5 text-violet-600 hover:text-violet-700"
+                            >
+                                <span className="text-sm">👑</span>
+                                VIP
+                            </Link>
+                        )}
                         {showVipCta && (
                             <Link
                                 to="/vip-plans?source=header"
@@ -254,15 +271,24 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                     </nav>
 
                     <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
-                        <Button
-                            type="text"
-                            icon={<MenuOutlined className="text-xl" />}
-                            onClick={() => setMobileMenuOpen(true)}
-                            className="md:hidden p-2 -mr-1 text-foreground hover:text-primary touch-manipulation"
-                            aria-label={t('nav.menu') || 'Menu'}
-                        />
-                        <Dropdown menu={{ items: langMenuItems }} placement="bottomRight" trigger={['click']}>
-                            <Button type="text" icon={<GlobalOutlined className="text-base sm:text-lg" />} className="text-foreground hover:text-primary p-2 sm:px-2 touch-manipulation" title={langLabels[i18n.language as SupportedLang] ?? 'Language'} />
+                        <div className="md:hidden">
+                            <Button
+                                type="text"
+                                icon={<MenuOutlined className="text-xl" />}
+                                onClick={() => setMobileMenuOpen(true)}
+                                className="p-2 -mr-1 text-foreground hover:text-primary touch-manipulation"
+                                aria-label={t('nav.menu') || 'Menu'}
+                            />
+                        </div>
+                        <Dropdown menu={{ items: langMenuItems }} placement="bottomRight" trigger={['click']} disabled={isTranslating}>
+                            <Button
+                                type="text"
+                                icon={isTranslating
+                                    ? <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                    : <GlobalOutlined className="text-base sm:text-lg" />}
+                                className="text-foreground hover:text-primary p-2 sm:px-2 touch-manipulation"
+                                title={isTranslating ? t('header.translating') : (langLabels[language] ?? 'Language')}
+                            />
                         </Dropdown>
                         <Badge count={favorites.length} size="small" offset={[-2, 2]}>
                             <Button
@@ -279,7 +305,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 icon={<MessageOutlined className="text-base sm:text-lg" />}
                                 onClick={() => (chatBox ? chatBox.openChat() : navigate('/chat'))}
                                 className="flex items-center justify-center text-foreground hover:text-primary p-2 sm:px-2 touch-manipulation"
-                                title={t('nav.chat', 'Tin nhắn')}
+                                title={t('nav.chat')}
                             />
                         )}
 
@@ -292,7 +318,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                         icon={<BellOutlined className="text-base sm:text-lg" />}
                                         onClick={toggleNotifications}
                                         className="flex items-center justify-center text-foreground hover:text-primary p-2 sm:px-2 touch-manipulation"
-                                        title="Thông báo"
+                                        title={t('nav.notifications')}
                                     />
                                 </Badge>
 
@@ -300,14 +326,14 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 {notifOpen && (
                                     <div className="absolute right-0 top-full mt-2 w-[360px] max-h-[480px] bg-card border border-border rounded-2xl shadow-xl overflow-hidden z-50 flex flex-col">
                                         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-                                            <h3 className="font-semibold text-foreground text-sm">🔔 Thông báo</h3>
+                                            <h3 className="font-semibold text-foreground text-sm">{t('header.notificationsTitle')}</h3>
                                             {unreadCount > 0 && (
                                                 <button
                                                     type="button"
                                                     onClick={handleMarkAllRead}
                                                     className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                                                 >
-                                                    Đọc tất cả
+                                                    {t('header.markAllRead')}
                                                 </button>
                                             )}
                                         </div>
@@ -315,12 +341,12 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                         <div className="overflow-y-auto flex-1">
                                             {loadingNotifs ? (
                                                 <div className="py-12 text-center text-muted-foreground text-sm">
-                                                    Đang tải...
+                                                    {t('header.loading')}
                                                 </div>
                                             ) : notifications.length === 0 ? (
                                                 <div className="py-12 text-center text-muted-foreground text-sm">
                                                     <BellOutlined className="text-2xl mb-2 opacity-40 block mx-auto" />
-                                                    Chưa có thông báo
+                                                    {t('header.noNotifications')}
                                                 </div>
                                             ) : (
                                                 notifications.map((notif) => (
@@ -341,7 +367,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                                         <div className="min-w-0 flex-1">
                                                             <p className={`text-sm leading-snug ${notif.status === 'UNREAD' ? 'font-semibold text-foreground' : 'text-muted-foreground'
                                                                 }`}>
-                                                                {notif.title || 'Thông báo'}
+                                                                {notif.title || t('nav.notifications')}
                                                             </p>
                                                             {notif.body && (
                                                                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
@@ -353,7 +379,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                                             </p>
                                                             {notif.roomId && notif.type === 'ROOMMATE_INVITE' && (
                                                                 <span className="inline-flex items-center gap-1 text-[11px] text-primary font-medium mt-1">
-                                                                    🏠 Xem thông tin phòng →
+                                                                    {t('header.viewRoomInfo')}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -372,7 +398,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 icon={<WalletOutlined className="text-base sm:text-lg" />}
                                 onClick={() => navigate('/wallet')}
                                 className="flex items-center justify-center text-foreground hover:text-primary p-2 sm:px-2 touch-manipulation"
-                                title="Ví tiền"
+                                title={t('nav.wallet')}
                             />
                         )}
 
@@ -414,7 +440,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                 footer={null}
                 width={520}
                 centered
-                destroyOnClose
+                destroyOnHidden
                 className="[&_.ant-modal-content]:rounded-2xl [&_.ant-modal-content]:overflow-hidden [&_.ant-modal-content]:p-0 [&_.ant-modal-close]:top-3 [&_.ant-modal-close]:right-3 [&_.ant-modal-close]:z-10"
             >
                 {roomLoading ? (
@@ -434,7 +460,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                                 <div className="absolute bottom-3 left-4 right-4">
                                     <span className="inline-block bg-primary text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-                                        🏠 Lời mời ở ghép
+                                        {t('header.roommateInvite')}
                                     </span>
                                 </div>
                             </div>
@@ -458,11 +484,11 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                         <span className="text-muted-foreground">{roomPreview.address}</span>
                                     </div>
                                 )}
-                                <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-4">
                                     <div className="flex items-center gap-1.5 text-sm">
                                         <DollarOutlined className="text-primary" />
                                         <span className="font-semibold text-foreground">
-                                            {roomPreview.price.toLocaleString('vi-VN')} VNĐ/tháng
+                                            {roomPreview.price.toLocaleString('vi-VN')} {t('header.perMonth')}
                                         </span>
                                     </div>
                                     {roomPreview.area > 0 && (
@@ -472,7 +498,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                     )}
                                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                         <TeamOutlined className="text-primary" />
-                                        <span>Tối đa {roomPreview.maxPeople} người</span>
+                                        <span>{t('header.maxPeople', { n: roomPreview.maxPeople })}</span>
                                     </div>
                                 </div>
                             </div>
@@ -499,13 +525,13 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 onClick={handleGoToRoomDetail}
                                 className="rounded-xl min-h-12 font-semibold text-base shadow-sm hover:shadow-md transition-shadow"
                             >
-                                🏠 Xem chi tiết phòng
+                                {t('header.viewRoomDetail')}
                             </Button>
                         </div>
                     </div>
                 ) : (
                     <div className="py-16 text-center text-muted-foreground">
-                        <p>Không tìm thấy thông tin phòng</p>
+                        <p>{t('header.roomNotFound')}</p>
                     </div>
                 )}
             </Modal>
@@ -523,11 +549,23 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                         {t('nav.home')}
                     </Link>
                     <Link to="/rooms" className={navLinkClass} onClick={() => setMobileMenuOpen(false)}>
-                        Tìm phòng
+                        {t('nav.rooms')}
                     </Link>
                     <Link to="/roommate" className={navLinkClass} onClick={() => setMobileMenuOpen(false)}>
                         {t('nav.findRoommate')}
                     </Link>
+                    {showVipNav && user?.isVip === true && (
+                        <Link
+                            to="/vip-management"
+                            className={`${navLinkClass} text-violet-600`}
+                            onClick={() => {
+                                trackEvent('vip_management_clicked', { source: 'header_mobile' });
+                                setMobileMenuOpen(false);
+                            }}
+                        >
+                            👑 {t('nav.vipMine')}
+                        </Link>
+                    )}
                     {showVipCta && (
                         <Link
                             to="/vip-plans?source=header"
@@ -569,11 +607,11 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                     className="rounded-xl min-h-12"
                                     onClick={() => { setMobileMenuOpen(false); chatBox ? chatBox.openChat() : navigate('/chat'); }}
                                 >
-                                    {t('nav.chat', 'Tin nhắn')}
+                                    {t('nav.chat')}
                                 </Button>
                                 <Link to="/wallet" onClick={() => setMobileMenuOpen(false)}>
                                     <Button type="default" block size="large" icon={<WalletOutlined />} className="rounded-xl min-h-12">
-                                        Ví tiền
+                                        {t('nav.wallet')}
                                     </Button>
                                 </Link>
                                 <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>

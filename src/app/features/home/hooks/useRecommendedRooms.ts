@@ -4,15 +4,13 @@ import { getRecommendRequest } from '@/lib/api';
 
 export interface RecommendedRoom {
     id: string;
-    rentalId: string;
     title: string;
+    description: string | null;
     price: number;
     area: number | null;
-    roomType: string | null;
     amenities: string[];
     images: string[];
     location: { district: string | null; city: string | null } | null;
-    matchScore: number;
 }
 
 export function useRecommendedRooms() {
@@ -36,15 +34,16 @@ export function useRecommendedRooms() {
                         setRooms(
                             res.data.map((room) => ({
                                 id: room.id,
-                                rentalId: room.id,
                                 title: room.title,
+                                description:
+                                    'description' in room && room.description != null
+                                        ? String(room.description)
+                                        : null,
                                 price: room.price,
                                 area: room.area,
-                                roomType: null,
                                 amenities: room.amenities,
                                 images: room.images,
                                 location: room.location,
-                                matchScore: 0,
                             }))
                         );
                         setHint(res.hint ?? '');

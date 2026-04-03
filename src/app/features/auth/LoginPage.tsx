@@ -13,7 +13,8 @@ export function LoginPage() {
     const location = useLocation();
     const { t } = useTranslation();
     const { user, signInWithGoogle, signInWithEmail, isLoading } = useAuth();
-    const justRegistered = (location.state as { registered?: boolean })?.registered === true;
+    const loginState = location.state as { registered?: boolean; postLoginRedirect?: string; from?: { pathname: string } } | null;
+    const justRegistered = loginState?.registered === true;
 
     const [submitLoading, setSubmitLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -22,12 +23,16 @@ export function LoginPage() {
 
     useEffect(() => {
         if (!isLoading && user) {
-            const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
+            const from = loginState?.from?.pathname;
+            const postLoginRedirect = loginState?.postLoginRedirect;
             const roleDestination = getRedirectByRole(user.role);
-            const destination = user.role === 'ADMIN' ? roleDestination : (from || roleDestination);
+            const destination =
+                user.role === 'ADMIN'
+                    ? roleDestination
+                    : from || postLoginRedirect || roleDestination;
             navigate(destination, { replace: true });
         }
-    }, [user, isLoading, navigate, location.state]);
+    }, [user, isLoading, navigate, loginState]);
 
     const handleSubmit = async (values: { email: string; password: string }) => {
         setError(null);

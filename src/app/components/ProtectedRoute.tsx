@@ -1,4 +1,5 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/app/context/AuthContext';
 
 interface ProtectedRouteProps {
@@ -7,33 +8,41 @@ interface ProtectedRouteProps {
 }
 
 /**
- * Renders children only when user is logged in; otherwise redirects to /login.
- * If requiredRole is provided, also checks if user has the required role(s).
+ * Guards a route behind authentication (and optionally a role check).
+ *
+ * Uses useEffect + useNavigate instead of rendering <Navigate> synchronously,
+ * which avoids the ErrorResponseImpl that data-router (createBrowserRouter)
+ * surfaces when a navigation is triggered mid-render.
  */
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
     const { user, isLoading } = useAuth();
+    const navigate = useNavigate();
     const location = useLocation();
 
-    if (isLoading) {
+    const userRole = (user as { role?: string } | null)?.role;
+
+    const needsLogin = !isLoading && !user;
+    const needsRoleRedirect = !isLoading && !!user && !!requiredRole && (() => {
+        const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+        return !userRole || !roles.includes(userRole);
+    })();
+
+    useEffect(() => {
+        if (needsLogin) {
+            navigate('/login', { state: { from: location }, replace: true });
+        } else if (needsRoleRedirect) {
+            navigate('/home', { replace: true });
+        }
+    }, [needsLogin, needsRoleRedirect, navigate, location]);
+
+    // While auth is loading, or while the redirect effect hasn't fired yet,
+    // show a neutral loading screen so there's no content flash.
+    if (isLoading || needsLogin || needsRoleRedirect) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <p className="text-muted-foreground font-medium">Đang tải...</p>
             </div>
         );
-    }
-
-    if (!user) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
-    }
-
-    // Check role if required
-    if (requiredRole) {
-        const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-        const userRole = (user as { role?: string })?.role;
-
-        if (!userRole || !roles.includes(userRole)) {
-            return <Navigate to="/home" replace />;
-        }
     }
 
     return <>{children}</>;
