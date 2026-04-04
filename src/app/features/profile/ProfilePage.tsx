@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Header } from '@/app/features/home/components';
@@ -8,7 +8,7 @@ import {
     Briefcase, Users, Home, Calendar, Star, Shield, Languages,
     Thermometer, Volume2, UtensilsCrossed, ChevronDown,
     CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw,
-    CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye, ChevronRight,
+    CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye,
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { ImageUpload } from '@/app/components/ImageUpload';
@@ -35,7 +35,7 @@ import { trackEvent } from '@/lib/analytics';
 import { ReviewModal, ViewFeedbackModal, ReportModal } from '@/app/features/booking-history/components';
 import { RoommateRatingModal } from './RoommateRatingModal';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
-import type { ReviewData, ReportData, FeedbackStatus } from '@/app/features/booking-history/types';
+import type { ReviewData, FeedbackStatus } from '@/app/features/booking-history/types';
 import type { ProvinceItem, WardItem } from '@/lib/provinces-api';
 
 type Tab = 'profile' | 'lifestyle' | 'preference' | 'bookings';
@@ -224,7 +224,7 @@ function TagInput({ value, onChange, placeholder, suggestions }: {
 
     return (
         <div>
-            <div className="min-h-[48px] w-full px-3 py-2 bg-background border border-border rounded-xl focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all flex flex-wrap gap-1.5">
+            <div className="min-h-12 w-full px-3 py-2 bg-background border border-border rounded-xl focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
                     <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
                         {tag}
@@ -239,7 +239,7 @@ function TagInput({ value, onChange, placeholder, suggestions }: {
                     onKeyDown={handleKeyDown}
                     onBlur={() => { if (input.trim()) addTag(input); }}
                     placeholder={tags.length === 0 ? placeholder : 'Thêm...'}
-                    className="flex-1 min-w-[120px] bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground py-1"
+                    className="flex-1 min-w-30 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground py-1"
                 />
             </div>
             {suggestions && suggestions.length > 0 && (
@@ -785,7 +785,7 @@ export function ProfilePage() {
 
                                 {/* Deal breakers */}
                                 <SectionCard icon={<X className="w-4 h-4 text-primary" />} title={t('profile.dealBreakers')} subtitle={t('profile.dealBreakersSub')}>
-                                    <textarea value={lifestyle.deal_breakers} onChange={(e) => setLifestyle((l) => ({ ...l, deal_breakers: e.target.value }))} placeholder="VD: Hút thuốc trong phòng, Tiệc tùng thường xuyên, Không giữ vệ sinh..." className={`${inputClass} min-h-[80px] resize-y`} maxLength={500} rows={3} />
+                                    <textarea value={lifestyle.deal_breakers} onChange={(e) => setLifestyle((l) => ({ ...l, deal_breakers: e.target.value }))} placeholder="VD: Hút thuốc trong phòng, Tiệc tùng thường xuyên, Không giữ vệ sinh..." className={`${inputClass} min-h-20 resize-y`} maxLength={500} rows={3} />
                                     <p className="text-xs text-muted-foreground">{lifestyle.deal_breakers.length}/500</p>
                                 </SectionCard>
 

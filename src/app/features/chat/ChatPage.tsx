@@ -78,7 +78,7 @@ function Bubble({
                     ? 'bg-primary text-primary-foreground rounded-[18px_18px_4px_18px]'
                     : 'bg-card text-foreground rounded-[18px_18px_18px_4px] border border-border'
                 }`}>
-                    <p className="text-[15px] leading-snug whitespace-pre-wrap break-words">{message.content}</p>
+                    <p className="text-[15px] leading-snug whitespace-pre-wrap wrap-break-word">{message.content}</p>
                 </div>
                 <div className={`flex items-center gap-1 mt-0.5 px-1 ${isFromMe ? 'flex-row-reverse' : ''}`}>
                     <span className="text-[11px] text-muted-foreground">{formatTime(message.created_at)}</span>
@@ -94,7 +94,7 @@ export function ChatPage() {
     const { userId: paramUserId } = useParams<{ userId?: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const { accessToken, user } = useAuth();
+    const { accessToken } = useAuth();
     const [conversations, setConversations] = useState<ConversationItem[]>([]);
     const [selectedPeerId, setSelectedPeerId] = useState<string | null>(paramUserId || null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -330,14 +330,14 @@ export function ChatPage() {
 
             <div className="flex-1 flex flex-col md:flex-row max-w-5xl mx-auto w-full md:h-[calc(100vh-4rem)] md:my-4 md:rounded-2xl md:overflow-hidden md:shadow-xl md:border md:border-border">
                 {/* Sidebar */}
-                <aside className="w-full md:w-72 lg:w-80 border-b md:border-b-0 md:border-r border-border bg-card flex-shrink-0 flex flex-col">
+                <aside className="w-full md:w-72 lg:w-80 border-b md:border-b-0 md:border-r border-border bg-card shrink-0 flex flex-col">
                     <div className="p-3 border-b border-border">
                         <div className="flex items-center justify-between px-1">
                             <h2 className="font-heading text-lg font-semibold text-foreground flex items-center gap-2">
                                 <MessageCircle className="w-5 h-5 text-primary" />
                                 {t('chat.title')}
                                 {totalUnread > 0 && (
-                                    <span className="ml-1 min-w-[20px] h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center px-1.5">
+                                    <span className="ml-1 min-w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center px-1.5">
                                         {totalUnread > 99 ? '99+' : totalUnread}
                                     </span>
                                 )}
@@ -379,7 +379,7 @@ export function ChatPage() {
                                                         <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-card" />
                                                     )}
                                                     {c.unreadCount > 0 && (
-                                                        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium px-1">
+                                                        <span className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium px-1">
                                                             {c.unreadCount > 9 ? '9+' : c.unreadCount}
                                                         </span>
                                                     )}

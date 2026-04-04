@@ -46,8 +46,8 @@ function smartSearchItemToRoom(r: SmartSearchRoomItem): Room {
         rentalId: r.rentalId,
         matchScore: r.matchScore,
         otherRoomsInRental: r.otherRoomsInRental,
-        distanceKm: (r as Record<string, unknown>).distanceKm as number | undefined,
-        nearbyPOIs: (r as Record<string, unknown>).nearbyPOIs as Room['nearbyPOIs'],
+        distanceKm: (r as unknown as Record<string, unknown>).distanceKm as number | undefined,
+        nearbyPOIs: (r as unknown as Record<string, unknown>).nearbyPOIs as Room['nearbyPOIs'],
     };
 }
 

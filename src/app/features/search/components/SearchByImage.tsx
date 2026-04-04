@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, Image as ImageIcon, X, AlertCircle, CheckCircle, Sparkles, Brain, Camera, Info } from 'lucide-react';
+import { Image as ImageIcon, X, AlertCircle, CheckCircle, Sparkles, Brain, Camera, Info } from 'lucide-react';
 import { MAX_IMAGE_SIZE, VALID_IMAGE_TYPES } from '../constants';
 
 interface SearchByImageProps {
@@ -71,7 +71,7 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
     return (
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden max-w-4xl mx-auto">
             {/* AI header */}
-            <div className="relative bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 px-6 py-4 overflow-hidden">
+            <div className="relative bg-linear-to-r from-violet-600 via-purple-600 to-indigo-600 px-6 py-4 overflow-hidden">
                 <div className="absolute inset-0 opacity-10"
                     style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '48px 48px' }}
                 />
@@ -199,7 +199,7 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
                     <button
                         type="submit"
                         disabled={isSearching || !selectedFile}
-                        className="w-full px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full px-6 py-3 bg-linear-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isSearching ? (
                             <>

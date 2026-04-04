@@ -321,7 +321,8 @@
       "locations": "Địa điểm",
       "amenities": "Tiện ích",
       "vipPackages": "Gói VIP",
-      "systemSettings": "Cấu hình hệ thống"
+      "systemSettings": "Cấu hình hệ thống",
+      "homeConfig": "Cấu hình trang chủ"
     },
     "userMenu": {
       "profile": "Cài đặt",
@@ -398,6 +399,37 @@
       },
       "required": "Bắt buộc",
       "save": "Lưu thay đổi"
+    },
+    "homeConfig": {
+      "title": "Cấu hình trang chủ",
+      "subtitle": "Quản lý banner chính và bật/tắt các khu vực trên trang chủ.",
+      "notice": "Lưu xong sẽ áp dụng ngay trên website công khai.",
+      "bannerSection": "Banner chính",
+      "layoutSection": "Cấu trúc trang chủ",
+      "fields": {
+        "enabled": "Hiển thị banner",
+        "title": "Tiêu đề",
+        "subtitle": "Mô tả",
+        "imageUrl": "Ảnh nền banner",
+        "uploadPlaceholder": "Chọn ảnh banner",
+        "ctaText": "Nút kêu gọi hành động",
+        "ctaLink": "Đường dẫn nút"
+      },
+      "sections": {
+        "hero": "Hero banner",
+        "aiFeature": "Khối AI Feature",
+        "featuredRooms": "Khối Phòng nổi bật",
+        "recommendedRooms": "Khối Gợi ý cho bạn",
+        "popularAreas": "Khối Khu vực phổ biến",
+        "whyEzRoom": "Khối Vì sao chọn EzRoom"
+      },
+      "validation": {
+        "titleMax": "Tiêu đề tối đa 120 ký tự",
+        "subtitleMax": "Mô tả tối đa 220 ký tự",
+        "ctaTextMax": "Nút CTA tối đa 40 ký tự",
+        "ctaLinkUrl": "Đường dẫn phải là URL hợp lệ"
+      },
+      "save": "Lưu cấu hình"
     },
     "wallets": {
       "title": "Quản lý ví",

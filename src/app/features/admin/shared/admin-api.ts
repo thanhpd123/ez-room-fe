@@ -938,6 +938,17 @@ export interface SystemSettingsData {
         'platform.commission': {
             preorderFeeBps: number;
         };
+        'site.homeBanner': {
+            enabled: boolean;
+            title: string;
+            subtitle: string;
+            imageUrl: string;
+            ctaText: string;
+            ctaLink: string;
+        };
+        'site.homeLayout': {
+            sections: Array<{ key: string; enabled: boolean }>;
+        };
     };
     meta: Record<string, { source: 'db' | 'default'; updatedAt: string | null; updatedBy: string | null }>;
 }
@@ -964,6 +975,17 @@ export interface UpdateSystemSettingsInput {
         };
         'platform.commission': {
             preorderFeeBps: number;
+        };
+        'site.homeBanner': {
+            enabled: boolean;
+            title: string;
+            subtitle: string;
+            imageUrl: string;
+            ctaText: string;
+            ctaLink: string;
+        };
+        'site.homeLayout': {
+            sections: Array<{ key: string; enabled: boolean }>;
         };
     }>;
 }

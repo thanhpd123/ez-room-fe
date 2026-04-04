@@ -1442,6 +1442,28 @@ export interface PublicRental {
 
 export type PublicRentalsSort = 'createdAt_desc' | 'createdAt_asc' | 'title_asc' | 'title_desc';
 
+export interface PublicHomeBannerConfig {
+    enabled: boolean;
+    title: string;
+    subtitle: string;
+    imageUrl: string;
+    ctaText: string;
+    ctaLink: string;
+}
+
+export interface PublicHomeLayoutConfig {
+    sections: Array<{
+        key: 'hero' | 'aiFeature' | 'featuredRooms' | 'recommendedRooms' | 'popularAreas' | 'whyEzRoom';
+        enabled: boolean;
+    }>;
+}
+
+export interface PublicSiteConfig {
+    homeBanner: PublicHomeBannerConfig;
+    homeLayout: PublicHomeLayoutConfig;
+    updatedAt: string | null;
+}
+
 /**
  * GET /public/room-types – distinct room types from available rentals. No auth.
  */
@@ -1452,6 +1474,16 @@ export async function getPublicRoomTypesRequest(): Promise<{
     const res = await fetch(getApiUrl('/public/room-types'), { cache: 'default' });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tải loại phòng');
+    return json;
+}
+
+export async function getPublicSiteConfigRequest(): Promise<{
+    success: boolean;
+    data: PublicSiteConfig;
+}> {
+    const res = await fetch(getApiUrl('/public/site-config'), { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Loi tai cau hinh website');
     return json;
 }
 

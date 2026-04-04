@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, theme, Avatar, Dropdown, Button } from 'antd';
 import type { MenuProps } from 'antd';
@@ -37,7 +37,7 @@ function getItem(
 
 export function AdminLayout() {
     const [collapsed, setCollapsed] = useState(false);
-    const [openKeys, setOpenKeys] = useState<string[]>([]);
+    const [manualOpenKeys, setManualOpenKeys] = useState<string[] | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
     const { user, signOut } = useAuth();
@@ -61,11 +61,13 @@ export function AdminLayout() {
             getItem(t('admin.menu.amenities'), '/admin/amenities', <AppstoreOutlined />),
             getItem(t('admin.menu.vipPackages'), '/admin/vip', <SettingOutlined />),
             getItem(t('admin.menu.systemSettings'), '/admin/settings', <SettingOutlined />),
+            getItem(t('admin.menu.homeConfig'), '/admin/home-config', <HomeOutlined />),
         ]),
     ];
 
     const handleMenuClick = (e: { key: string }) => {
         if (e.key.startsWith('/')) {
+            setManualOpenKeys(null);
             navigate(e.key);
         }
     };
@@ -114,17 +116,16 @@ export function AdminLayout() {
                                         ? '/admin/vip'
                                         : location.pathname.startsWith('/admin/settings')
                                             ? '/admin/settings'
-                                            : '/admin';
-
-    useEffect(() => {
-        const nextOpenKeys = selectedKey.startsWith('/admin/finance') || selectedKey.startsWith('/admin/moderators')
-            ? ['reports-group']
-            : selectedKey.startsWith('/admin/locations') || selectedKey.startsWith('/admin/amenities') || selectedKey.startsWith('/admin/settings')
-                || selectedKey.startsWith('/admin/vip')
-                ? ['settings-group']
-                : [];
-        setOpenKeys(nextOpenKeys);
-    }, [selectedKey]);
+                                            : location.pathname.startsWith('/admin/home-config')
+                                                ? '/admin/home-config'
+                                                : '/admin';
+    const autoOpenKeys = selectedKey.startsWith('/admin/finance') || selectedKey.startsWith('/admin/moderators')
+        ? ['reports-group']
+        : selectedKey.startsWith('/admin/locations') || selectedKey.startsWith('/admin/amenities') || selectedKey.startsWith('/admin/settings')
+            || selectedKey.startsWith('/admin/vip') || selectedKey.startsWith('/admin/home-config')
+            ? ['settings-group']
+            : [];
+    const openKeys = manualOpenKeys ?? autoOpenKeys;
 
     const currentLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'vi';
     const nextLanguage = currentLanguage === 'vi' ? 'en' : 'vi';
@@ -168,7 +169,7 @@ export function AdminLayout() {
                     selectedKeys={[selectedKey]}
                     openKeys={openKeys}
                     items={menuItems}
-                    onOpenChange={(keys) => setOpenKeys(keys as string[])}
+                    onOpenChange={(keys) => setManualOpenKeys(keys as string[])}
                     onClick={handleMenuClick}
                 />
             </Sider>
