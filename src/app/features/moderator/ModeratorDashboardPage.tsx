@@ -41,11 +41,6 @@ import {
 import {
     getModeratorOverview,
     listModerationHistory,
-    listModerationQueue,
-    listViolationReports,
-    listRentalModerationItems,
-    listRoomPostModerationItems,
-    listModeratedReviews,
 } from './shared/moderator-storage';
 import type { ModerationHistoryRecord } from './shared/types';
 
@@ -212,32 +207,13 @@ export function ModeratorDashboardPage() {
             setIsLoading(true);
             setError(null);
             try {
-                const [overviewData, queueResult, historyData, rentalItems, roomPostItems, reportsData, reviewsData] = await Promise.all([
+                const [overviewData, historyData] = await Promise.all([
                     getModeratorOverview(),
-                    listModerationQueue({ status: 'OPEN', limit: 1 }).catch(() => ({ pagination: { total: 0 } })),
                     listModerationHistory(),
-                    listRentalModerationItems(),
-                    listRoomPostModerationItems(),
-                    listViolationReports(),
-                    listModeratedReviews({ limit: 200 }),
                 ]);
                 if (!active) return;
 
-                const approvedRentalCount = rentalItems.filter(i => i.moderation_status === 'approved').length;
-                const approvedRoomPostCount = roomPostItems.filter(i => i.moderation_status === 'approved').length;
-                const resolvedReportCount = reportsData.filter(r => r.status === 'resolved').length;
-                const approvedReviewCount = reviewsData.items.filter(r => r.status === 'APPROVED').length;
-                const rejectedReviewCount = reviewsData.items.filter(r => r.status === 'REJECTED' || r.status === 'HIDDEN').length;
-
-                setOverview({
-                    ...overviewData,
-                    openQueueCount: queueResult.pagination?.total ?? 0,
-                    resolvedReportCount,
-                    approvedRentalCount,
-                    approvedRoomPostCount,
-                    approvedReviewCount,
-                    rejectedReviewCount,
-                });
+                setOverview(overviewData as OverviewState);
                 setHistory(historyData.slice(0, 10));
             } catch (err) {
                 if (!active) return;
