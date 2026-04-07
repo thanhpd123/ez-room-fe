@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { getRecommendRequest } from '@/lib/api';
+import { useAuth } from '@/app/context/useAuth';
 import { SearchResultCard } from './SearchResultCard';
 import type { Room } from '../types';
 
@@ -32,19 +33,25 @@ function recommendItemToRoom(r: {
 
 export function SearchRecommendBlock() {
     const navigate = useNavigate();
+    const { accessToken, authVerified } = useAuth();
     const [rooms, setRooms] = useState<Room[]>([]);
     const [loading, setLoading] = useState(true);
     const [hint, setHint] = useState<string>('');
 
     useEffect(() => {
-        getRecommendRequest()
+        if (!authVerified || !accessToken) {
+            setLoading(false);
+            setRooms([]);
+            return;
+        }
+        getRecommendRequest({ token: accessToken })
             .then((res) => {
                 setRooms((res.data || []).map(recommendItemToRoom));
                 setHint(res.hint || '');
             })
             .catch(() => setRooms([]))
             .finally(() => setLoading(false));
-    }, []);
+    }, [authVerified, accessToken]);
 
     if (loading || rooms.length === 0) return null;
 

@@ -3,8 +3,8 @@ import { Upload, Loader2 } from 'lucide-react';
 import { uploadImageRequest } from '@/lib/api';
 
 interface ImageUploadProps {
-    value: string;
-    onChange: (url: string) => void;
+    value?: string;
+    onChange?: (url: string) => void;
     label?: string;
     accept?: string;
     placeholder?: string;
@@ -15,8 +15,8 @@ interface ImageUploadProps {
 const DEFAULT_ACCEPT = 'image/jpeg,image/jpg,image/png,image/gif,image/webp';
 
 export function ImageUpload({
-    value,
-    onChange,
+    value = '',
+    onChange = () => {},
     label = 'Ảnh',
     accept = DEFAULT_ACCEPT,
     placeholder = 'Chọn ảnh từ máy tính',

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getLandlordRentalRequests, confirmRentalRequest, rejectRentalRequest, type RentalRequest } from './requests-storage';
 
 function formatCurrency(value: number) {
@@ -45,11 +46,13 @@ function getDisplayStatus(request: RentalRequest) {
 }
 
 export function RequestsPage() {
+    const location = useLocation();
     const [requests, setRequests] = useState<RentalRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [keyword, setKeyword] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | RentalRequest['status']>('all');
     const [actioningId, setActioningId] = useState<string | null>(null);
+    const preorderIdFromNav = (location.state as { preorderId?: string } | null)?.preorderId || null;
 
     // Load requests on component mount and when filters change
     useEffect(() => {
@@ -58,6 +61,9 @@ export function RequestsPage() {
             const data = await getLandlordRentalRequests(
                 statusFilter === 'all' ? undefined : statusFilter,
                 keyword || undefined
+                ,
+                1,
+                100
             );
             setRequests(data);
             setIsLoading(false);
@@ -66,6 +72,14 @@ export function RequestsPage() {
         const debounceTimer = setTimeout(loadRequests, 300);
         return () => clearTimeout(debounceTimer);
     }, [statusFilter, keyword]);
+
+    useEffect(() => {
+        if (!preorderIdFromNav || requests.length === 0) return;
+        const target = document.getElementById(`preorder-${preorderIdFromNav}`);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [preorderIdFromNav, requests]);
 
     // Calculate statistics
     const stats = useMemo(() => {
@@ -152,6 +166,7 @@ export function RequestsPage() {
                         return (
                             <div
                                 key={request.id}
+                                id={`preorder-${request.id}`}
                                 className="rounded-lg bg-white p-4 shadow-sm border border-border hover:shadow-md transition-shadow"
                             >
                                 <div className="flex flex-col gap-4">

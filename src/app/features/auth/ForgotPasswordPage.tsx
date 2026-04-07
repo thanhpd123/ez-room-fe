@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Home, Loader2, ArrowLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { forgotPasswordRequest } from '@/lib/api';
 
 export function ForgotPasswordPage() {
@@ -8,6 +9,7 @@ export function ForgotPasswordPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const { t } = useTranslation();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -18,7 +20,7 @@ export function ForgotPasswordPage() {
             const { message } = await forgotPasswordRequest(email);
             setSuccess(message);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi. Vui lòng thử lại.');
+            setError(err instanceof Error ? err.message : t('forgotPassword.error'));
         } finally {
             setLoading(false);
         }
@@ -33,7 +35,7 @@ export function ForgotPasswordPage() {
                         className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary text-sm font-medium mb-6"
                     >
                         <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-                        Quay lại đăng nhập
+                        {t('forgotPassword.backToLogin')}
                     </Link>
 
                     <div className="flex justify-center mb-6">
@@ -43,9 +45,9 @@ export function ForgotPasswordPage() {
                     </div>
 
                     <div className="text-center mb-8">
-                        <h1 className="text-2xl font-heading font-bold text-foreground">Quên mật khẩu</h1>
+                        <h1 className="text-2xl font-heading font-bold text-foreground">{t('forgotPassword.title')}</h1>
                         <p className="text-muted-foreground mt-1 text-sm">
-                            Nhập email đăng ký, chúng tôi sẽ gửi link đặt lại mật khẩu
+                            {t('forgotPassword.subtitle')}
                         </p>
                     </div>
 
@@ -63,10 +65,12 @@ export function ForgotPasswordPage() {
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
+                            <label htmlFor="forgot-password-email" className="block text-sm font-medium text-foreground mb-1.5">Email</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" strokeWidth={2} />
                                 <input
+                                    id="forgot-password-email"
+                                    name="email"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -84,14 +88,14 @@ export function ForgotPasswordPage() {
                             className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {loading && <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />}
-                            {loading ? 'Đang xử lý...' : 'Gửi link đặt lại mật khẩu'}
+                            {loading ? t('forgotPassword.sending') : t('forgotPassword.submit')}
                         </button>
                     </form>
 
                     <p className="text-center text-sm text-muted-foreground mt-8">
-                        Nhớ mật khẩu?{' '}
+                        {t('forgotPassword.rememberPassword')}{' '}
                         <Link to="/login" className="text-primary font-semibold hover:underline">
-                            Đăng nhập
+                            {t('auth.login')}
                         </Link>
                     </p>
                 </div>

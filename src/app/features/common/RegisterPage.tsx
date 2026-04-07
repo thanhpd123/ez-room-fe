@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, User, Mail, Phone, Lock, Eye, EyeOff, Loader2, Sparkles, Check, Circle } from 'lucide-react';
-import axios from 'axios';
 import { useAuth } from '@/app/context/AuthContext';
-import { suggestPasswordRequest } from '@/lib/api';
-
-import { getApiUrl } from '@/lib/api-config';
+import { suggestPasswordRequest, registerRequest } from '@/lib/api';
 
 function passwordRequirements(pwd: string) {
     return {
@@ -33,12 +30,13 @@ export function RegisterPage() {
     const [suggestLoading, setSuggestLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+    const [showProfileReminder, setShowProfileReminder] = useState(false);
     const pwdReqs = passwordRequirements(form.password);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const name = e.target.name;
-        const value = e.target.type === 'select-one' ? (e.target as HTMLSelectElement).value : e.target.value;
-        setForm((f) => ({ ...f, [name]: name === 'role' ? value : value }));
+        const value = e.target.value;
+        setForm((f) => ({ ...f, [name]: value }));
         setError(null);
         setFieldErrors([]);
     };
@@ -50,41 +48,19 @@ export function RegisterPage() {
         setLoading(true);
 
         try {
-            const payload = {
+            await registerRequest({
                 fullName: form.fullName.trim(),
                 email: form.email.trim(),
                 phone: form.phone.trim() || undefined,
                 password: form.password,
                 confirmPassword: form.confirmPassword,
                 role: form.role,
-            };
-            const res = await axios.post(getApiUrl('/auth/register'), payload, {
-                timeout: 15000,
-                headers: { 'Content-Type': 'application/json' },
-                validateStatus: () => true,
             });
-            if (res.status >= 200 && res.status < 300 && res.data?.success) {
-                navigate('/login', { state: { registered: true } });
-                return;
-            }
-            const data = res.data || {};
-            const errMsg = data.error || data.message || 'Đăng ký thất bại';
-            setError(errMsg);
-            if (Array.isArray(data.errors)) setFieldErrors(data.errors);
+            setShowProfileReminder(true);
         } catch (err: unknown) {
-            if (axios.isAxiosError(err)) {
-                if (err.response?.data) {
-                    const data = err.response.data;
-                    setError(data.message || 'Đăng ký thất bại');
-                    if (Array.isArray(data.errors)) setFieldErrors(data.errors);
-                } else if (err.code === 'ERR_NETWORK' || err.message?.includes('Network')) {
-                    setError('Không thể kết nối đến server. Kiểm tra backend đang chạy và CORS.');
-                } else {
-                    setError(err.message || 'Đăng ký thất bại');
-                }
-            } else {
-                setError('Đã xảy ra lỗi. Vui lòng thử lại.');
-            }
+            const e = err as Error & { errors?: unknown[] };
+            setError(e.message || 'Đăng ký thất bại');
+            if (Array.isArray(e.errors)) setFieldErrors(e.errors as string[]);
         } finally {
             setLoading(false);
         }
@@ -124,6 +100,14 @@ export function RegisterPage() {
     const inputClassWithRight = 'w-full pl-11 pr-11 py-3.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
     const iconClass = 'absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground';
     const toggleClass = 'absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors';
+    const goToLogin = (focusProfile: boolean) => {
+        navigate('/login', {
+            state: {
+                registered: true,
+                postLoginRedirect: focusProfile ? '/profile' : undefined,
+            },
+        });
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
@@ -167,22 +151,37 @@ export function RegisterPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-1.5">Vai trò</label>
-                            <select
-                                name="role"
-                                value={form.role}
-                                onChange={handleChange}
-                                className="w-full px-4 py-3.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                            >
-                                <option value="TENANT">Người thuê phòng (Tenant)</option>
-                                <option value="LANDLORD">Chủ nhà / Cho thuê (Landlord)</option>
-                            </select>
-                        </div>
-                        <div>
                             <label className="block text-sm font-medium text-foreground mb-1.5">Số điện thoại</label>
                             <div className="relative">
                                 <Phone className={iconClass} strokeWidth={2} />
                                 <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="0123456789" className={inputClass} />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-foreground mb-1.5">Vai trò tài khoản</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setForm((f) => ({ ...f, role: 'TENANT' }))}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                                        form.role === 'TENANT'
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border text-foreground hover:bg-muted'
+                                    }`}
+                                >
+                                    Tenant
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setForm((f) => ({ ...f, role: 'LANDLORD' }))}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                                        form.role === 'LANDLORD'
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border text-foreground hover:bg-muted'
+                                    }`}
+                                >
+                                    Landlord
+                                </button>
                             </div>
                         </div>
                         <div>
@@ -274,6 +273,33 @@ export function RegisterPage() {
                     </p>
                 </div>
             </div>
+            {showProfileReminder && (
+                <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center px-4">
+                    <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-xl p-6">
+                        <h3 className="text-lg font-semibold text-foreground">Hoan nghênh bạn đến EzRoom</h3>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            Tài khoản của bạn đã được tạo với vai trò <strong>{form.role === 'LANDLORD' ? 'Landlord' : 'Tenant'}</strong>.
+                            Bạn có thể đăng nhập ngay để bắt đầu sử dụng EzRoom.
+                        </p>
+                        <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={() => goToLogin(false)}
+                                className="px-4 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
+                            >
+                                Bỏ qua
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => goToLogin(true)}
+                                className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                            >
+                                Đăng nhập và cập nhật ngay
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

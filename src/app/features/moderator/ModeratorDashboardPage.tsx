@@ -41,11 +41,6 @@ import {
 import {
     getModeratorOverview,
     listModerationHistory,
-    listModerationQueue,
-    listViolationReports,
-    listRentalModerationItems,
-    listRoomPostModerationItems,
-    listModeratedReviews,
 } from './shared/moderator-storage';
 import type { ModerationHistoryRecord } from './shared/types';
 
@@ -212,32 +207,13 @@ export function ModeratorDashboardPage() {
             setIsLoading(true);
             setError(null);
             try {
-                const [overviewData, queueResult, historyData, rentalItems, roomPostItems, reportsData, reviewsData] = await Promise.all([
+                const [overviewData, historyData] = await Promise.all([
                     getModeratorOverview(),
-                    listModerationQueue({ status: 'OPEN', limit: 1 }).catch(() => ({ pagination: { total: 0 } })),
                     listModerationHistory(),
-                    listRentalModerationItems(),
-                    listRoomPostModerationItems(),
-                    listViolationReports(),
-                    listModeratedReviews({ limit: 200 }),
                 ]);
                 if (!active) return;
 
-                const approvedRentalCount = rentalItems.filter(i => i.moderation_status === 'approved').length;
-                const approvedRoomPostCount = roomPostItems.filter(i => i.moderation_status === 'approved').length;
-                const resolvedReportCount = reportsData.filter(r => r.status === 'resolved').length;
-                const approvedReviewCount = reviewsData.items.filter(r => r.status === 'APPROVED').length;
-                const rejectedReviewCount = reviewsData.items.filter(r => r.status === 'REJECTED' || r.status === 'HIDDEN').length;
-
-                setOverview({
-                    ...overviewData,
-                    openQueueCount: queueResult.pagination?.total ?? 0,
-                    resolvedReportCount,
-                    approvedRentalCount,
-                    approvedRoomPostCount,
-                    approvedReviewCount,
-                    rejectedReviewCount,
-                });
+                setOverview(overviewData as OverviewState);
                 setHistory(historyData.slice(0, 10));
             } catch (err) {
                 if (!active) return;
@@ -264,16 +240,6 @@ export function ModeratorDashboardPage() {
     }
 
     // Chart data
-    const rentalStatusData = [
-        { name: 'Đã duyệt', value: overview.approvedRentalCount, fill: '#52c41a' },
-        { name: 'Chờ duyệt', value: overview.pendingRentalCount, fill: '#722ed1' },
-    ];
-
-    const roomPostStatusData = [
-        { name: 'Đã duyệt', value: overview.approvedRoomPostCount, fill: '#52c41a' },
-        { name: 'Chờ duyệt', value: overview.pendingRoomPostCount, fill: '#13c2c2' },
-    ];
-
     const reportStatusData = [
         { name: 'Đang mở', value: overview.openReportCount, fill: '#ff4d4f' },
         { name: 'Đã giải quyết', value: overview.resolvedReportCount, fill: '#52c41a' },
@@ -574,14 +540,14 @@ export function ModeratorDashboardPage() {
                                             style={{
                                                 backgroundColor:
                                                     item.target_type === 'rental' ? '#e6f4ff' :
-                                                    item.target_type === 'room_post' ? '#e6fffb' :
-                                                    item.target_type === 'report' ? '#fff2f0' :
-                                                    item.target_type === 'review' ? '#fffbe6' : '#f0f0ff',
+                                                        item.target_type === 'room_post' ? '#e6fffb' :
+                                                            item.target_type === 'report' ? '#fff2f0' :
+                                                                item.target_type === 'review' ? '#fffbe6' : '#f0f0ff',
                                                 color:
                                                     item.target_type === 'rental' ? '#1677ff' :
-                                                    item.target_type === 'room_post' ? '#13c2c2' :
-                                                    item.target_type === 'report' ? '#ff4d4f' :
-                                                    item.target_type === 'review' ? '#faad14' : '#722ed1',
+                                                        item.target_type === 'room_post' ? '#13c2c2' :
+                                                            item.target_type === 'report' ? '#ff4d4f' :
+                                                                item.target_type === 'review' ? '#faad14' : '#722ed1',
                                                 flexShrink: 0,
                                             }}
                                         />

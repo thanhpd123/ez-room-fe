@@ -632,6 +632,69 @@ export async function deleteLocation(id: string): Promise<{ success: boolean; me
     }
 }
 
+// ==================== Citizen Card Verification API ====================
+
+export interface CitizenCardVerificationItem {
+    id: string;
+    userId: string;
+    citizenCardNumber: string;
+    citizenCardFrontImageUrl: string;
+    citizenCardBackImageUrl: string;
+    status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    reviewNote: string | null;
+    submittedAt: string;
+    reviewedAt: string | null;
+    reviewedBy: string | null;
+    user: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone: string | null;
+        role: string;
+    } | null;
+}
+
+export async function getCitizenCardVerifications(params?: {
+    page?: number;
+    limit?: number;
+    status?: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    search?: string;
+}): Promise<{ data: CitizenCardVerificationItem[]; pagination: PaginationInfo }> {
+    try {
+        const res = await axios.get(getApiUrl('/verifications/citizen-cards'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return { data: res.data.data, pagination: res.data.pagination };
+    } catch (error) {
+        console.error('getCitizenCardVerifications error:', error);
+        return {
+            data: [],
+            pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function reviewCitizenCardVerification(
+    verificationId: string,
+    body: { status: 'VERIFIED' | 'REJECTED'; reviewNote?: string }
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const res = await axios.patch(
+            getApiUrl(`/verifications/citizen-cards/${verificationId}/review`),
+            body,
+            { headers: getAuthHeader() }
+        );
+        return { success: true, message: res.data.message || 'Duyệt thành công' };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi duyệt CCCD',
+        };
+    }
+}
+
 // ==================== User Detail API ====================
 
 export async function getUserDetail(userId: string): Promise<UserDetail | null> {
@@ -943,6 +1006,8 @@ export interface FinanceSummaryData {
         refunds: { completedCount: number; completedAmount: number };
         platformFees: { entries: number; amount: number };
         pendingPaymentOrders: number;
+        pendingPaymentAmount: number;
+        paymentOrdersByStatus: Record<string, { count: number; amount: number }>;
     };
 }
 
@@ -986,6 +1051,143 @@ export interface FinanceReconciliationData {
     range: { from: string; to: string };
     summary: { total: number; byType: Record<string, number> };
     mismatches: ReconciliationItem[];
+}
+
+export type PendingOrderPurpose =
+    | 'ALL'
+    | 'PREORDER_DEPOSIT'
+    | 'WALLET_TOPUP'
+    | 'VIP_PURCHASE'
+    | 'WITHDRAWAL';
+
+export interface PendingPaymentOrderItem {
+    id: string;
+    source: 'PAYMENT_ORDER' | 'WALLET_TRANSACTION';
+    purpose: Exclude<PendingOrderPurpose, 'ALL'>;
+    status: string;
+    amount: number;
+    createdAt: string | null;
+    waitingHours: number;
+    agingBucket: 'LT_30M' | 'FROM_30M_TO_2H' | 'FROM_2H_TO_24H' | 'GE_24H';
+    orderCode: string | null;
+    refType: string | null;
+    refId: string | null;
+    walletId: string | null;
+    description: string | null;
+    user: {
+        id: string | null;
+        fullName: string | null;
+        email: string | null;
+        phone: string | null;
+    };
+}
+
+export interface PendingPaymentOrdersData {
+    filters: {
+        purpose: PendingOrderPurpose;
+        search: string | null;
+        sortBy: 'createdAt' | 'amount' | string;
+        order: 'asc' | 'desc' | string;
+        createdAfter: string | null;
+        createdBefore: string | null;
+    };
+    summary: {
+        total: number;
+        totalAmount: number;
+        byPurpose: Record<string, { count: number; amount: number }>;
+        byAgingBucket: Record<string, number>;
+    };
+    items: PendingPaymentOrderItem[];
+}
+
+export interface GetPendingPaymentOrdersParams {
+    page?: number;
+    limit?: number;
+    purpose?: PendingOrderPurpose;
+    search?: string;
+    sortBy?: 'createdAt' | 'amount';
+    order?: 'asc' | 'desc';
+    createdAfter?: string;
+    createdBefore?: string;
+}
+
+export async function getPendingPaymentOrders(params: GetPendingPaymentOrdersParams = {}): Promise<{
+    data: PendingPaymentOrdersData | null;
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/finance/pending-orders'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            data: res.data.data,
+            pagination: res.data.pagination,
+        };
+    } catch (error) {
+        console.error('getPendingPaymentOrders error:', error);
+        return {
+            data: null,
+            pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function cancelPendingPaymentOrder(
+    source: 'PAYMENT_ORDER' | 'WALLET_TRANSACTION',
+    itemId: string,
+    reason?: string
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const payload = reason?.trim() ? { reason: reason.trim() } : {};
+        const res = await axios.patch(
+            getApiUrl(`/admin/finance/pending-orders/${source}/${itemId}/cancel`),
+            payload,
+            { headers: getAuthHeader() }
+        );
+        return {
+            success: true,
+            message: res.data.message || 'Đã hủy đơn pending',
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi hủy đơn pending',
+        };
+    }
+}
+
+export async function runPreorderReconciliationNow(batchSize?: number): Promise<{
+    success: boolean;
+    message: string;
+    data?: {
+        batchSize: number;
+        summary: {
+            scanned: number;
+            fixed: number;
+            skipped: number;
+            errors: number;
+        };
+    };
+}> {
+    try {
+        const payload = Number.isFinite(Number(batchSize)) ? { batchSize: Number(batchSize) } : {};
+        const res = await axios.post(getApiUrl('/admin/finance/reconciliation/run'), payload, {
+            headers: getAuthHeader(),
+        });
+        return {
+            success: true,
+            message: res.data.message || 'Đã chạy reconcile',
+            data: res.data.data,
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Lỗi khi chạy reconcile thủ công',
+        };
+    }
 }
 
 export async function getFinanceReconciliation(params: DateRangeParams & { page?: number; limit?: number } = {}): Promise<{
@@ -1040,5 +1242,210 @@ export async function getModeratorKpis(params: DateRangeParams = {}): Promise<Mo
     } catch (error) {
         console.error('getModeratorKpis error:', error);
         return null;
+    }
+}
+
+// ==================== VIP Admin API ====================
+
+export interface AdminVipPackage {
+    id: string;
+    name: string;
+    description: string | null;
+    durationDays: number;
+    price: number;
+    targetRole: 'TENANT' | 'LANDLORD' | string;
+    isActive: boolean;
+    createdAt: string | null;
+}
+
+export interface GetAdminVipPackagesParams {
+    page?: number;
+    limit?: number;
+    status?: 'ACTIVE' | 'INACTIVE';
+    targetRole?: 'TENANT' | 'LANDLORD';
+    search?: string;
+}
+
+export interface AdminVipPurchase {
+    id: string;
+    orderCode: string;
+    userId: string;
+    amount: number;
+    status: string;
+    purpose: string;
+    packageId: string | null;
+    package: AdminVipPackage | null;
+    refund: {
+        status: string;
+        amount: number | null;
+        reason: string | null;
+        requestedAt: string | null;
+        completedAt: string | null;
+        requestedBy: string | null;
+        refundTxnRef: string | null;
+        refundTransactionNo: string | null;
+    };
+    createdAt: string | null;
+    updatedAt: string | null;
+    user: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone: string | null;
+        role: string;
+        isVip: boolean;
+        vipExpiresAt: string | null;
+    } | null;
+}
+
+export interface GetAdminVipPurchasesParams {
+    page?: number;
+    limit?: number;
+    status?: string;
+    refundStatus?: string;
+    userId?: string;
+    packageId?: string;
+    search?: string;
+    createdFrom?: string;
+    createdTo?: string;
+}
+
+export interface AdminVipPurchasesSummary {
+    revenueSuccessAmount: number;
+    refundSuccessCount: number;
+    activeVipUsers: number;
+}
+
+export async function getAdminVipPackages(params: GetAdminVipPackagesParams = {}): Promise<{
+    data: AdminVipPackage[];
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/vip/packages'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            data: res.data.data || [],
+            pagination: res.data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+        };
+    } catch (error) {
+        console.error('getAdminVipPackages error:', error);
+        return {
+            data: [],
+            pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function createAdminVipPackage(payload: {
+    name: string;
+    durationDays: number;
+    price: number;
+    description?: string;
+    targetRole: 'TENANT' | 'LANDLORD';
+    isActive?: boolean;
+}): Promise<{ success: boolean; message: string }> {
+    try {
+        const res = await axios.post(getApiUrl('/admin/vip/packages'), payload, {
+            headers: getAuthHeader(),
+        });
+        return {
+            success: true,
+            message: res.data?.message || 'Tạo gói VIP thành công',
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Không thể tạo gói VIP',
+        };
+    }
+}
+
+export async function updateAdminVipPackage(
+    packageId: string,
+    payload: {
+        name?: string;
+        durationDays?: number;
+        price?: number;
+        description?: string | null;
+        targetRole?: 'TENANT' | 'LANDLORD';
+        isActive?: boolean;
+    }
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const res = await axios.patch(getApiUrl(`/admin/vip/packages/${packageId}`), payload, {
+            headers: getAuthHeader(),
+        });
+        return {
+            success: true,
+            message: res.data?.message || 'Cập nhật gói VIP thành công',
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Không thể cập nhật gói VIP',
+        };
+    }
+}
+
+export async function getAdminVipPurchases(params: GetAdminVipPurchasesParams = {}): Promise<{
+    data: AdminVipPurchase[];
+    summary: AdminVipPurchasesSummary;
+    pagination: PaginationInfo;
+}> {
+    try {
+        const res = await axios.get(getApiUrl('/admin/vip/purchases'), {
+            headers: getAuthHeader(),
+            params,
+        });
+        return {
+            data: res.data.data || [],
+            summary: res.data.summary || {
+                revenueSuccessAmount: 0,
+                refundSuccessCount: 0,
+                activeVipUsers: 0,
+            },
+            pagination: res.data.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    } catch (error) {
+        console.error('getAdminVipPurchases error:', error);
+        return {
+            data: [],
+            summary: {
+                revenueSuccessAmount: 0,
+                refundSuccessCount: 0,
+                activeVipUsers: 0,
+            },
+            pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        };
+    }
+}
+
+export async function refundAdminVipPurchase(
+    orderId: string,
+    payload: {
+        reasonCode: 'CUSTOMER_REQUEST' | 'DUPLICATE_PAYMENT' | 'SYSTEM_ERROR' | 'FRAUD_SUSPECT' | 'OTHER';
+        reason: string;
+        amount?: number;
+        revokeVip?: boolean;
+    }
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const res = await axios.patch(getApiUrl(`/admin/vip/purchases/${orderId}/refund`), payload, {
+            headers: getAuthHeader(),
+        });
+        return {
+            success: true,
+            message: res.data?.message || 'Hoàn tiền thành công',
+        };
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } };
+        return {
+            success: false,
+            message: err.response?.data?.message || 'Không thể hoàn tiền giao dịch VIP',
+        };
     }
 }

@@ -52,7 +52,6 @@ export function MultiImageUpload({
         const oversized = selectedFiles.find((f) => f.size > maxSizeMB * 1024 * 1024);
         if (oversized) {
             const msg = `Ảnh "${oversized.name}" vượt quá ${maxSizeMB}MB`;
-            console.log('Size validation failed:', msg);
             setError(msg);
             return;
         }

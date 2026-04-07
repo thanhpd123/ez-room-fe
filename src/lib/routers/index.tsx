@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, redirect, RouterProvider } from 'react-router-dom';
 import { HomePage } from '@/app/features/home';
 import { SearchPage } from '@/app/features/search';
 import { RoomsPage } from '@/app/features/rooms';
@@ -12,7 +12,7 @@ import { ProfilePage } from '@/app/features/profile';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 import { PageLoader } from '@/app/components/PageLoader';
 import { PayOSResultPage, WalletPaymentResultPage } from '@/app/features/payment-result';
-import { VipPlansPage } from '@/app/features/vip';
+import { VipPlansPage, VipManagementPage } from '@/app/features/vip';
 import { BlogListPage, BlogDetailPage } from '@/app/features/blog';
 
 /* Lazy-loaded chunks – admin/moderator/rental-mgmt only loaded when visited */
@@ -49,16 +49,17 @@ const AdminFinancePage = lazy(() => import('@/app/features/admin').then((m) => (
 const AdminSettingsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminSettingsPage })));
 const AdminModeratorsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminModeratorsPage })));
 const AdminBlogPostsPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminBlogPostsPage })));
+const AdminVipPackagesPage = lazy(() => import('@/app/features/admin').then((m) => ({ default: m.AdminVipPackagesPage })));
 const LayoutModerator = lazy(() => import('@/app/layouts/layout_moderator/LayoutModerator').then((m) => ({ default: m.default })));
 const ViewLandlordPage = lazy(() => import('@/app/features/lanlord-page').then((m) => ({ default: m.ViewLandlordPage })));
 const FindRoommatePage = lazy(() => import('@/app/features/roommate').then((m) => ({ default: m.FindRoommatePage })));
 const ChatPage = lazy(() => import('@/app/features/chat').then((m) => ({ default: m.ChatPage })));
 const WalletPage = lazy(() => import('@/app/features/wallet').then((m) => ({ default: m.WalletPage })));
 
-export const router = createBrowserRouter([
+const routes = [
     {
         path: '/',
-        element: <Navigate to="/home" replace />,
+        loader: () => redirect('/home'),
     },
     {
         path: '/register',
@@ -102,7 +103,15 @@ export const router = createBrowserRouter([
     },
     {
         path: '/vip/plans',
-        element: <Navigate to="/vip-plans" replace />,
+        loader: () => redirect('/vip-plans'),
+    },
+    {
+        path: '/vip-management',
+        element: (
+            <ProtectedRoute>
+                <VipManagementPage />
+            </ProtectedRoute>
+        ),
     },
     {
         path: '/rooms',
@@ -157,14 +166,14 @@ export const router = createBrowserRouter([
     {
         path: '/rental-management',
         element: (
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="LANDLORD">
                 <Suspense fallback={<PageLoader />}>
                     <LayoutRentalManagements />
                 </Suspense>
             </ProtectedRoute>
         ),
         children: [
-            { index: true, element: <Navigate to="dashboard" replace /> },
+            { index: true, loader: () => redirect('dashboard') },
             { path: 'dashboard', element: <Suspense fallback={<PageLoader />}><LandlordDashboardPage /></Suspense> },
             { path: 'rentals', element: <Suspense fallback={<PageLoader />}><ViewListRentalPage /></Suspense> },
             { path: 'rentals/create', element: <Suspense fallback={<PageLoader />}><CreateRentalPage /></Suspense> },
@@ -249,6 +258,29 @@ export const router = createBrowserRouter([
             { path: 'wallets', element: <Suspense fallback={<PageLoader />}><AdminWalletsPage /></Suspense> },
             { path: 'settings', element: <Suspense fallback={<PageLoader />}><AdminSettingsPage /></Suspense> },
             { path: 'blogs', element: <Suspense fallback={<PageLoader />}><AdminBlogPostsPage /></Suspense> },
+            { path: 'vip', element: <Suspense fallback={<PageLoader />}><AdminVipPackagesPage /></Suspense> },
         ],
     },
-]);
+    // 404 catch-all — prevents unknown URLs from hitting the default ErrorBoundary
+    {
+        path: '*',
+        element: (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background text-center px-4">
+                <p className="text-6xl font-bold text-muted-foreground">404</p>
+                <p className="text-xl font-semibold text-foreground">Trang không tồn tại</p>
+                <p className="text-muted-foreground text-sm">Đường dẫn bạn truy cập không hợp lệ.</p>
+                <a href="/home" className="mt-2 inline-flex items-center px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors">
+                    Về trang chủ
+                </a>
+            </div>
+        ),
+    },
+];
+
+// Router is created once at module level - creating it inside a component or useMemo
+// causes it to be recreated on re-renders and triggers ErrorResponseImpl errors.
+const router = createBrowserRouter(routes);
+
+export function AppRouter() {
+    return <RouterProvider router={router} />;
+}

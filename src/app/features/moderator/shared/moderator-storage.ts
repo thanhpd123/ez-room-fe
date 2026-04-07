@@ -31,97 +31,12 @@ interface ModeratorState {
     history: ModerationHistoryRecord[];
 }
 
-const DEFAULT_REPORTS: ViolationReport[] = [
-    {
-        report_id: 'report-seed-1',
-        reporter_id: 'tenant-101',
-        target_user_id: 'owner-002',
-        target_type: 'rental',
-        target_id: 'rental-seed-2',
-        category: 'misleading',
-        details: 'Listing says private kitchen but shared kitchen in reality.',
-        status: 'open',
-        created_at: '2026-02-08T09:40:00.000Z',
-    },
-    {
-        report_id: 'report-seed-2',
-        reporter_id: 'owner-008',
-        target_user_id: 'tenant-220',
-        target_type: 'review',
-        target_id: 'review-seed-2',
-        category: 'offensive',
-        details: 'Review includes insulting language and personal attacks.',
-        status: 'open',
-        created_at: '2026-02-09T03:30:00.000Z',
-    },
-    {
-        report_id: 'report-seed-3',
-        reporter_id: 'tenant-131',
-        target_user_id: 'owner-001',
-        target_type: 'room_post',
-        target_id: 'room-post-seed-1',
-        category: 'spam',
-        details: 'Duplicate room post submitted multiple times in one day.',
-        status: 'resolved',
-        action_taken: 'warning',
-        created_at: '2026-02-04T10:00:00.000Z',
-        resolved_at: '2026-02-04T14:20:00.000Z',
-    },
-];
-
-const DEFAULT_REVIEWS: ModeratedReview[] = [
-    {
-        review_id: 'review-seed-1',
-        reviewer_id: 'tenant-190',
-        rental_id: 'rental-seed-1',
-        rental_title: 'Maple Residence',
-        rating: 4,
-        content: 'Good room but the reviewer copied the same text in many posts.',
-        flag_reason: 'Potential spam pattern',
-        status: 'flagged',
-        warning_count: 0,
-        created_at: '2026-02-08T11:00:00.000Z',
-    },
-    {
-        review_id: 'review-seed-2',
-        reviewer_id: 'tenant-220',
-        rental_id: 'rental-seed-2',
-        rental_title: 'Sunrise Mini Apartment',
-        rating: 1,
-        content: 'This place is a total scam, owner is dishonest and rude.',
-        flag_reason: 'Offensive language',
-        status: 'flagged',
-        warning_count: 1,
-        created_at: '2026-02-09T02:40:00.000Z',
-    },
-    {
-        review_id: 'review-seed-3',
-        reviewer_id: 'tenant-154',
-        rental_id: 'rental-seed-1',
-        rental_title: 'Maple Residence',
-        rating: 5,
-        content: 'Clean room, responsive landlord, and stable electricity.',
-        flag_reason: 'Routine quality check',
-        status: 'approved',
-        warning_count: 0,
-        created_at: '2026-02-06T08:20:00.000Z',
-    },
-];
-
-const DEFAULT_STATE: ModeratorState = {
-    rental_decisions: {},
-    room_post_decisions: {},
-    reports: DEFAULT_REPORTS,
-    reviews: DEFAULT_REVIEWS,
-    history: [],
-};
-
 function createDefaultState(): ModeratorState {
     return {
         rental_decisions: {},
         room_post_decisions: {},
-        reports: [...DEFAULT_REPORTS],
-        reviews: [...DEFAULT_REVIEWS],
+        reports: [],
+        reviews: [],
         history: [],
     };
 }
@@ -146,7 +61,6 @@ function readState(): ModeratorState {
 
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_STATE));
         return createDefaultState();
     }
 
@@ -155,8 +69,8 @@ function readState(): ModeratorState {
         return {
             rental_decisions: parsed.rental_decisions ?? {},
             room_post_decisions: parsed.room_post_decisions ?? {},
-            reports: Array.isArray(parsed.reports) ? parsed.reports : [...DEFAULT_REPORTS],
-            reviews: Array.isArray(parsed.reviews) ? parsed.reviews : [...DEFAULT_REVIEWS],
+            reports: Array.isArray(parsed.reports) ? parsed.reports : [],
+            reviews: Array.isArray(parsed.reviews) ? parsed.reviews : [],
             history: Array.isArray(parsed.history) ? parsed.history : [],
         };
     } catch {
@@ -270,6 +184,7 @@ export async function listRoomPostModerationItems() {
         max_occupants: number;
         status: string;
         created_at: string;
+        moderation_status?: string;
         images?: string[];
         amenities?: Array<{ id: string; name: string }>;
         description?: string;
@@ -333,7 +248,7 @@ export async function listRoomPostModerationItems() {
             max_occupants: post.max_occupants,
             created_at: post.created_at,
             listing_status: post.status,
-            moderation_status: decision?.decision ?? deriveStatus(post.status),
+            moderation_status: decision?.decision ?? post.moderation_status ?? deriveStatus(post.status),
             last_moderated_at: decision?.moderated_at,
             last_note: decision?.note,
             images: post.images,
@@ -750,26 +665,28 @@ export interface ModerationQueueItem {
     assigned_at: string | null;
 }
 
-export async function listModerationQueue(params?: {
+export async function listModerationQueue(filters: {
     status?: string;
     priority?: string;
     category?: string;
     assignedTo?: string;
+    sortBy?: 'asc' | 'desc';
     page?: number;
     limit?: number;
 }): Promise<{
     data: ModerationQueueItem[];
     pagination: { page: number; limit: number; total: number; totalPages: number };
 }> {
-    const searchParams = new URLSearchParams();
-    if (params?.status) searchParams.set('status', params.status);
-    if (params?.priority) searchParams.set('priority', params.priority);
-    if (params?.category) searchParams.set('category', params.category);
-    if (params?.assignedTo) searchParams.set('assignedTo', params.assignedTo);
-    if (params?.page) searchParams.set('page', String(params.page));
-    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const params = new URLSearchParams();
+    if (filters.page) params.set('page', filters.page.toString());
+    if (filters.limit) params.set('limit', filters.limit.toString());
+    if (filters.status) params.set('status', filters.status);
+    if (filters.priority) params.set('priority', filters.priority);
+    if (filters.category) params.set('category', filters.category);
+    if (filters.assignedTo) params.set('assignedTo', filters.assignedTo);
+    if (filters.sortBy) params.set('sortBy', filters.sortBy);
 
-    const res = await authFetch(`/moderator/queue?${searchParams.toString()}`);
+    const res = await authFetch(`/moderator/queue?${params.toString()}`);
     const json = await res.json();
     if (!res.ok) throw new Error(json?.message || 'Lỗi tải moderation queue');
 
@@ -916,12 +833,15 @@ export async function listModerators(): Promise<ModeratorListItem[]> {
     }
 }
 
-export async function releaseQueueItem(queueItemId: string): Promise<void> {
-    const res = await authFetch(`/moderator/queue/${encodeURIComponent(queueItemId)}/release`, {
+export async function releaseQueueItem(id: string) {
+    const res = await authFetch(`/moderator/queue/${id}/release`, {
         method: 'PATCH',
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.message || 'Trả task thất bại');
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Không thể trả task');
+    }
+    return res.json();
 }
 
 export interface QueueLockStatus {
@@ -946,17 +866,27 @@ export async function checkQueueStatus(targetType: string, targetId: string): Pr
 }
 
 export async function getModeratorOverview() {
-    const [rentalItems, roomPostItems, reports, reviewsResult] = await Promise.all([
-        listRentalModerationItems(),
-        listRoomPostModerationItems(),
-        listViolationReports(),
-        listModeratedReviews({ status: 'PENDING', limit: 1 }),
-    ]);
-
+    try {
+        const res = await authFetch('/moderator/overview');
+        const json = await res.json();
+        if (res.ok && json.data) {
+            return json.data;
+        }
+    } catch (err) {
+        console.error('Failed to fetch moderator overview:', err);
+    }
+    
+    // Fallback to zeros if API fails
     return {
-        pendingRentalCount: rentalItems.filter((item) => item.moderation_status === 'pending_review').length,
-        pendingRoomPostCount: roomPostItems.filter((item) => item.moderation_status === 'pending_review').length,
-        openReportCount: reports.filter((item) => item.status === 'open').length,
-        flaggedReviewCount: reviewsResult.pagination.total,
+        openQueueCount: 0,
+        pendingRentalCount: 0,
+        pendingRoomPostCount: 0,
+        openReportCount: 0,
+        flaggedReviewCount: 0,
+        resolvedReportCount: 0,
+        approvedRentalCount: 0,
+        approvedRoomPostCount: 0,
+        approvedReviewCount: 0,
+        rejectedReviewCount: 0,
     };
 }

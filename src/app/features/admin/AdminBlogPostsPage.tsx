@@ -39,6 +39,7 @@ interface BlogFormValues {
 
 export function AdminBlogPostsPage() {
     const [form] = Form.useForm<BlogFormValues>();
+    const coverImageUrl = Form.useWatch('coverImageUrl', form) || '';
     const [posts, setPosts] = useState<BlogPostItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
@@ -281,8 +282,11 @@ export function AdminBlogPostsPage() {
                     <Form.Item name="content" label="Nội dung" rules={[{ required: true, message: 'Nhập nội dung' }]}>
                         <TextArea rows={6} />
                     </Form.Item>
-                    <Form.Item name="coverImageUrl" label="Ảnh bìa" valuePropName="value">
-                        <ImageUpload />
+                    <Form.Item name="coverImageUrl" label="Ảnh bìa">
+                        <ImageUpload
+                            value={coverImageUrl}
+                            onChange={(url) => form.setFieldValue('coverImageUrl', url)}
+                        />
                     </Form.Item>
                     <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
                         <Select options={STATUS_OPTIONS.map((s) => ({ value: s.value, label: s.label }))} />

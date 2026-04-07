@@ -7,13 +7,20 @@ const EZROOM_TOKEN_KEY = 'ezroom_token';
 
 /**
  * Get current auth token for backend (Supabase OAuth or email/password JWT).
+ * Prefer localStorage (backend JWT) first so email/password users are not blocked by Supabase.
  */
 export async function getAccessToken(): Promise<string | null> {
-    const {
-        data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) return session.access_token;
-    return localStorage.getItem(EZROOM_TOKEN_KEY);
+    const stored = localStorage.getItem(EZROOM_TOKEN_KEY);
+    if (stored) return stored;
+    try {
+        const {
+            data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.access_token) return session.access_token;
+    } catch {
+        // Supabase unreachable (e.g. timeout) – we already checked localStorage above
+    }
+    return null;
 }
 
 export function getStoredToken(): string | null {
@@ -28,6 +35,7 @@ export function setStoredAuth(token: string, user: Record<string, unknown>): voi
 export function clearStoredAuth(): void {
     localStorage.removeItem(EZROOM_TOKEN_KEY);
     localStorage.removeItem('ezroom_user');
+    localStorage.removeItem('ezroom_session_expires_at');
     localStorage.removeItem('ezroom_refresh_token');
 }
 
@@ -37,7 +45,7 @@ export function clearStoredAuth(): void {
 export async function loginWithEmail(
     email: string,
     password: string
-): Promise<{ accessToken: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; isVip?: boolean; gender?: string | null } }> {
+): Promise<{ accessToken: string; user: { id: string; fullName: string; email: string; phone: string | null; role: string; status: string; avatarUrl: string | null; createdAt: string; gender?: string | null; isVip?: boolean } }> {
     const url = getApiUrl('/auth/login');
     const res = await fetch(url, {
         method: 'POST',
@@ -126,6 +134,31 @@ export async function resetPasswordRequest(
 }
 
 /**
+ * POST /auth/register – email/password registration. Returns the new user.
+ */
+export async function registerRequest(payload: {
+    fullName: string;
+    email: string;
+    phone?: string;
+    password: string;
+    confirmPassword: string;
+    role: 'TENANT' | 'LANDLORD';
+}): Promise<{ success: boolean; user: Record<string, unknown>; message: string }> {
+    const res = await fetch(getApiUrl('/auth/register'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        const err = new Error(data?.message || 'Đăng ký thất bại') as Error & { errors?: unknown[] };
+        if (Array.isArray(data?.errors)) err.errors = data.errors;
+        throw err;
+    }
+    return data;
+}
+
+/**
  * POST /auth/register-oauth – complete signup after Google OAuth
  */
 export async function registerOAuthRequest(payload: {
@@ -141,6 +174,27 @@ export async function registerOAuthRequest(payload: {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Đăng ký thất bại');
+    return data;
+}
+
+/**
+ * PATCH /auth/change-password – change current user's password.
+ */
+export async function changePasswordRequest(body: {
+    currentPassword: string;
+    newPassword: string;
+    confirmNewPassword: string;
+}): Promise<{ success: boolean; message: string }> {
+    const res = await authFetch('/auth/change-password', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const err = new Error(data?.message || 'Đổi mật khẩu thất bại') as Error & { errors?: string[] };
+        if (Array.isArray(data?.errors)) err.errors = data.errors;
+        throw err;
+    }
     return data;
 }
 
@@ -199,6 +253,7 @@ export interface UserPreferenceResponse {
     max_distance_km?: number | null;
     transport_nearby?: boolean | null;
     pet_friendly?: boolean | null;
+    preferred_gender?: string | null;
     preferred_roommate_age_min?: number | null;
     preferred_roommate_age_max?: number | null;
     lifestyle_match_weight?: number | null;
@@ -268,6 +323,7 @@ export async function upsertPreferenceRequest(body: {
     max_distance_km?: number | null;
     transport_nearby?: boolean | null;
     pet_friendly?: boolean | null;
+    preferred_gender?: string | null;
     preferred_roommate_age_min?: number | null;
     preferred_roommate_age_max?: number | null;
     lifestyle_match_weight?: number | null;
@@ -279,39 +335,54 @@ export async function upsertPreferenceRequest(body: {
     return data;
 }
 
+/** Options for authFetch; pass `token` to use a specific token (e.g. from auth state). */
+export type AuthFetchOptions = RequestInit & { token?: string | null };
+
 /**
  * Fetch from the backend with Authorization: Bearer <access_token>.
  * Use for any protected API route.
+ * If no token is available (and none passed), returns a 401 Response without hitting the server.
  */
 export async function authFetch(
     path: string,
-    options: RequestInit = {}
+    options: AuthFetchOptions = {}
 ): Promise<Response> {
+    const { token: explicitToken, ...rest } = options;
+
     const fetchWithToken = async (token: string | null): Promise<Response> => {
         const url = getApiUrl(path);
         const headers: HeadersInit = {};
-        
-        // Only set Content-Type if body is not FormData (let browser handle FormData)
-        if (!(options.body instanceof FormData)) {
+
+        if (!(rest.body instanceof FormData)) {
             headers['Content-Type'] = 'application/json';
         }
-        
-        // Merge with any custom headers
-        if (options.headers) {
-            Object.assign(headers, options.headers);
+
+        if (rest.headers) {
+            Object.assign(headers, rest.headers);
         }
-        
+
         if (token) {
             (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
         }
         return fetch(url, {
-            ...options,
+            ...rest,
             headers,
             credentials: 'include',
         });
     };
 
-    const token = await getAccessToken();
+    const token =
+        explicitToken !== undefined && explicitToken !== null
+            ? explicitToken
+            : await getAccessToken();
+
+    if (!token) {
+        return new Response(
+            JSON.stringify({ success: false, message: 'Chưa đăng nhập' }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+    }
+
     let response = await fetchWithToken(token);
 
     const shouldTryRefresh =
@@ -338,8 +409,9 @@ export async function authFetch(
 
 /**
  * GET /favorites – list current user's favorite rooms (auth required).
+ * Pass token when available from auth context to avoid 401 from stale getAccessToken().
  */
-export async function getMyFavoritesRequest(): Promise<{
+export async function getMyFavoritesRequest(options?: { token?: string | null }): Promise<{
     success: boolean;
     data: Array<{
         id: string;
@@ -354,7 +426,7 @@ export async function getMyFavoritesRequest(): Promise<{
         available: boolean;
     }>;
 }> {
-    const res = await authFetch('/favorites');
+    const res = await authFetch('/favorites', { token: options?.token });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách yêu thích');
     return data;
@@ -373,8 +445,8 @@ export async function getFavoriteIdsRequest(): Promise<{ success: boolean; data:
 /**
  * POST /favorites/:roomId – add room to favorites (auth required).
  */
-export async function addFavoriteRequest(roomId: string): Promise<{ success: boolean; data: { roomId: string } }> {
-    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'POST' });
+export async function addFavoriteRequest(roomId: string, options?: { token?: string | null }): Promise<{ success: boolean; data: { roomId: string } }> {
+    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'POST', token: options?.token });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Không thể thêm yêu thích');
     return data;
@@ -383,8 +455,8 @@ export async function addFavoriteRequest(roomId: string): Promise<{ success: boo
 /**
  * DELETE /favorites/:roomId – remove room from favorites (auth required).
  */
-export async function removeFavoriteRequest(roomId: string): Promise<{ success: boolean; data: { roomId: string } }> {
-    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+export async function removeFavoriteRequest(roomId: string, options?: { token?: string | null }): Promise<{ success: boolean; data: { roomId: string } }> {
+    const res = await authFetch(`/favorites/${encodeURIComponent(roomId)}`, { method: 'DELETE', token: options?.token });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Không thể bỏ yêu thích');
     return data;
@@ -544,6 +616,34 @@ export interface CreatePreorderDepositPaymentResponse {
     };
 }
 
+export interface VerifyPreorderPaymentResponse {
+    success: boolean;
+    message: string;
+    data: {
+        status: 'success' | 'cancel' | 'pending';
+        confirmed: boolean;
+        preorderId: string;
+        orderCode: string;
+        paymentOrderStatus: string;
+        preorderStatus: string | null;
+        preorderPaymentStatus: string | null;
+        depositAmount: number;
+    };
+}
+
+export interface VerifyPreorderPaymentLegacyResponse {
+    success: boolean;
+    message: string;
+    data: {
+        preorder: MyPreorderItem | null;
+        payment: {
+            orderCode: string;
+            status: string;
+            payosStatus: string | null;
+        };
+    };
+}
+
 export async function createPreorderDepositPaymentRequest(
     body: CreatePreorderDepositPaymentRequest
 ): Promise<CreatePreorderDepositPaymentResponse> {
@@ -553,6 +653,72 @@ export async function createPreorderDepositPaymentRequest(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Không thể tạo thanh toán đặt cọc');
+    return data;
+}
+
+export async function verifyPreorderPaymentRequest(params: {
+    orderCode?: string;
+    preorderId?: string;
+}): Promise<VerifyPreorderPaymentResponse>;
+export async function verifyPreorderPaymentRequest(
+    preorderId: string,
+    orderCode: string
+): Promise<VerifyPreorderPaymentLegacyResponse>;
+export async function verifyPreorderPaymentRequest(
+    preorderIdOrParams: string | { orderCode?: string; preorderId?: string },
+    maybeOrderCode?: string
+): Promise<VerifyPreorderPaymentResponse | VerifyPreorderPaymentLegacyResponse> {
+    const search = new URLSearchParams();
+    const isObjectParams = typeof preorderIdOrParams === 'object' && preorderIdOrParams !== null;
+
+    if (isObjectParams) {
+        if (preorderIdOrParams.orderCode) search.set('orderCode', preorderIdOrParams.orderCode);
+        if (preorderIdOrParams.preorderId) search.set('preorderId', preorderIdOrParams.preorderId);
+    } else {
+        const preorderId = preorderIdOrParams;
+        if (preorderId) search.set('preorderId', preorderId);
+        if (maybeOrderCode) search.set('orderCode', maybeOrderCode);
+    }
+
+    const qs = search.toString();
+    const res = await authFetch(`/preorders/verify-payment${qs ? `?${qs}` : ''}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể xác minh thanh toán đặt cọc');
+    return data;
+}
+
+export async function resumePreorderPaymentRequest(preorderId: string): Promise<{
+    success: boolean;
+    data: {
+        preorderId: string;
+        roomId: string;
+        depositAmount: number;
+        room: { id: string; room_name: string | null; price: number } | null;
+        payment: {
+            provider: 'PAYOS';
+            orderCode: string;
+            checkoutUrl: string | null;
+            status: string;
+        };
+    };
+}> {
+    const res = await authFetch(`/preorders/${encodeURIComponent(preorderId)}/resume-payment`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể lấy lại link thanh toán');
+    return data;
+}
+
+export async function cancelUnpaidPreorderRequest(preorderId: string, reason?: string): Promise<{
+    success: boolean;
+    message: string;
+    data: MyPreorderItem;
+}> {
+    const res = await authFetch(`/preorders/${encodeURIComponent(preorderId)}/cancel`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không thể hủy thanh toán đặt cọc');
     return data;
 }
 
@@ -599,6 +765,7 @@ export interface MyBookingItem {
     moderatorNote?: string;
     canReview: boolean;
     canReviewDisabled: boolean;
+    roommates?: { id: string; fullName: string; email: string | null; phone: string | null; avatarUrl: string | null }[];
 }
 
 export async function getMyBookingsRequest(): Promise<{
@@ -817,6 +984,32 @@ export async function inviteRoommateRequest(
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Gửi lời mời ở ghép thất bại');
+    return data;
+}
+
+export async function createRoommateRatingRequest(body: {
+    targetId: string;
+    rentalPeriodId: string;
+    overallRating: number;
+    comment?: string;
+}): Promise<{ success: boolean; message: string; data: { id: string } }> {
+    const res = await authFetch('/roommate/experiences', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi đánh giá thất bại');
+    return data;
+}
+
+export async function checkRoommateRatingRequest(
+    targetId: string,
+    rentalPeriodId: string
+): Promise<{ success: boolean; data: { id: string; overall_rating: number; comment: string | null } | null }> {
+    const params = new URLSearchParams({ targetId, rentalPeriodId });
+    const res = await authFetch(`/roommate/experiences/check?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi kiểm tra đánh giá');
     return data;
 }
 
@@ -1535,6 +1728,7 @@ export async function getPublicRentalByIdRequest(rentalId: string): Promise<{
 
 /**
  * GET /rooms/:roomId – room detail (public, no auth).
+ * Tip: when showing this room to a logged-in user, call recordRoomView(roomId) to improve recommendations.
  */
 export async function getRoomByIdRequest(roomId: string): Promise<{
     success: boolean;
@@ -1558,7 +1752,7 @@ export async function getRoomByIdForSearchRoomateRequest(roomId: string): Promis
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-    
+
     const url = getApiUrl(`/rooms/${roomId}/search-roommate`);
     const res = await fetch(url, { headers });
     const json = await res.json().catch(() => ({}));
@@ -1772,6 +1966,8 @@ export interface SmartSearchParams {
     amenities?: string[];
     page?: number;
     limit?: number;
+    lat?: number;
+    lng?: number;
 }
 
 /** Room-level search result (recommendation system). */
@@ -1839,9 +2035,70 @@ export async function smartSearchRequest(
 }
 
 /**
- * GET /search/recommend – recommend rentals by user profile (tenant/VIP, auth required).
+ * GET /search/advanced – AI-powered search for logged-in users.
+ * Uses embeddings, preferences, lifestyle, and ratings for multi-factor scoring.
  */
-export async function getRecommendRequest(): Promise<{
+export async function advancedSearchRequest(
+    params?: SmartSearchParams,
+    options?: { token?: string | null }
+): Promise<{
+    success: boolean;
+    data: SmartSearchRoomItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+    searchMode?: string;
+}> {
+    const search = new URLSearchParams();
+    if (params?.q) search.set('q', params.q);
+    if (params?.city) search.set('city', params.city);
+    if (params?.district) search.set('district', params.district);
+    if (params?.address) search.set('address', params.address);
+    if (params?.minPrice != null) search.set('minPrice', String(params.minPrice));
+    if (params?.maxPrice != null) search.set('maxPrice', String(params.maxPrice));
+    if (params?.roomType) search.set('roomType', params.roomType);
+    if (params?.minArea != null) search.set('minArea', String(params.minArea));
+    if (params?.maxArea != null) search.set('maxArea', String(params.maxArea));
+    if (params?.amenities?.length) search.set('amenities', params.amenities.join(','));
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    if (params?.lat != null) search.set('lat', String(params.lat));
+    if (params?.lng != null) search.set('lng', String(params.lng));
+    const res = await authFetch(`/search/advanced?${search.toString()}`, { token: options?.token });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tìm kiếm nâng cao');
+    return json;
+}
+
+/**
+ * GET /search/nearby – find rooms near user's location (auth required).
+ */
+export async function nearbySearchRequest(
+    params: { lat: number; lng: number; radius?: number; page?: number; limit?: number },
+    options?: { token?: string | null }
+): Promise<{
+    success: boolean;
+    data: SmartSearchRoomItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+    searchMode?: string;
+    radius?: number;
+    googleMapsEnabled?: boolean;
+}> {
+    const search = new URLSearchParams();
+    search.set('lat', String(params.lat));
+    search.set('lng', String(params.lng));
+    if (params.radius != null) search.set('radius', String(params.radius));
+    if (params.page) search.set('page', String(params.page));
+    if (params.limit) search.set('limit', String(params.limit));
+    const res = await authFetch(`/search/nearby?${search.toString()}`, { token: options?.token });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tìm kiếm gần bạn');
+    return json;
+}
+
+/**
+ * GET /search/recommend – recommend rentals by user profile (tenant/VIP, auth required).
+ * Pass token when available from auth context.
+ */
+export async function getRecommendRequest(options?: { token?: string | null }): Promise<{
     success: boolean;
     data: Array<{
         id: string;
@@ -1855,19 +2112,86 @@ export async function getRecommendRequest(): Promise<{
     }>;
     hint?: string;
 }> {
-    const res = await authFetch('/search/recommend');
+    const res = await authFetch('/search/recommend', { token: options?.token });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || 'Lỗi tải gợi ý');
     return json;
 }
 
 /**
- * POST /search/by-image – image search (tenant: limited, VIP: unlimited). Auth required.
- * TODO: Send imageFile via FormData for actual image-based search.
+ * POST /interactions – record user–room interaction for behavior learning (auth required).
+ * Call when user views a room (view), favorites (favorite), contacts landlord (contact_landlord), or shares (share).
+ */
+export async function recordInteractionRequest(
+    roomId: string,
+    interactionType: 'view' | 'favorite' | 'contact_landlord' | 'share' = 'view'
+): Promise<{ success: boolean; message?: string }> {
+    const res = await authFetch('/interactions', {
+        method: 'POST',
+        body: JSON.stringify({ roomId, interactionType }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi ghi nhận');
+    return data;
+}
+
+/**
+ * Fire-and-forget: record a room view for ranking/popularity. Call when opening room detail.
+ * Does not throw; safe to call without await.
+ */
+export function recordRoomView(roomId: string): void {
+    if (!roomId) return;
+    recordInteractionRequest(roomId, 'view').catch(() => { });
+}
+
+/**
+ * GET /search/by-text – text-to-image search (auth required).
+ * Describe the room in text (e.g. "phòng có cửa sổ lớn") and get visually similar rooms.
+ */
+export async function searchByTextRequest(
+    q: string
+): Promise<{
+    success: boolean;
+    data: Array<{
+        id: string;
+        title: string;
+        location: { district: string | null; city: string | null } | null;
+        images: string[];
+        price: number;
+        matchScore?: number;
+    }>;
+    message?: string;
+    searchMode?: string;
+}> {
+    const res = await authFetch(`/search/by-text?${new URLSearchParams({ q: q.trim() }).toString()}`);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Lỗi tìm kiếm bằng mô tả');
+    return json;
+}
+
+/**
+ * POST /search/by-image – image search (VIP only). Auth required.
+ * Uses OpenAI Vision + CLIP embeddings for visual room similarity matching.
  */
 export async function searchByImageRequest(
-    _imageFile: File,
-    options?: { district?: string; area?: string }
+    imageFile: File,
+    options?: {
+        token?: string | null;
+        /** Optional text hint blended with image embedding (CLIP multimodal: 70% image + 30% text). */
+        text_hint?: string;
+        q?: string;
+        city?: string;
+        district?: string;
+        address?: string;
+        minPrice?: number;
+        maxPrice?: number;
+        roomType?: string;
+        minArea?: number;
+        maxArea?: number;
+        amenities?: string[];
+        lat?: number;
+        lng?: number;
+    }
 ): Promise<{
     success: boolean;
     data: Array<{
@@ -1878,15 +2202,31 @@ export async function searchByImageRequest(
         price: number;
     }>;
     message?: string;
+    searchMode?: string;
 }> {
-    const token = await getAccessToken();
+    const token = options?.token ?? (await getAccessToken());
     if (!token) throw new Error('Cần đăng nhập để tìm kiếm bằng ảnh');
-    const res = await authFetch('/search/by-image', {
+
+    const form = new FormData();
+    form.append('file', imageFile);
+    if (options?.text_hint) form.append('text_hint', options.text_hint);
+    if (options?.q) form.append('q', options.q);
+    if (options?.city) form.append('city', options.city);
+    if (options?.district) form.append('district', options.district);
+    if (options?.address) form.append('address', options.address);
+    if (options?.minPrice != null) form.append('minPrice', String(options.minPrice));
+    if (options?.maxPrice != null) form.append('maxPrice', String(options.maxPrice));
+    if (options?.roomType) form.append('roomType', options.roomType);
+    if (options?.minArea != null) form.append('minArea', String(options.minArea));
+    if (options?.maxArea != null) form.append('maxArea', String(options.maxArea));
+    if (options?.amenities?.length) form.append('amenities', options.amenities.join(','));
+    if (options?.lat != null) form.append('lat', String(options.lat));
+    if (options?.lng != null) form.append('lng', String(options.lng));
+
+    const res = await fetch(getApiUrl('/search/by-image'), {
         method: 'POST',
-        body: JSON.stringify({
-            district: options?.district,
-            area: options?.area,
-        }),
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || 'Lỗi tìm kiếm ảnh');
@@ -2014,6 +2354,31 @@ export async function verifyVipPurchaseRequest(orderCode: string): Promise<{
     if (!res.ok) {
         throw new Error(json?.message || 'Không thể xác minh thanh toán VIP');
     }
+    return json;
+}
+
+export interface VipPurchaseHistory {
+    id: string;
+    packageName: string;
+    durationDays: number;
+    targetRole: string | null;
+    startDate: string;
+    endDate: string;
+    pricePaid: number;
+    createdAt: string | null;
+}
+
+export interface VipStatusData {
+    isVip: boolean;
+    vipExpiresAt: string | null;
+    daysRemaining: number;
+    purchases: VipPurchaseHistory[];
+}
+
+export async function getMyVipStatusRequest(): Promise<{ success: boolean; data: VipStatusData }> {
+    const res = await authFetch('/vip/my-status');
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || 'Không thể tải trạng thái VIP');
     return json;
 }
 

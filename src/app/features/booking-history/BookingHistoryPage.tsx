@@ -133,8 +133,7 @@ export function BookingHistoryPage() {
         }
     };
 
-    const handleReportSubmit = (data: ReportData) => {
-        console.log('Report submitted:', { propertyId: selectedBooking?.id, ...data });
+    const handleReportSubmit = (_data: ReportData) => {
         setModalState('none');
     };
 

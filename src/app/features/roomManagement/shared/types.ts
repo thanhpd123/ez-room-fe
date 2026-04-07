@@ -9,6 +9,7 @@ export interface ManagedRoomPostItem {
     area: number;
     max_occupants: number;
     status: RoomStatus;
+    moderation_status?: import('@/app/features/moderator/shared/types').ModerationDecision;
     thumbnail_url?: string;
     images?: string[];
     amenities?: Array<{ id: string; name: string }>;
