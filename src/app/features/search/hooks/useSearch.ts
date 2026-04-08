@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Room, SearchCriteria } from '../types';
 import { smartSearchRequest, advancedSearchRequest, searchByImageRequest, nearbySearchRequest } from '@/lib/api';
 import type { SmartSearchRoomItem } from '@/lib/api';
 import { useAuth } from '@/app/context/useAuth';
 import { translateBatch } from '@/lib/translate-api';
+import { VIP_IMAGE_SEARCH_ERROR } from '../constants';
 
 /** True if text contains Vietnamese diacritics → already Vietnamese. */
 function isVietnamese(text: string): boolean {
@@ -42,7 +43,10 @@ function smartSearchItemToRoom(r: SmartSearchRoomItem): Room {
         amenities: r.amenities ?? [],
         image: r.images?.[0] || '',
         rating: r.rating ?? 0,
-        available: true,
+        available:
+            r.available !== undefined
+                ? r.available
+                : String(r.roomStatus || '').toUpperCase() === 'AVAILABLE',
         rentalId: r.rentalId,
         matchScore: r.matchScore,
         otherRoomsInRental: r.otherRoomsInRental,
@@ -66,9 +70,24 @@ interface UseSearchReturn {
     translatedQuery: string | null;
 }
 
-export function useSearch(isLoggedIn = false): UseSearchReturn {
+function isAdvancedSearchTransientFailure(err: unknown): boolean {
+    const status = err && typeof err === 'object' && 'status' in err ? (err as { status?: number }).status : undefined;
+    if (status === undefined) return true;
+    if (status >= 500) return true;
+    if (status === 408 || status === 429) return true;
+    return false;
+}
+
+export function useSearch(
+    isLoggedIn = false,
+    authVerified = true,
+    /** When true, URL-driven search ignores amenities/area (guest basic-only parity). */
+    guestUrlBasicOnly = false
+): UseSearchReturn {
     const { accessToken } = useAuth();
     const [searchParams] = useSearchParams();
+    const imageAbortRef = useRef<AbortController | null>(null);
+    const imageSearchSeqRef = useRef(0);
     const [results, setResults] = useState<Room[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
@@ -116,8 +135,10 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
                 try {
                     res = await advancedSearchRequest(params, { token: accessToken });
                     setSearchMode((res as { searchMode?: string }).searchMode || 'advanced');
-                } catch {
-                    // Fallback to public smart search when auth token is stale or advanced search is unavailable.
+                } catch (err) {
+                    if (!isAdvancedSearchTransientFailure(err)) {
+                        throw err;
+                    }
                     res = await smartSearchRequest(params);
                     setSearchMode('basic');
                     setSearchError('Tìm kiếm nâng cao tạm thời không khả dụng, đã chuyển sang tìm kiếm thường.');
@@ -161,6 +182,11 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
 
     const searchByImage = useCallback(
         async (imageFile: File, options?: { district?: string; textHint?: string }) => {
+            imageAbortRef.current?.abort();
+            const ac = new AbortController();
+            imageAbortRef.current = ac;
+            const seq = ++imageSearchSeqRef.current;
+
             setIsSearching(true);
             setHasSearched(false);
             setImageSearchError(null);
@@ -175,6 +201,8 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
                 textHint = text;
                 if (wasTranslated) setTranslatedQuery(text);
             }
+
+            if (seq !== imageSearchSeqRef.current) return;
 
             // Reuse last advanced criteria so image becomes just one more factor,
             // falling back to district from options if no previous criteria.
@@ -193,43 +221,56 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
                 amenities: base.amenities?.length ? base.amenities : undefined,
                 lat: base.lat,
                 lng: base.lng,
+                signal: ac.signal,
             };
 
-            searchByImageRequest(imageFile, { ...paramsForImage, token: accessToken })
-                .then((res) => {
-                    const items = res.data || [];
-                    setSearchMode(res.searchMode || 'image');
-                    setResults(
-                        items.map((r) => ({
-                            id: r.id,
-                            title: r.title,
-                            location: r.location
-                                ? [r.location.district, r.location.city].filter(Boolean).join(', ')
-                                : 'N/A',
-                            price: r.price ?? 0,
-                            area: (r as { area?: number | null }).area ?? 0,
-                            roomType: ((r as { roomType?: Room['roomType'] }).roomType || 'apartment') as Room['roomType'],
-                            amenities: (r as { amenities?: string[] }).amenities || [],
-                            image: r.images?.[0] || '',
-                            rating: (r as { rating?: number | null }).rating ?? 0,
-                            available: true,
-                            rentalId: (r as { rentalId?: string }).rentalId || r.id,
-                            matchScore: (r as { matchScore?: number }).matchScore,
-                            clipSimilarity: (r as { clipSimilarity?: number }).clipSimilarity,
-                            otherRoomsInRental: (r as { otherRoomsInRental?: Room['otherRoomsInRental'] }).otherRoomsInRental,
-                        }))
-                    );
-                })
-                .catch((err) => {
-                    const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm ảnh';
+            try {
+                const res = await searchByImageRequest(imageFile, { ...paramsForImage, token: accessToken });
+                if (seq !== imageSearchSeqRef.current) return;
+                const items = res.data || [];
+                setSearchMode(res.searchMode || 'image');
+                setResults(
+                    items.map((r) => ({
+                        id: r.id,
+                        title: r.title,
+                        location: r.location
+                            ? [r.location.district, r.location.city].filter(Boolean).join(', ')
+                            : 'N/A',
+                        price: r.price ?? 0,
+                        area: (r as { area?: number | null }).area ?? 0,
+                        roomType: ((r as { roomType?: Room['roomType'] }).roomType || 'apartment') as Room['roomType'],
+                        amenities: (r as { amenities?: string[] }).amenities || [],
+                        image: r.images?.[0] || '',
+                        rating: (r as { rating?: number | null }).rating ?? 0,
+                        available:
+                            (r as { available?: boolean }).available !== undefined
+                                ? Boolean((r as { available?: boolean }).available)
+                                : String((r as { roomStatus?: string }).roomStatus || '').toUpperCase() === 'AVAILABLE',
+                        rentalId: (r as { rentalId?: string }).rentalId || r.id,
+                        matchScore: (r as { matchScore?: number }).matchScore,
+                        clipSimilarity: (r as { clipSimilarity?: number }).clipSimilarity,
+                        otherRoomsInRental: (r as { otherRoomsInRental?: Room['otherRoomsInRental'] }).otherRoomsInRental,
+                    }))
+                );
+            } catch (err) {
+                if (err instanceof Error && err.name === 'AbortError') return;
+                if (seq !== imageSearchSeqRef.current) return;
+                const status = err && typeof err === 'object' && 'status' in err ? (err as { status?: number }).status : undefined;
+                const message = err instanceof Error ? err.message : 'Lỗi tìm kiếm ảnh';
+                if (status === 403) {
+                    setImageSearchError(VIP_IMAGE_SEARCH_ERROR);
+                    setSearchError(null);
+                } else {
                     setImageSearchError(message);
                     setSearchError(message);
-                    setResults([]);
-                })
-                .finally(() => {
+                }
+                setResults([]);
+            } finally {
+                if (seq === imageSearchSeqRef.current) {
                     setIsSearching(false);
                     setHasSearched(true);
-                });
+                }
+            }
         },
         [accessToken, lastCriteria]
     );
@@ -242,8 +283,9 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
         setSearchMode(null);
     }, []);
 
-    // Auto-search from URL params (re-runs when auth level resolves or URL changes)
+    // Auto-search from URL params once auth is verified (avoids guest then advanced double-fetch on load)
     useEffect(() => {
+        if (!authVerified) return;
         const district = searchParams.get('district');
         const city = searchParams.get('city');
         const address = searchParams.get('address');
@@ -268,15 +310,17 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
                 if (parts[0] != null) criteria.minPrice = parts[0];
                 if (parts[1] != null) criteria.maxPrice = parts[1];
             }
-            if (amenitiesParam) {
-                criteria.amenities = amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean);
+            if (!guestUrlBasicOnly) {
+                if (amenitiesParam) {
+                    criteria.amenities = amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean);
+                }
+                if (minAreaParam && !Number.isNaN(Number(minAreaParam))) criteria.minArea = Number(minAreaParam);
+                if (maxAreaParam && !Number.isNaN(Number(maxAreaParam))) criteria.maxArea = Number(maxAreaParam);
             }
-            if (minAreaParam && !Number.isNaN(Number(minAreaParam))) criteria.minArea = Number(minAreaParam);
-            if (maxAreaParam && !Number.isNaN(Number(maxAreaParam))) criteria.maxArea = Number(maxAreaParam);
             searchByText(criteria);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchParams.toString(), searchByText]);
+    }, [searchParams.toString(), searchByText, authVerified, guestUrlBasicOnly]);
 
     return {
         results,

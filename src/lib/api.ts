@@ -462,7 +462,7 @@ export async function removeFavoriteRequest(roomId: string, options?: { token?: 
     return data;
 }
 
-/** Wallet (mock money flow, no real payment gateway) */
+/** Wallet balance and PayOS top-up / withdraw (authenticated users). */
 export interface WalletSummary {
     id: string;
     userId: string;
@@ -750,6 +750,8 @@ export interface MyBookingItem {
     id: string;
     rentalPeriodId: string;
     roomId: string;
+    /** Chủ nhà — mở chat trực tiếp */
+    landlordId?: string;
     roomName: string;
     propertyName: string;
     propertyImage: string;
@@ -775,6 +777,19 @@ export async function getMyBookingsRequest(): Promise<{
     const res = await authFetch('/rooms/my-bookings');
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải lịch sử thuê phòng');
+    return data;
+}
+
+/** Tenant: lấy userId chủ nhà để mở chat từ kỳ thuê (deep link ?booking=) */
+export async function getLandlordPeerForRentalPeriodRequest(rentalPeriodId: string): Promise<{
+    success: boolean;
+    data: { landlordId: string };
+}> {
+    const res = await authFetch(
+        `/rooms/rental-periods/${encodeURIComponent(rentalPeriodId)}/landlord-peer`
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Không mở được chat với chủ nhà');
     return data;
 }
 
@@ -1499,12 +1514,15 @@ export interface PublicRoomItem {
 /**
  * GET /rooms – list rooms (public, no auth).
  */
+export type PublicRoomsSort = 'newest' | 'recommended' | 'price_asc' | 'price_desc';
+
 export async function getPublicRoomsRequest(params?: {
     page?: number;
     limit?: number;
     roomType?: string;
     minPrice?: number;
     maxPrice?: number;
+    sort?: PublicRoomsSort;
 }): Promise<{
     success: boolean;
     data: PublicRoomItem[];
@@ -1516,6 +1534,7 @@ export async function getPublicRoomsRequest(params?: {
     if (params?.roomType) search.set('roomType', params.roomType);
     if (params?.minPrice) search.set('minPrice', String(params.minPrice));
     if (params?.maxPrice) search.set('maxPrice', String(params.maxPrice));
+    if (params?.sort && params.sort !== 'newest') search.set('sort', params.sort);
     const qs = search.toString();
     const url = getApiUrl(`/rooms${qs ? `?${qs}` : ''}`);
     const res = await fetch(url, { cache: 'no-store' });
@@ -1859,6 +1878,10 @@ export interface SmartSearchRoomItem {
     matchScore: number;
     rating: number | null;
     otherRoomsInRental: Array<{ id: string; roomName: string | null; price: number; area: number | null; roomType: string; image: string }>;
+    /** DB room status (e.g. AVAILABLE). */
+    roomStatus?: string;
+    /** True when the room can be preordered (matches backend). */
+    available?: boolean;
 }
 
 export interface ApiErrorWithCode extends Error {
@@ -1938,7 +1961,11 @@ export async function advancedSearchRequest(
     if (params?.lng != null) search.set('lng', String(params.lng));
     const res = await authFetch(`/search/advanced?${search.toString()}`, { token: options?.token });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tìm kiếm nâng cao');
+    if (!res.ok) {
+        const err = new Error(json?.message || json?.error || 'Lỗi tìm kiếm nâng cao') as Error & { status?: number };
+        err.status = res.status;
+        throw err;
+    }
     return json;
 }
 
@@ -1976,6 +2003,7 @@ export async function getRecommendRequest(options?: { token?: string | null }): 
     success: boolean;
     data: Array<{
         id: string;
+        rentalId?: string;
         title: string;
         description: string | null;
         location: { district: string | null; city: string | null } | null;
@@ -1983,6 +2011,8 @@ export async function getRecommendRequest(options?: { token?: string | null }): 
         price: number;
         area: number | null;
         amenities: string[];
+        roomStatus?: string;
+        available?: boolean;
     }>;
     hint?: string;
 }> {
@@ -1990,6 +2020,29 @@ export async function getRecommendRequest(options?: { token?: string | null }): 
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || 'Lỗi tải gợi ý');
     return json;
+}
+
+/**
+ * POST /search/transcribe – Whisper (OpenAI). Auth required; same pipeline as search page.
+ */
+export async function transcribeSearchVoiceRequest(
+    audioBlob: Blob,
+    options?: { token?: string | null; filename?: string; signal?: AbortSignal }
+): Promise<string> {
+    const filename = options?.filename ?? 'voice.webm';
+    const form = new FormData();
+    form.append('file', audioBlob, filename);
+    const res = await authFetch('/search/transcribe', {
+        method: 'POST',
+        body: form,
+        token: options?.token,
+        signal: options?.signal,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(json?.message || json?.error || 'Không thể chuyển giọng nói thành văn bản');
+    }
+    return typeof json.text === 'string' ? json.text : '';
 }
 
 /**
@@ -2065,6 +2118,7 @@ export async function searchByImageRequest(
         amenities?: string[];
         lat?: number;
         lng?: number;
+        signal?: AbortSignal;
     }
 ): Promise<{
     success: boolean;
@@ -2097,13 +2151,18 @@ export async function searchByImageRequest(
     if (options?.lat != null) form.append('lat', String(options.lat));
     if (options?.lng != null) form.append('lng', String(options.lng));
 
-    const res = await fetch(getApiUrl('/search/by-image'), {
+    const res = await authFetch('/search/by-image', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: form,
+        token,
+        signal: options?.signal,
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || 'Lỗi tìm kiếm ảnh');
+    if (!res.ok) {
+        const err = new Error(json?.message || 'Lỗi tìm kiếm ảnh') as Error & { status?: number };
+        err.status = res.status;
+        throw err;
+    }
     return json;
 }
 
@@ -2289,7 +2348,7 @@ export interface ReportItem {
 }
 
 /**
- * POST /reports – submit a violation report (any logged-in user).
+ * POST /reports – submit a violation report (role TENANT only on the server).
  */
 export async function createReportRequest(body: {
     targetType: 'USER' | 'ROOM' | 'BOOKING' | 'REVIEW';

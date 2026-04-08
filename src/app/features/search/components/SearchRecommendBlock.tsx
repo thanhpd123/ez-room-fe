@@ -15,6 +15,8 @@ function recommendItemToRoom(r: {
     price: number;
     area: number | null;
     amenities?: string[];
+    roomStatus?: string;
+    available?: boolean;
 }): Room {
     return {
         id: r.id,
@@ -26,7 +28,10 @@ function recommendItemToRoom(r: {
         amenities: r.amenities ?? [],
         image: r.images?.[0] || '',
         rating: 0,
-        available: true,
+        available:
+            r.available !== undefined
+                ? r.available
+                : String(r.roomStatus || '').toUpperCase() === 'AVAILABLE',
         rentalId: r.rentalId || r.id,
     };
 }

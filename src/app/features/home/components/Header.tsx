@@ -88,6 +88,8 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
         user != null &&
         (user.role === 'TENANT' || user.role === 'LANDLORD');
     const showVipCta = showVipNav && user.isVip !== true;
+    const showConsumerWallet =
+        user != null && (user.role === 'TENANT' || user.role === 'LANDLORD');
 
     // Notification state
     const [notifOpen, setNotifOpen] = useState(false);
@@ -290,15 +292,17 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 title={isTranslating ? t('header.translating') : (langLabels[language] ?? 'Language')}
                             />
                         </Dropdown>
-                        <Badge count={favorites.length} size="small" offset={[-2, 2]}>
-                            <Button
-                                type="text"
-                                icon={<HeartOutlined className="text-base sm:text-lg" />}
-                                onClick={() => navigate('/favorites')}
-                                className="flex items-center justify-center text-foreground hover:text-accent p-2 sm:px-2 touch-manipulation"
-                                title={t('nav.favorites')}
-                            />
-                        </Badge>
+                        {user && (
+                            <Badge count={favorites.length} size="small" offset={[-2, 2]}>
+                                <Button
+                                    type="text"
+                                    icon={<HeartOutlined className="text-base sm:text-lg" />}
+                                    onClick={() => navigate('/favorites')}
+                                    className="flex items-center justify-center text-foreground hover:text-accent p-2 sm:px-2 touch-manipulation"
+                                    title={t('nav.favorites')}
+                                />
+                            </Badge>
+                        )}
                         {user && (
                             <Button
                                 type="text"
@@ -392,7 +396,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                             </div>
                         )}
 
-                        {user && (
+                        {showConsumerWallet && (
                             <Button
                                 type="text"
                                 icon={<WalletOutlined className="text-base sm:text-lg" />}
@@ -609,11 +613,13 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 >
                                     {t('nav.chat')}
                                 </Button>
-                                <Link to="/wallet" onClick={() => setMobileMenuOpen(false)}>
-                                    <Button type="default" block size="large" icon={<WalletOutlined />} className="rounded-xl min-h-12">
-                                        {t('nav.wallet')}
-                                    </Button>
-                                </Link>
+                                {showConsumerWallet && (
+                                    <Link to="/wallet" onClick={() => setMobileMenuOpen(false)}>
+                                        <Button type="default" block size="large" icon={<WalletOutlined />} className="rounded-xl min-h-12">
+                                            {t('nav.wallet')}
+                                        </Button>
+                                    </Link>
+                                )}
                                 <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
                                     <Button type="default" block size="large" icon={<UserOutlined />} className="rounded-xl min-h-12">
                                         {t('nav.account')}

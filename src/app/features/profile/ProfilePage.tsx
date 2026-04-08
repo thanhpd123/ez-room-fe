@@ -24,6 +24,7 @@ import {
     resumePreorderPaymentRequest,
     cancelUnpaidPreorderRequest,
     createFeedbackRequest,
+    createReportRequest,
     getFeedbackByRentalPeriodRequest,
     checkRoommateRatingRequest,
     type LifestyleProfileResponse,
@@ -36,6 +37,7 @@ import { ReviewModal, ViewFeedbackModal, ReportModal } from '@/app/features/book
 import { RoommateRatingModal } from './RoommateRatingModal';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import type { ReviewData, ReportData, FeedbackStatus } from '@/app/features/booking-history/types';
+import { buildBookingReportPayload } from '@/app/features/booking-history/utils';
 import type { ProvinceItem, WardItem } from '@/lib/provinces-api';
 
 type Tab = 'profile' | 'lifestyle' | 'preference' | 'bookings';
@@ -1027,7 +1029,10 @@ export function ProfilePage() {
                                                         } catch { setViewFeedbackData(null); }
                                                     }}
                                                     onReport={() => { setSelectedBookingItem(b); setModalState('report'); }}
-                                                    onContactLandlord={() => navigate(`/chat?booking=${b.id}`)}
+                                                    onContactLandlord={() => {
+                                                        if (b.landlordId) navigate(`/chat/${b.landlordId}`);
+                                                        else navigate(`/chat?booking=${encodeURIComponent(b.rentalPeriodId || b.id)}`);
+                                                    }}
                                                     onViewRoom={() => navigate(`/room/${b.roomId}`)}
                                                 />
                                             ))}
@@ -1075,7 +1080,18 @@ export function ProfilePage() {
                         <ReportModal
                             isOpen={modalState === 'report'}
                             onClose={() => { setModalState('none'); setSelectedBookingItem(null); }}
-                            onSubmit={() => { setModalState('none'); }}
+                            onSubmit={async (data: ReportData) => {
+                                if (!selectedBookingItem) return;
+                                try {
+                                    const body = buildBookingReportPayload(selectedBookingItem, data);
+                                    await createReportRequest(body);
+                                    setModalState('none');
+                                    setSelectedBookingItem(null);
+                                } catch (err) {
+                                    alert(err instanceof Error ? err.message : 'Gửi báo cáo thất bại');
+                                    throw err;
+                                }
+                            }}
                             propertyName={selectedBookingItem?.roomName || selectedBookingItem?.propertyName || ''}
                         />
                     </div>

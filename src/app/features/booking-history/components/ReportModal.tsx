@@ -6,7 +6,7 @@ import type { ReportData } from '../types';
 interface ReportModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: ReportData) => void;
+    onSubmit: (data: ReportData) => void | Promise<void>;
     propertyName: string;
 }
 
@@ -14,8 +14,9 @@ export function ReportModal({ isOpen, onClose, onSubmit, propertyName }: ReportM
     const [selectedReason, setSelectedReason] = React.useState('');
     const [details, setDetails] = React.useState('');
     const [errors, setErrors] = React.useState<{ reason?: string; details?: string }>({});
+    const [submitting, setSubmitting] = React.useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         const newErrors: typeof errors = {};
@@ -36,8 +37,13 @@ export function ReportModal({ isOpen, onClose, onSubmit, propertyName }: ReportM
         }
 
         setErrors({});
-        onSubmit({ reason: selectedReason, details });
-        handleClose();
+        setSubmitting(true);
+        try {
+            await onSubmit({ reason: selectedReason, details });
+            handleClose();
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const handleClose = () => {
@@ -176,10 +182,11 @@ export function ReportModal({ isOpen, onClose, onSubmit, propertyName }: ReportM
                         </button>
                         <button
                             type="submit"
-                            className="flex-1 px-4 py-2.5 bg-destructive text-destructive-foreground rounded-lg text-sm hover:bg-destructive/90 shadow-sm flex items-center justify-center gap-1.5"
+                            disabled={submitting}
+                            className="flex-1 px-4 py-2.5 bg-destructive text-destructive-foreground rounded-lg text-sm hover:bg-destructive/90 shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
                         >
                             <Flag className="w-3.5 h-3.5" />
-                            Gửi báo cáo
+                            {submitting ? 'Đang gửi…' : 'Gửi báo cáo'}
                         </button>
                     </div>
                 </form>

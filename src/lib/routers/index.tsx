@@ -107,7 +107,7 @@ const routes = [
     {
         path: '/vip-management',
         element: (
-            <ProtectedRoute>
+            <ProtectedRoute requireVip>
                 <VipManagementPage />
             </ProtectedRoute>
         ),

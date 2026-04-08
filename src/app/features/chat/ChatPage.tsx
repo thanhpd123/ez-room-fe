@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Header } from '@/app/features/home/components';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
@@ -7,6 +7,7 @@ import {
     getConversationsRequest,
     getThreadRequest,
     sendMessageRequest,
+    getLandlordPeerForRentalPeriodRequest,
     type ConversationItem,
     type ChatMessage,
 } from '@/lib/api';
@@ -93,6 +94,8 @@ function Bubble({
 export function ChatPage() {
     const { userId: paramUserId } = useParams<{ userId?: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const bookingFromQuery = searchParams.get('booking');
     const { t } = useTranslation();
     const { accessToken, user } = useAuth();
     const [conversations, setConversations] = useState<ConversationItem[]>([]);
@@ -242,6 +245,19 @@ export function ChatPage() {
     }, [selectedPeerId, loadingMore, hasMore, messages]);
 
     useEffect(() => { loadConversations(); }, [loadConversations]);
+
+    /** Deep link /chat?booking=<rentalPeriodId> → open thread with landlord */
+    useEffect(() => {
+        if (!bookingFromQuery || paramUserId) return;
+        let cancelled = false;
+        getLandlordPeerForRentalPeriodRequest(bookingFromQuery)
+            .then((r) => {
+                if (cancelled || !r.data?.landlordId) return;
+                navigate(`/chat/${r.data.landlordId}`, { replace: true });
+            })
+            .catch(() => { /* stay on /chat; user can pick conversation */ });
+        return () => { cancelled = true; };
+    }, [bookingFromQuery, paramUserId, navigate]);
 
     useEffect(() => {
         if (paramUserId) setSelectedPeerId(paramUserId);

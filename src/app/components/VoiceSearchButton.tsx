@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { transcribeSearchVoiceRequest } from '@/lib/api';
 
 type SpeechRecognitionInstance = {
     lang: string;
@@ -47,6 +48,11 @@ interface VoiceSearchButtonProps {
     /** Button size variant */
     size?: 'sm' | 'md' | 'lg';
     className?: string;
+    /**
+     * When provided, uses POST /search/transcribe (Whisper) with recorded audio — same backend as search API.
+     * When omitted, uses the browser Web Speech API (guest-friendly).
+     */
+    getAccessToken?: () => Promise<string | null | undefined>;
 }
 
 export function VoiceSearchButton({
@@ -56,25 +62,50 @@ export function VoiceSearchButton({
     lang = 'vi-VN',
     size = 'md',
     className = '',
+    getAccessToken,
 }: VoiceSearchButtonProps) {
     const [state, setState] = useState<'idle' | 'listening' | 'processing'>('idle');
     const [error, setError] = useState<string | null>(null);
     const [supported, setSupported] = useState(true);
     const [interimText, setInterimText] = useState('');
     const recRef = useRef<SpeechRecognitionInstance | null>(null);
+    const listeningRef = useRef(false);
+    const mediaRecRef = useRef<MediaRecorder | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const chunksRef = useRef<BlobPart[]>([]);
+    const serverMimeRef = useRef<string>('audio/webm');
+
+    const useServerPipeline = typeof getAccessToken === 'function';
 
     useEffect(() => {
-        if (!getSpeechRecognition()) setSupported(false);
-    }, []);
+        const browserOk = !!getSpeechRecognition();
+        const serverOk = typeof MediaRecorder !== 'undefined';
+        setSupported(useServerPipeline ? serverOk : browserOk);
+    }, [useServerPipeline]);
 
-    const stopListening = useCallback(() => {
+    const stopBrowserListening = useCallback(() => {
+        listeningRef.current = false;
         if (recRef.current) {
             recRef.current.stop();
             recRef.current = null;
         }
     }, []);
 
-    const startListening = useCallback(() => {
+    const stopServerCapture = useCallback(() => {
+        const mr = mediaRecRef.current;
+        mediaRecRef.current = null;
+        if (mr && mr.state !== 'inactive') {
+            try {
+                mr.stop();
+            } catch {
+                /* ignore */
+            }
+        }
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+    }, []);
+
+    const startBrowserListening = useCallback(() => {
         setError(null);
         setInterimText('');
 
@@ -84,8 +115,7 @@ export function VoiceSearchButton({
             return;
         }
 
-        // Stop any previous instance
-        stopListening();
+        stopBrowserListening();
 
         const rec = new Rec();
         rec.lang = lang;
@@ -93,6 +123,7 @@ export function VoiceSearchButton({
         rec.interimResults = true;
         rec.maxAlternatives = 1;
         recRef.current = rec;
+        listeningRef.current = true;
 
         rec.onresult = (e: SpeechRecognitionEvent) => {
             let interim = '';
@@ -125,6 +156,7 @@ export function VoiceSearchButton({
 
         rec.onerror = (e: SpeechRecognitionErrorEvent) => {
             recRef.current = null;
+            listeningRef.current = false;
             setState('idle');
             setInterimText('');
 
@@ -148,39 +180,139 @@ export function VoiceSearchButton({
 
         rec.onend = () => {
             recRef.current = null;
-            if (state === 'listening') {
+            if (listeningRef.current) {
                 setState('idle');
                 setInterimText('');
+                listeningRef.current = false;
             }
-        };
-
-        rec.onspeechend = () => {
-            // Natural end of speech
         };
 
         setState('listening');
         rec.start();
-    }, [lang, onResult, onInterim, stopListening, state]);
+    }, [lang, onResult, onInterim, stopBrowserListening]);
 
-    const handleClick = () => {
+    const startServerRecording = useCallback(async () => {
+        setError(null);
+        setInterimText('');
+        const token = (await getAccessToken?.())?.trim();
+        if (!token) {
+            setError('Cần đăng nhập để dùng nhận diện qua server');
+            return;
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+            chunksRef.current = [];
+            const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/webm')
+                  ? 'audio/webm'
+                  : '';
+            const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+            serverMimeRef.current = mr.mimeType || 'audio/webm';
+            mediaRecRef.current = mr;
+            mr.ondataavailable = (ev) => {
+                if (ev.data.size > 0) chunksRef.current.push(ev.data);
+            };
+            mr.start();
+            setState('listening');
+            setInterimText('Đang ghi… nhấn lại để gửi');
+        } catch {
+            setError('Không thể truy cập micro');
+        }
+    }, [getAccessToken]);
+
+    const finishServerRecording = useCallback(async () => {
+        const mr = mediaRecRef.current;
+        if (!mr || mr.state === 'inactive') {
+            stopServerCapture();
+            setState('idle');
+            setInterimText('');
+            return;
+        }
+
+        await new Promise<void>((resolve) => {
+            mr.addEventListener('stop', () => resolve(), { once: true });
+            try {
+                mr.stop();
+            } catch {
+                resolve();
+            }
+        });
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        mediaRecRef.current = null;
+        setInterimText('');
+
+        const token = (await getAccessToken?.())?.trim();
+        const blob = new Blob(chunksRef.current, { type: serverMimeRef.current });
+        chunksRef.current = [];
+
+        if (!token) {
+            setError('Phiên đăng nhập hết hạn');
+            setState('idle');
+            return;
+        }
+
+        if (blob.size < 64) {
+            setError('Âm thanh quá ngắn');
+            setState('idle');
+            return;
+        }
+
+        setState('processing');
+        try {
+            const text = (await transcribeSearchVoiceRequest(blob, { token })).trim();
+            if (text) {
+                onResult(text);
+            } else {
+                setError('Không nhận được văn bản');
+            }
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Lỗi chuyển giọng nói';
+            setError(msg);
+        } finally {
+            setState('idle');
+        }
+    }, [getAccessToken, onResult, stopServerCapture]);
+
+    const handleClick = useCallback(async () => {
+        if (state === 'processing') return;
+
+        if (useServerPipeline) {
+            if (state === 'listening') {
+                await finishServerRecording();
+            } else {
+                await startServerRecording();
+            }
+            return;
+        }
+
         if (state === 'listening') {
-            stopListening();
+            stopBrowserListening();
             setState('idle');
             setInterimText('');
         } else {
-            startListening();
+            startBrowserListening();
         }
-    };
+    }, [
+        state,
+        useServerPipeline,
+        startServerRecording,
+        finishServerRecording,
+        startBrowserListening,
+        stopBrowserListening,
+    ]);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
             if (recRef.current) {
                 recRef.current.abort();
                 recRef.current = null;
             }
+            stopServerCapture();
         };
-    }, []);
+    }, [stopServerCapture]);
 
     if (!supported) return null;
 
@@ -203,9 +335,17 @@ export function VoiceSearchButton({
         <div className="relative inline-flex flex-col items-center">
             <button
                 type="button"
-                onClick={handleClick}
+                onClick={() => void handleClick()}
                 disabled={disabled || isProcessing}
-                title={isListening ? 'Nhấn để dừng' : 'Tìm kiếm bằng giọng nói'}
+                title={
+                    useServerPipeline
+                        ? isListening
+                            ? 'Nhấn để gửi và nhận diện (Whisper)'
+                            : 'Ghi âm — nhận diện qua server'
+                        : isListening
+                          ? 'Nhấn để dừng'
+                          : 'Tìm kiếm bằng giọng nói'
+                }
                 className={`
                     ${sizeClasses[size]}
                     rounded-xl border flex items-center justify-center
@@ -226,7 +366,6 @@ export function VoiceSearchButton({
                 )}
             </button>
 
-            {/* Listening indicator */}
             {isListening && (
                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
                     <span className="w-1 h-1 rounded-full bg-red-500 animate-bounce [animation-delay:0ms]" />
@@ -235,16 +374,17 @@ export function VoiceSearchButton({
                 </div>
             )}
 
-            {/* Interim text & errors */}
             {(interimText || error) && (
-                <div className={`
+                <div
+                    className={`
                     absolute top-full mt-2 left-1/2 -translate-x-1/2
-                    whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium
+                    px-3 py-1.5 rounded-lg text-xs font-medium
                     shadow-lg z-50 max-w-[280px] text-center
                     ${error
                         ? 'bg-destructive/10 text-destructive border border-destructive/20'
                         : 'bg-primary/10 text-primary border border-primary/20'}
-                `}>
+                `}
+                >
                     {error || `"${interimText}"`}
                 </div>
             )}

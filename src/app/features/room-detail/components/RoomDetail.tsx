@@ -33,7 +33,7 @@ export interface RoomDetailData {
   price: number;
   area: number;
   max_occupants: number;
-  status: 'available' | 'occupied' | 'maintenance';
+  status: 'available' | 'occupied' | 'maintenance' | 'pending';
   address: string;
   images: string[];
   amenities: string[];
@@ -143,6 +143,10 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
       setDepositError(t('roomDetail.loginToDeposit'));
       return;
     }
+    if ((user.role || '').toUpperCase() !== 'TENANT') {
+      setDepositError(t('roomDetail.tenantOnly'));
+      return;
+    }
 
     const normalized = Number(depositAmountInput.replace(/[^0-9]/g, ''));
     if (!Number.isInteger(normalized) || normalized <= 0) {
@@ -161,9 +165,10 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
     try {
       setDepositSubmitting(true);
 
+      // Always send depositAmount so percent = amount/room.price. Backend maps
+      // depositMonths to (months/baseMonths)*100, which does not match "N tháng tiền thuê".
       const response = await createPreorderDepositPaymentRequest({
         roomId: room.id,
-        depositMonths: selectedMonths,
         depositAmount: normalized,
         buyerName: user.fullName || undefined,
         buyerEmail: user.email || undefined,
@@ -191,8 +196,14 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
     available: { label: t('roomDetail.statusAvailable'), color: 'bg-primary text-primary-foreground' },
     occupied: { label: t('roomDetail.statusOccupied'), color: 'bg-muted text-muted-foreground' },
     maintenance: { label: t('roomDetail.statusMaintenance'), color: 'bg-accent text-accent-foreground' },
+    pending: { label: t('roomDetail.statusPending'), color: 'bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-100' },
   };
   const statusInfo = statusConfig[room.status] ?? statusConfig.available;
+
+  const isTenantUser = (user?.role || '').toUpperCase() === 'TENANT';
+  /** Guests may click to go to login; logged-in non-tenants are blocked in UI. */
+  const depositButtonDisabled =
+    depositSubmitting || room.status !== 'available' || (!!user && !isTenantUser);
 
   const amenityIcons: Record<string, LucideIcon> = {
     'Wifi': Wifi,
@@ -203,9 +214,9 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex-1 flex flex-col min-h-0 bg-background">
       {/* Header */}
-      <header className="bg-white border-b border-border sticky top-0 z-10 shadow-sm">
+      <header className="bg-white border-b border-border sticky top-14 sm:top-16 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <button
@@ -341,7 +352,7 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
+            <div className="sticky top-32 sm:top-36 space-y-6">
               {/* Price Card */}
               <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
                 <div className="text-center mb-6">
@@ -370,11 +381,19 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                 <button
                   type="button"
                   onClick={handleOpenDepositModal}
-                  disabled={depositSubmitting || room.status !== 'available'}
+                  disabled={depositButtonDisabled}
                   className="group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-amber-500 to-rose-500 py-3 font-semibold text-white shadow-md transition-all duration-300 hover:scale-[1.01] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                  <span className="relative">{depositSubmitting ? t('roomDetail.depositSubmitting') : room.status === 'available' ? t('roomDetail.depositNow') : t('roomDetail.unavailable')}</span>
+                  <span className="relative">
+                    {depositSubmitting
+                      ? t('roomDetail.depositSubmitting')
+                      : room.status !== 'available'
+                        ? t('roomDetail.unavailable')
+                        : user && !isTenantUser
+                          ? t('roomDetail.depositTenantsOnly')
+                          : t('roomDetail.depositNow')}
+                  </span>
                 </button>
               </div>
 

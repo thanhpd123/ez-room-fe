@@ -13,18 +13,35 @@ import {
 import type { SearchFilters } from './components';
 import { usePublicRentals } from './hooks/usePublicRentals';
 import { usePopularAreas } from './hooks/usePopularAreas';
-import { useRecommendedRooms } from './hooks/useRecommendedRooms';
+import { useRecommendedRooms, type RecommendedRoom } from './hooks/useRecommendedRooms';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+import { RoomFavoriteButton } from '@/app/components/RoomFavoriteButton';
 import { T } from '@/app/components/T';
+import type { FavoriteRoom } from '@/app/context/favorites-context';
 import { MapPin } from 'lucide-react';
 import { buildSearchUrl } from '@/lib/utils/searchUrlBuilder';
 import { getPublicRoomsRequest, type PublicRoomItem } from '@/lib/api';
+import { mapPublicRoomToFavorite } from '@/lib/utils/mapPublicRoomToFavorite';
 
 const { Title, Paragraph } = Typography;
 
 const HOME_PAGE_RENTALS_LIMIT = 20;
 const HERO_SLIDES_COUNT = 10;
 const FEATURED_COUNT = 8;
+
+function favoriteFromRecommended(room: RecommendedRoom): FavoriteRoom {
+    const loc = room.location;
+    const locationStr = loc ? [loc.district, loc.city].filter(Boolean).join(', ') : '';
+    return {
+        id: room.id,
+        name: room.title,
+        price: room.price,
+        area: room.area ?? 0,
+        address: locationStr,
+        image: room.images?.[0] || '',
+        available: true,
+    };
+}
 
 export function HomePage() {
     const navigate = useNavigate();
@@ -87,7 +104,13 @@ export function HomePage() {
                             <Paragraph className="text-muted-foreground mb-6 sm:mb-8 max-w-lg leading-relaxed text-sm sm:text-base mx-auto sm:mx-0">
                                 {t('home.aiDesc')}
                             </Paragraph>
-                            <Button type="primary" size="large" className="rounded-xl font-semibold shadow-md hover:shadow-lg min-h-[44px] touch-manipulation active:scale-[0.98] transition-transform" style={{ background: 'var(--color-accent)', borderColor: 'var(--color-accent)' }}>
+                            <Button
+                                type="primary"
+                                size="large"
+                                className="rounded-xl font-semibold shadow-md hover:shadow-lg min-h-[44px] touch-manipulation active:scale-[0.98] transition-transform"
+                                style={{ background: 'var(--color-accent)', borderColor: 'var(--color-accent)' }}
+                                onClick={() => navigate('/roommate')}
+                            >
                                 {t('home.aiCta')}
                             </Button>
                         </div>
@@ -165,7 +188,12 @@ export function HomePage() {
                                             alt={name}
                                             className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
                                         />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 pointer-events-none" />
+                                        <div className="absolute top-3 right-3 z-10">
+                                            <RoomFavoriteButton
+                                                favoritePayload={mapPublicRoomToFavorite(room, name, locationStr)}
+                                            />
+                                        </div>
                                     </div>
                                     <div className="p-4">
                                         <Title level={5} className="!font-heading !mb-1 truncate group-hover/card:text-primary transition-colors"><T>{name}</T></Title>
@@ -258,7 +286,10 @@ export function HomePage() {
                                             alt={room.title}
                                             className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
                                         />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 pointer-events-none" />
+                                        <div className="absolute top-3 right-3 z-10">
+                                            <RoomFavoriteButton favoritePayload={favoriteFromRecommended(room)} />
+                                        </div>
                                     </div>
                                     <div className="p-4">
                                         <Title level={5} className="!font-heading !mb-1 truncate group-hover/card:text-primary transition-colors"><T>{room.title}</T></Title>

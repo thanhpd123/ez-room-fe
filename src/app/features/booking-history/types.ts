@@ -6,6 +6,8 @@ export interface Booking {
     id: string;
     rentalPeriodId?: string;
     roomId?: string;
+    /** Chủ nhà từ API my-bookings */
+    landlordId?: string;
     propertyId?: string;
     roomName?: string;
     propertyName: string;
