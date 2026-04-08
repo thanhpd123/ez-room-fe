@@ -1,9 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { RoomDetail } from './components/RoomDetail';
 import { getRoomByIdForSearchRoomateRequest } from '@/lib/api';
 import type { RoomDetailData } from './types';
+import { Header, Footer } from '@/app/features/home/components';
+
+function RoomDetailShell({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
+      <div className="flex-1 flex flex-col min-h-0">{children}</div>
+      <Footer />
+    </div>
+  );
+}
 
 function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
   const rental = (api.rental as { title?: string; location?: { address?: string; district?: string; city?: string }; owner?: { id?: string; fullName?: string; phone?: string; avatarUrl?: string } }) || {};
@@ -21,7 +33,7 @@ function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
     AVAILABLE: 'available',
     RENTED: 'occupied',
     MAINTENANCE: 'maintenance',
-    PENDING: 'available',
+    PENDING: 'pending',
   };
   const status = isNearlyAvailable ? 'nearly_available' : (statusMap[rawStatus] ?? 'available');
 
@@ -71,27 +83,37 @@ export function RoomDetailPage() {
 
   if (!id) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">{t('roomDetail.notFound')}</p>
-      </div>
+      <RoomDetailShell>
+        <div className="flex-1 flex items-center justify-center px-4 py-16">
+          <p className="text-muted-foreground">{t('roomDetail.notFound')}</p>
+        </div>
+      </RoomDetailShell>
     );
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">{t('roomDetail.loading')}</div>
-      </div>
+      <RoomDetailShell>
+        <div className="flex-1 flex items-center justify-center px-4 py-16">
+          <div className="animate-pulse text-muted-foreground">{t('roomDetail.loading')}</div>
+        </div>
+      </RoomDetailShell>
     );
   }
 
   if (error || !room) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">{error || t('roomDetail.notFound')}</p>
-      </div>
+      <RoomDetailShell>
+        <div className="flex-1 flex items-center justify-center px-4 py-16">
+          <p className="text-muted-foreground">{error || t('roomDetail.notFound')}</p>
+        </div>
+      </RoomDetailShell>
     );
   }
 
-  return <RoomDetail room={room} onBack={() => navigate(-1)} />;
+  return (
+    <RoomDetailShell>
+      <RoomDetail room={room} onBack={() => navigate(-1)} />
+    </RoomDetailShell>
+  );
 }

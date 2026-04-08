@@ -14,7 +14,9 @@ import {
     getMyBookingsRequest,
     createFeedbackRequest,
     getFeedbackByRentalPeriodRequest,
+    createReportRequest,
 } from '@/lib/api';
+import { buildBookingReportPayload } from './utils';
 import type { Booking, ReviewData, ReportData } from './types';
 import type { FeedbackStatus } from './types';
 
@@ -48,6 +50,7 @@ export function BookingHistoryPage() {
             const items = (res.data || []).map((b) => ({
                 ...b,
                 propertyId: b.roomId,
+                landlordId: b.landlordId,
             })) as Booking[];
             setBookings(items);
         } catch (err) {
@@ -93,23 +96,20 @@ export function BookingHistoryPage() {
         }
     };
 
-    const handleReport = (_propertyId: string, propertyName: string) => {
-        setSelectedBooking({
-            id: '',
-            propertyName,
-            propertyImage: '',
-            address: '',
-            landlordName: '',
-            startDate: '',
-            endDate: '',
-            status: 'active',
-            hasReview: false,
-        } as Booking);
+    const handleReport = (booking: Booking) => {
+        setSelectedBooking(booking);
         setModalState('report');
     };
 
-    const handleContactLandlord = (bookingId: string) => {
-        navigate(`/chat?booking=${bookingId}`);
+    const handleContactLandlord = (booking: Booking) => {
+        const pid = booking.rentalPeriodId || booking.id;
+        if (booking.landlordId) {
+            navigate(`/chat/${booking.landlordId}`);
+        } else if (pid) {
+            navigate(`/chat?booking=${encodeURIComponent(pid)}`);
+        } else {
+            navigate('/chat');
+        }
     };
 
     const handleReviewSubmit = async (data: ReviewData) => {
@@ -133,8 +133,17 @@ export function BookingHistoryPage() {
         }
     };
 
-    const handleReportSubmit = (_data: ReportData) => {
-        setModalState('none');
+    const handleReportSubmit = async (data: ReportData) => {
+        if (!selectedBooking) return;
+        try {
+            const body = buildBookingReportPayload(selectedBooking, data);
+            await createReportRequest(body);
+            setModalState('none');
+            setSelectedBooking(null);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Gửi báo cáo thất bại');
+            throw err;
+        }
     };
 
     const handleCloseModal = () => {

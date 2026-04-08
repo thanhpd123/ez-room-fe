@@ -17,6 +17,8 @@ export function SearchPage() {
     const { isGuest, isTenant, isVip, loading: authLoading, authVerified } = useAuthLevel();
     const isLoggedIn = !authLoading && !isGuest;
     const [useMyLocation, setUseMyLocation] = useState(false);
+    const basicOnly = !authLoading && isGuest;
+    const guestUrlBasicOnly = authVerified && basicOnly;
 
     const {
         results,
@@ -30,13 +32,10 @@ export function SearchPage() {
         searchError,
         searchMode,
         translatedQuery,
-    } = useSearch(isLoggedIn);
+    } = useSearch(isLoggedIn, authVerified, guestUrlBasicOnly);
 
-    // While /auth/me hasn't responded yet, show the tab optimistically for any logged-in user
-    // so VIP users never see it flash away during the brief auth-initialization window.
-    // Once authVerified, trust the actual isVip/isTenant values.
-    const showImageTab = authVerified ? (isTenant || isVip) : !isGuest;
-    const basicOnly = !authLoading && isGuest;
+    // Image tab: logged-in tenants/landlord/staff see the tab; non-VIP see locked upgrade UI inside the panel.
+    const showImageTab = authVerified ? (isTenant || isVip) : false;
 
     return (
         <div className="min-h-screen bg-background">
@@ -50,7 +49,8 @@ export function SearchPage() {
                     </h1>
                     <p className="text-muted-foreground text-base sm:text-lg">
                         {isLoggedIn ? t('search.aiSubtitle') : t('search.guestSubtitle')}
-                        {showImageTab && ' • AI Text-to-Image • AI Image Search'}
+                        {showImageTab && isVip && ` • ${t('search.subtitleImageSearchVip')}`}
+                        {showImageTab && !isVip && ` • ${t('search.subtitleImageSearchLocked')}`}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                         {isLoggedIn && searchMode && (

@@ -28,6 +28,7 @@ export interface RentalRequest {
     id: string;
     userId: string;
     roomId: string;
+    sourceType?: 'PREORDER' | 'FAVORITE';
     status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
     paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
     createdAt: string;

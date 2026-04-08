@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Upload, Image as ImageIcon, X, AlertCircle, CheckCircle, Sparkles, Brain, Camera, Info } from 'lucide-react';
-import { MAX_IMAGE_SIZE, VALID_IMAGE_TYPES } from '../constants';
+import { Image as ImageIcon, X, AlertCircle, CheckCircle, Sparkles, Brain, Camera, Info, Lock } from 'lucide-react';
+import { MAX_IMAGE_SIZE, VALID_IMAGE_TYPES, VIP_IMAGE_SEARCH_ERROR } from '../constants';
 
 interface SearchByImageProps {
     onSearch: (imageFile: File, options?: { district?: string; textHint?: string }) => void;
@@ -64,9 +65,28 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        if (!isVip) return;
         if (!selectedFile) { setError(t('search.image.noImage')); return; }
         onSearch(selectedFile, { textHint: textHint.trim() || undefined });
     };
+
+    if (!isVip) {
+        return (
+            <div className="bg-card rounded-2xl shadow-lg overflow-hidden max-w-4xl mx-auto border border-border">
+                <div className="relative bg-gradient-to-r from-violet-600/90 via-purple-600/90 to-indigo-600/90 px-6 py-6 text-center">
+                    <Lock className="w-10 h-10 text-white/90 mx-auto mb-3" aria-hidden />
+                    <h3 className="text-white font-heading font-semibold text-lg">{t('search.image.vipGateTitle')}</h3>
+                    <p className="text-white/80 text-sm mt-2 max-w-md mx-auto">{t('search.image.vipGateDesc')}</p>
+                    <Link
+                        to="/vip-plans?source=search_image"
+                        className="inline-flex items-center justify-center mt-5 px-6 py-2.5 rounded-xl bg-white text-violet-700 font-semibold text-sm hover:bg-white/95 transition-colors shadow-md"
+                    >
+                        {t('search.image.vipGateCta')}
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden max-w-4xl mx-auto">
@@ -97,9 +117,32 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
                 {/* Error */}
                 {(error || imageSearchError) && (
-                    <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-3">
-                        <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                        <p className="text-destructive text-sm">{error || imageSearchError}</p>
+                    <div
+                        className={`p-4 rounded-xl flex flex-col gap-3 ${
+                            imageSearchError === VIP_IMAGE_SEARCH_ERROR
+                                ? 'bg-violet-500/10 border border-violet-500/25'
+                                : 'bg-destructive/10 border border-destructive/20'
+                        }`}
+                    >
+                        {imageSearchError === VIP_IMAGE_SEARCH_ERROR ? (
+                            <>
+                                <div className="flex items-start gap-3">
+                                    <Lock className="h-5 w-5 text-violet-600 shrink-0 mt-0.5" />
+                                    <p className="text-foreground text-sm">{t('search.image.vipRequiredApi')}</p>
+                                </div>
+                                <Link
+                                    to="/vip-plans?source=search_image_403"
+                                    className="inline-flex w-fit items-center px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors"
+                                >
+                                    {t('search.image.vipGateCta')}
+                                </Link>
+                            </>
+                        ) : (
+                            <div className="flex items-start gap-3">
+                                <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                                <p className="text-destructive text-sm">{error || imageSearchError}</p>
+                            </div>
+                        )}
                     </div>
                 )}
 

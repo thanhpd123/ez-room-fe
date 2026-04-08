@@ -8,6 +8,7 @@ import { useAmenities } from '@/app/hooks/useAmenities';
 import { useRoomTypes } from '@/app/hooks/useRoomTypes';
 import { VoiceSearchButton } from '@/app/components/VoiceSearchButton';
 import { useGeolocation } from '@/app/hooks/useGeolocation';
+import { useAuth } from '@/app/context/useAuth';
 
 interface SearchByTextProps {
     onSearch: (criteria: SearchCriteria) => void;
@@ -48,6 +49,7 @@ const initialFormState: FormState = {
 
 export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoiceResult, onUseMyLocationChange }: SearchByTextProps) {
     const { t } = useTranslation();
+    const { accessToken } = useAuth();
     const [searchParams] = useSearchParams();
     const [formState, setFormState] = useState<FormState>(initialFormState);
     const [error, setError] = useState('');
@@ -146,24 +148,72 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
         setError('');
     };
 
-    const handleVoiceResult = useCallback((transcript: string) => {
-        setFormState((prev) => ({ ...prev, q: transcript }));
-        onVoiceResult?.(transcript);
-        // Auto-submit with voice transcript
-        const criteria: SearchCriteria = {
-            q: transcript.trim() || undefined,
-            city: formState.city.trim() || undefined,
-            district: formState.district.trim() || undefined,
-            address: formState.address.trim() || undefined,
-            minPrice: formState.minPrice ? Number(formState.minPrice) : undefined,
-            maxPrice: formState.maxPrice ? Number(formState.maxPrice) : undefined,
-            minArea: basicOnly ? undefined : (formState.minArea ? Number(formState.minArea) : undefined),
-            maxArea: basicOnly ? undefined : (formState.maxArea ? Number(formState.maxArea) : undefined),
-            roomType: formState.roomType || undefined,
-            amenities: basicOnly ? undefined : (formState.selectedAmenities.length > 0 ? formState.selectedAmenities : undefined),
-        };
-        onSearch(criteria);
-    }, [formState, basicOnly, onSearch, onVoiceResult]);
+    const handleVoiceResult = useCallback(
+        (transcript: string) => {
+            setError('');
+            const merged = { ...formState, q: transcript };
+            const { minPrice, maxPrice, minArea, maxArea } = merged;
+            if (minPrice && isNaN(Number(minPrice))) {
+                setError(t('search.errors.minPriceInvalid'));
+                return;
+            }
+            if (maxPrice && isNaN(Number(maxPrice))) {
+                setError(t('search.errors.maxPriceInvalid'));
+                return;
+            }
+            if (minPrice && Number(minPrice) < 0) {
+                setError(t('search.errors.minPriceNegative'));
+                return;
+            }
+            if (maxPrice && Number(maxPrice) < 0) {
+                setError(t('search.errors.maxPriceNegative'));
+                return;
+            }
+            if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
+                setError(t('search.errors.priceRange'));
+                return;
+            }
+            if (minArea && isNaN(Number(minArea))) {
+                setError(t('search.errors.minAreaInvalid'));
+                return;
+            }
+            if (maxArea && isNaN(Number(maxArea))) {
+                setError(t('search.errors.maxAreaInvalid'));
+                return;
+            }
+            if (minArea && Number(minArea) < 0) {
+                setError(t('search.errors.minAreaNegative'));
+                return;
+            }
+            if (maxArea && Number(maxArea) < 0) {
+                setError(t('search.errors.maxAreaNegative'));
+                return;
+            }
+            if (minArea && maxArea && Number(minArea) > Number(maxArea)) {
+                setError(t('search.errors.areaRange'));
+                return;
+            }
+
+            setFormState(merged);
+            onVoiceResult?.(transcript);
+            const criteria: SearchCriteria = {
+                q: transcript.trim() || undefined,
+                city: merged.city.trim() || undefined,
+                district: merged.district.trim() || undefined,
+                address: merged.address.trim() || undefined,
+                minPrice: merged.minPrice ? Number(merged.minPrice) : undefined,
+                maxPrice: merged.maxPrice ? Number(merged.maxPrice) : undefined,
+                minArea: basicOnly ? undefined : (merged.minArea ? Number(merged.minArea) : undefined),
+                maxArea: basicOnly ? undefined : (merged.maxArea ? Number(merged.maxArea) : undefined),
+                roomType: merged.roomType || undefined,
+                amenities: basicOnly ? undefined : (merged.selectedAmenities.length > 0 ? merged.selectedAmenities : undefined),
+                lat: useMyLocation && geo.hasLocation ? geo.latitude! : undefined,
+                lng: useMyLocation && geo.hasLocation ? geo.longitude! : undefined,
+            };
+            onSearch(criteria);
+        },
+        [formState, basicOnly, onSearch, onVoiceResult, t, useMyLocation, geo.hasLocation, geo.latitude, geo.longitude]
+    );
 
     return (
         <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 max-w-4xl mx-auto">
@@ -195,6 +245,7 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
                             onInterim={(text) => setFormState((prev) => ({ ...prev, q: text }))}
                             disabled={isSearching}
                             size="md"
+                            getAccessToken={accessToken ? async () => accessToken : undefined}
                         />
                     </div>
                 </div>

@@ -6,8 +6,8 @@ interface BookingCardProps {
     booking: Booking;
     onWriteReview: (booking: Booking) => void;
     onViewReview: (booking: Booking) => void;
-    onReport: (propertyId: string, propertyName: string) => void;
-    onContactLandlord: (bookingId: string) => void;
+    onReport: (booking: Booking) => void;
+    onContactLandlord: (booking: Booking) => void;
 }
 
 function StatusBadge({ status }: { status: Booking['status'] }) {
@@ -154,7 +154,7 @@ export function BookingCard({
                             )}
 
                             <button
-                                onClick={() => onContactLandlord(booking.id)}
+                                onClick={() => onContactLandlord(booking)}
                                 className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-all flex items-center gap-2"
                             >
                                 <MessageCircle className="w-4 h-4" />
@@ -162,7 +162,7 @@ export function BookingCard({
                             </button>
 
                             <button
-                                onClick={() => onReport(booking.roomId || booking.id, booking.propertyName)}
+                                onClick={() => onReport(booking)}
                                 className="px-4 py-2 border border-border rounded-lg hover:bg-destructive/5 hover:border-destructive/20 text-foreground/70 hover:text-destructive transition-all flex items-center gap-2"
                             >
                                 <Flag className="w-4 h-4" />

@@ -1,12 +1,32 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Camera, Heart, Search } from 'lucide-react';
+import { MapPin, Camera, Search, SlidersHorizontal } from 'lucide-react';
 import { Header, Footer } from '@/app/features/home/components';
-import { getPublicRoomsRequest, type PublicRoomItem } from '@/lib/api';
+import { RoomFavoriteButton } from '@/app/components/RoomFavoriteButton';
+import { getPublicRoomsRequest, type PublicRoomItem, type PublicRoomsSort } from '@/lib/api';
+import { useRoomTypes } from '@/app/hooks/useRoomTypes';
+import { mapPublicRoomToFavorite } from '@/lib/utils/mapPublicRoomToFavorite';
 import './RoomsPage.css';
 
 const PAGE_SIZE = 10;
+
+const SORT_OPTIONS: { value: PublicRoomsSort; labelKey: string }[] = [
+    { value: 'newest', labelKey: 'rooms.sortNewest' },
+    { value: 'recommended', labelKey: 'rooms.sortRecommended' },
+    { value: 'price_asc', labelKey: 'rooms.sortPriceAsc' },
+    { value: 'price_desc', labelKey: 'rooms.sortPriceDesc' },
+];
+
+type PricePreset = { id: string; min?: number; max?: number; labelKey: string };
+
+const PRICE_PRESETS: PricePreset[] = [
+    { id: 'any', labelKey: 'rooms.priceAny' },
+    { id: 'lt3m', max: 3_000_000, labelKey: 'rooms.priceUnder3m' },
+    { id: '3_7m', min: 3_000_000, max: 7_000_000, labelKey: 'rooms.price3to7m' },
+    { id: '7_15m', min: 7_000_000, max: 15_000_000, labelKey: 'rooms.price7to15m' },
+    { id: 'gt15m', min: 15_000_000, labelKey: 'rooms.priceOver15m' },
+];
 
 function formatPrice(price: number, tPerMillion: string, tPerDong: string): string {
     if (price >= 1_000_000) {
@@ -16,15 +36,38 @@ function formatPrice(price: number, tPerMillion: string, tPerDong: string): stri
     return `${price.toLocaleString('vi-VN')} ${tPerDong}`;
 }
 
-function timeAgo(dateStr: string): string {
+function parseSortParam(raw: string | null): PublicRoomsSort {
+    if (raw === 'recommended' || raw === 'price_asc' || raw === 'price_desc') return raw;
+    return 'newest';
+}
+
+function parsePriceQuery(value: string | null): number | undefined {
+    if (value == null || value === '') return undefined;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return undefined;
+    return Math.round(n);
+}
+
+function presetForRange(min?: number, max?: number): PricePreset | null {
+    for (const p of PRICE_PRESETS) {
+        if (p.id === 'any') {
+            if (min == null && max == null) return p;
+            continue;
+        }
+        if (p.min === min && p.max === max) return p;
+    }
+    return null;
+}
+
+function timeAgoLabel(dateStr: string, t: (k: string, o?: Record<string, number>) => string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1) return t('rooms.timeJustNow');
+    if (mins < 60) return t('rooms.timeMinutesAgo', { count: mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
+    if (hours < 24) return t('rooms.timeHoursAgo', { count: hours });
     const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d ago`;
+    if (days < 7) return t('rooms.timeDaysAgo', { count: days });
     return new Date(dateStr).toLocaleDateString();
 }
 
@@ -32,16 +75,22 @@ export function RoomsPage() {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { options: roomTypeOptions } = useRoomTypes();
     const [rooms, setRooms] = useState<PublicRoomItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, pages: 0 });
+    const [draftMinPrice, setDraftMinPrice] = useState('');
+    const [draftMaxPrice, setDraftMaxPrice] = useState('');
+    const [priceApplyError, setPriceApplyError] = useState('');
 
     const roomTypeFromUrl = searchParams.get('roomType') || '';
     const pageFromUrl = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-    const sortFromUrl = searchParams.get('sort') || 'newest';
+    const sortFromUrl = parseSortParam(searchParams.get('sort'));
+    const minPriceFromUrl = parsePriceQuery(searchParams.get('minPrice'));
+    const maxPriceFromUrl = parsePriceQuery(searchParams.get('maxPrice'));
 
     const [activeType, setActiveType] = useState(roomTypeFromUrl);
-    const [activeSort, setActiveSort] = useState(sortFromUrl);
+    const [activeSort, setActiveSort] = useState<PublicRoomsSort>(sortFromUrl);
 
     useEffect(() => {
         setActiveType(roomTypeFromUrl);
@@ -49,11 +98,31 @@ export function RoomsPage() {
     }, [roomTypeFromUrl, sortFromUrl]);
 
     useEffect(() => {
+        setDraftMinPrice(minPriceFromUrl != null ? String(minPriceFromUrl) : '');
+        setDraftMaxPrice(maxPriceFromUrl != null ? String(maxPriceFromUrl) : '');
+        setPriceApplyError('');
+    }, [minPriceFromUrl, maxPriceFromUrl]);
+
+    const typeTabs = useMemo(() => {
+        const fallback = [
+            { value: 'single', label: t('rooms.typeSingle') },
+            { value: 'shared', label: t('rooms.typeShared') },
+            { value: 'studio', label: t('rooms.typeStudio') },
+            { value: 'apartment', label: t('rooms.typeApartment') },
+        ];
+        const fromApi = roomTypeOptions.length > 0 ? roomTypeOptions : fallback;
+        return [{ value: '', label: t('rooms.typeAll') }, ...fromApi];
+    }, [roomTypeOptions, t]);
+
+    useEffect(() => {
         setLoading(true);
         getPublicRoomsRequest({
             page: pageFromUrl,
             limit: PAGE_SIZE,
             roomType: roomTypeFromUrl || undefined,
+            minPrice: minPriceFromUrl,
+            maxPrice: maxPriceFromUrl,
+            sort: sortFromUrl,
         })
             .then((res) => {
                 setRooms(res.data || []);
@@ -64,25 +133,72 @@ export function RoomsPage() {
                 setPagination({ page: 1, limit: PAGE_SIZE, total: 0, pages: 0 });
             })
             .finally(() => setLoading(false));
-    }, [pageFromUrl, roomTypeFromUrl]);
+    }, [pageFromUrl, roomTypeFromUrl, minPriceFromUrl, maxPriceFromUrl, sortFromUrl]);
 
-    const updateParams = (updates: Record<string, string | undefined>) => {
-        const p = new URLSearchParams(searchParams);
-        for (const [key, val] of Object.entries(updates)) {
-            if (val) p.set(key, val);
-            else p.delete(key);
-        }
-        setSearchParams(p);
-    };
+    const updateParams = useCallback(
+        (updates: Record<string, string | undefined>) => {
+            const p = new URLSearchParams(searchParams);
+            for (const [key, val] of Object.entries(updates)) {
+                if (val) p.set(key, val);
+                else p.delete(key);
+            }
+            setSearchParams(p);
+        },
+        [searchParams, setSearchParams]
+    );
 
     const handleTypeChange = (type: string) => {
         setActiveType(type);
         updateParams({ roomType: type || undefined, page: undefined });
     };
 
-    const handleSortChange = (sort: string) => {
+    const handleSortChange = (sort: PublicRoomsSort) => {
         setActiveSort(sort);
-        updateParams({ sort, page: undefined });
+        updateParams({
+            sort: sort === 'newest' ? undefined : sort,
+            page: undefined,
+        });
+    };
+
+    const handlePricePreset = (preset: PricePreset) => {
+        setPriceApplyError('');
+        if (preset.id === 'any') {
+            updateParams({ minPrice: undefined, maxPrice: undefined, page: undefined });
+            return;
+        }
+        updateParams({
+            minPrice: preset.min != null ? String(preset.min) : undefined,
+            maxPrice: preset.max != null ? String(preset.max) : undefined,
+            page: undefined,
+        });
+    };
+
+    const handleApplyCustomPrice = () => {
+        setPriceApplyError('');
+        const rawMin = draftMinPrice.replace(/\D/g, '');
+        const rawMax = draftMaxPrice.replace(/\D/g, '');
+        const min = rawMin ? Number(rawMin) : undefined;
+        const max = rawMax ? Number(rawMax) : undefined;
+        if (min != null && max != null && min > max) {
+            setPriceApplyError('invalid');
+            return;
+        }
+        updateParams({
+            minPrice: min != null ? String(min) : undefined,
+            maxPrice: max != null ? String(max) : undefined,
+            page: undefined,
+        });
+    };
+
+    const handleClearPrice = () => {
+        setPriceApplyError('');
+        updateParams({ minPrice: undefined, maxPrice: undefined, page: undefined });
+    };
+
+    const handleResetAllFilters = () => {
+        setPriceApplyError('');
+        const p = new URLSearchParams();
+        setSearchParams(p);
     };
 
     const goToPage = (newPage: number) => {
@@ -103,62 +219,154 @@ export function RoomsPage() {
         return range;
     }, [pagination]);
 
+    const activePreset = presetForRange(minPriceFromUrl, maxPriceFromUrl);
+    const hasCustomPrice =
+        (minPriceFromUrl != null || maxPriceFromUrl != null) && activePreset == null;
+    const activeTypeLabel =
+        typeTabs.find((tab) => tab.value === roomTypeFromUrl)?.label || t('rooms.typeAll');
+    const hasActiveFilters =
+        !!roomTypeFromUrl ||
+        sortFromUrl !== 'newest' ||
+        minPriceFromUrl != null ||
+        maxPriceFromUrl != null;
+
     return (
         <div className="rooms-page">
             <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
 
-            {/* Hero */}
             <div className="rooms-hero">
                 <h1>{t('rooms.title')}</h1>
                 <p>{t('rooms.subtitle')}</p>
             </div>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Category tabs */}
-                <div className="rooms-category-bar">
-                    {([
-                        { label: t('rooms.typeAll'), value: '' },
-                        { label: t('rooms.typeSingle'), value: 'single' },
-                        { label: t('rooms.typeShared'), value: 'shared' },
-                        { label: t('rooms.typeStudio'), value: 'studio' },
-                        { label: t('rooms.typeApartment'), value: 'apartment' },
-                    ] as { label: string; value: string }[]).map((tab) => (
+                <div className="rooms-toolbar-top">
+                    <div className="rooms-category-bar">
+                        {typeTabs.map((tab) => (
+                            <button
+                                key={tab.value || 'all'}
+                                type="button"
+                                className={`rooms-cat-btn ${activeType === tab.value ? 'active' : ''}`}
+                                onClick={() => handleTypeChange(tab.value)}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {hasActiveFilters && (
+                        <button type="button" className="rooms-reset-filters" onClick={handleResetAllFilters}>
+                            {t('rooms.resetAllFilters')}
+                        </button>
+                    )}
+                </div>
+
+                <div className="rooms-sort-row" role="group" aria-label={t('rooms.sortNewest')}>
+                    {SORT_OPTIONS.map((opt) => (
                         <button
-                            key={tab.value}
+                            key={opt.value}
                             type="button"
-                            className={`rooms-cat-btn ${activeType === tab.value ? 'active' : ''}`}
-                            onClick={() => handleTypeChange(tab.value)}
+                            className={`rooms-sort-tab ${activeSort === opt.value ? 'active' : ''}`}
+                            onClick={() => handleSortChange(opt.value)}
                         >
-                            {tab.label}
+                            {t(opt.labelKey)}
                         </button>
                     ))}
                 </div>
 
-                {/* Sort tabs + stats */}
-                <div className="rooms-sort-bar">
-                    {([
-                        { label: t('rooms.sortNewest'), value: 'newest' },
-                        { label: t('rooms.sortRecommended'), value: 'recommended' },
-                    ] as { label: string; value: string }[]).map((tab) => (
-                        <button
-                            key={tab.value}
-                            type="button"
-                            className={`rooms-sort-tab ${activeSort === tab.value ? 'active' : ''}`}
-                            onClick={() => handleSortChange(tab.value)}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <details className="rooms-price-panel">
+                    <summary className="rooms-price-summary">
+                        <span>{t('rooms.filtersToggle')}</span>
+                        <span className="rooms-price-summary-hint">
+                            {activePreset
+                                ? t(activePreset.labelKey)
+                                : hasCustomPrice
+                                  ? t('rooms.customPrice')
+                                  : t('rooms.priceAny')}
+                        </span>
+                    </summary>
+                    <div className="rooms-price-chips">
+                        {PRICE_PRESETS.map((preset) => (
+                            <button
+                                key={preset.id}
+                                type="button"
+                                className={`rooms-price-chip ${
+                                    preset.id === 'any'
+                                        ? minPriceFromUrl == null && maxPriceFromUrl == null
+                                            ? 'active'
+                                            : ''
+                                        : activePreset?.id === preset.id
+                                          ? 'active'
+                                          : ''
+                                }`}
+                                onClick={() => handlePricePreset(preset)}
+                            >
+                                {t(preset.labelKey)}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="rooms-custom-price">
+                        <span className="rooms-custom-price-label">{t('rooms.customPrice')}</span>
+                        <div className="rooms-custom-price-inputs">
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                className="rooms-price-input"
+                                placeholder={t('rooms.minPriceShort')}
+                                value={draftMinPrice}
+                                onChange={(e) => setDraftMinPrice(e.target.value)}
+                                aria-label={t('rooms.minPriceShort')}
+                            />
+                            <span className="rooms-price-input-sep">—</span>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                className="rooms-price-input"
+                                placeholder={t('rooms.maxPriceShort')}
+                                value={draftMaxPrice}
+                                onChange={(e) => setDraftMaxPrice(e.target.value)}
+                                aria-label={t('rooms.maxPriceShort')}
+                            />
+                        </div>
+                        <div className="rooms-custom-price-actions">
+                            <button type="button" className="rooms-price-action-primary" onClick={handleApplyCustomPrice}>
+                                {t('rooms.applyPrice')}
+                            </button>
+                            <button type="button" className="rooms-price-action-secondary" onClick={handleClearPrice}>
+                                {t('rooms.clearPrice')}
+                            </button>
+                        </div>
+                        {priceApplyError ? (
+                            <p className="rooms-price-error" role="alert">
+                                {t('rooms.priceInvalidRange')}
+                            </p>
+                        ) : null}
+                    </div>
+                </details>
+
+                <button
+                    type="button"
+                    className="rooms-advanced-link"
+                    onClick={() => navigate('/search')}
+                >
+                    <SlidersHorizontal size={18} aria-hidden />
+                    {t('rooms.advancedSearch')}
+                </button>
 
                 <div className="rooms-stats">
                     <span>
-                        {loading ? '...' : t('rooms.showing', { total: pagination.total })}
+                        {loading
+                            ? '...'
+                            : roomTypeFromUrl
+                              ? t('rooms.showingFiltered', {
+                                    total: pagination.total,
+                                    type: activeTypeLabel,
+                                })
+                              : t('rooms.showing', { total: pagination.total })}
                     </span>
                     <span>{t('rooms.page', { page: pagination.page, total: pagination.pages || 1 })}</span>
                 </div>
 
-                {/* Room list */}
                 {loading ? (
                     [...Array(3)].map((_, i) => (
                         <div key={i} className="room-card-skeleton">
@@ -181,7 +389,7 @@ export function RoomsPage() {
                         <button
                             type="button"
                             className="mt-3 text-primary font-semibold hover:underline"
-                            onClick={() => handleTypeChange('')}
+                            onClick={() => handleResetAllFilters()}
                         >
                             {t('rooms.viewAll')}
                         </button>
@@ -205,11 +413,13 @@ export function RoomsPage() {
                                 tabIndex={0}
                                 onKeyDown={(e) => e.key === 'Enter' && handleRoomClick(room.id)}
                             >
-                                {/* Image grid */}
                                 <div className="room-card-images">
                                     <div className="img-main">
                                         <img
-                                            src={images[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'}
+                                            src={
+                                                images[0] ||
+                                                'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'
+                                            }
                                             alt={name}
                                             loading="lazy"
                                         />
@@ -232,15 +442,14 @@ export function RoomsPage() {
                                     )}
                                 </div>
 
-                                {/* Content */}
                                 <div className="room-card-body">
                                     <h3 className="room-card-title">{name}</h3>
 
                                     <div className="room-card-meta">
-                                        <span className="room-card-price">{formatPrice(room.price, t('listing.pricePerMillion'), t('listing.pricePerDong'))}</span>
-                                        {room.sizeM2 && (
-                                            <span className="room-card-area">{room.sizeM2} m²</span>
-                                        )}
+                                        <span className="room-card-price">
+                                            {formatPrice(room.price, t('listing.pricePerMillion'), t('listing.pricePerDong'))}
+                                        </span>
+                                        {room.sizeM2 && <span className="room-card-area">{room.sizeM2} m²</span>}
                                         {address && (
                                             <span className="room-card-location">
                                                 <MapPin size={14} />
@@ -252,7 +461,9 @@ export function RoomsPage() {
                                     {amenities.length > 0 && (
                                         <div className="room-card-amenities">
                                             {amenities.slice(0, 5).map((a) => (
-                                                <span key={a.id} className="room-card-amenity">{a.name}</span>
+                                                <span key={a.id} className="room-card-amenity">
+                                                    {a.name}
+                                                </span>
                                             ))}
                                             {amenities.length > 5 && (
                                                 <span className="room-card-amenity">+{amenities.length - 5}</span>
@@ -260,28 +471,37 @@ export function RoomsPage() {
                                         </div>
                                     )}
 
-                                    {desc && (
-                                        <p className="room-card-desc">{desc}</p>
-                                    )}
+                                    {desc && <p className="room-card-desc">{desc}</p>}
 
                                     <div className="room-card-owner">
                                         <div className="room-card-owner-info">
-                                            <div className="room-card-owner-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 600, color: '#2FA4A9', background: 'rgba(47,164,169,0.1)' }}>
+                                            <div
+                                                className="room-card-owner-avatar"
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600,
+                                                    color: '#2FA4A9',
+                                                    background: 'rgba(47,164,169,0.1)',
+                                                }}
+                                            >
                                                 {(room.rental?.title || '?')[0]}
                                             </div>
                                             <div>
-                                                <div className="room-card-owner-name">{room.rental?.title || t('rooms.landlordFallback')}</div>
-                                                <div className="room-card-owner-date">{created ? timeAgo(created) : ''}</div>
+                                                <div className="room-card-owner-name">
+                                                    {room.rental?.title || t('rooms.landlordFallback')}
+                                                </div>
+                                                <div className="room-card-owner-date">
+                                                    {created ? timeAgoLabel(created, t) : ''}
+                                                </div>
                                             </div>
                                         </div>
-                                        <button
-                                            type="button"
-                                            className="room-card-heart"
-                                            onClick={(e) => { e.stopPropagation(); }}
-                                            title={t('rooms.favorite')}
-                                        >
-                                            <Heart size={20} />
-                                        </button>
+                                        <RoomFavoriteButton
+                                            favoritePayload={mapPublicRoomToFavorite(room, name, address)}
+                                            className="room-card-fav-btn"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -289,7 +509,6 @@ export function RoomsPage() {
                     })
                 )}
 
-                {/* Pagination */}
                 {pagination.pages > 1 && (
                     <div className="rooms-pagination">
                         <button
