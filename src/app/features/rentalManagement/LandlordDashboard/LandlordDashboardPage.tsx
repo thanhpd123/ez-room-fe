@@ -93,6 +93,14 @@ export function LandlordDashboardPage() {
         { name: 'Hết hạn', value: stats.preorders.byStatus.EXPIRED },
     ];
 
+    const roomStatusData = [
+        { name: 'Sẵn sàng cho thuê', value: stats.rooms.byStatus.AVAILABLE, fill: '#52c41a' },
+        { name: 'Đang thuê', value: stats.rooms.byStatus.RENTED, fill: '#1677ff' },
+        { name: 'Sắp trống', value: stats.rooms.byStatus.NEARLY_AVAILABLE, fill: '#fa8c16' },
+        { name: 'Chờ duyệt', value: stats.rooms.byStatus.PENDING, fill: '#722ed1' },
+        { name: 'Bảo trì', value: stats.rooms.byStatus.MAINTENANCE, fill: '#faad14' },
+    ];
+
     return (
         <div>
             <Title level={2}>Dashboard</Title>
@@ -202,6 +210,58 @@ export function LandlordDashboardPage() {
                 </Col>
             </Row>
 
+            {/* Room status breakdown */}
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={12} sm={6}>
+                    <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                        <Statistic
+                            title="Phòng sẵn sàng"
+                            value={stats.rooms.byStatus.AVAILABLE}
+                            styles={{ content: { fontSize: 20, color: '#52c41a' } }}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={12} sm={6}>
+                    <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                        <Statistic
+                            title="Phòng đang thuê"
+                            value={stats.rooms.byStatus.RENTED}
+                            styles={{ content: { fontSize: 20, color: '#1677ff' } }}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={12} sm={6}>
+                    <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                        <Statistic
+                            title="Phòng sắp trống"
+                            value={stats.rooms.byStatus.NEARLY_AVAILABLE}
+                            styles={{ content: { fontSize: 20, color: '#fa8c16' } }}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={12} sm={6}>
+                    <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                        <Statistic
+                            title="Phòng chờ duyệt"
+                            value={stats.rooms.byStatus.PENDING}
+                            styles={{ content: { fontSize: 20, color: '#722ed1' } }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={24} sm={6}>
+                    <Card size="small" variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                        <Statistic
+                            title="Phòng bảo trì"
+                            value={stats.rooms.byStatus.MAINTENANCE}
+                            styles={{ content: { fontSize: 20, color: '#faad14' } }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
             {/* Performance Metrics */}
             {performance && (
                 <>
@@ -214,7 +274,7 @@ export function LandlordDashboardPage() {
                                     value={performance.occupancyRate}
                                     suffix="%"
                                     prefix={<PercentageOutlined style={{ color: '#1677ff' }} />}
-                                    valueStyle={{ fontSize: 20 }}
+                                    styles={{ content: { fontSize: 20 } }}
                                 />
                             </Card>
                         </Col>
@@ -236,7 +296,7 @@ export function LandlordDashboardPage() {
                                     value={performance.cancellationRate}
                                     suffix="%"
                                     prefix={<LineChartOutlined style={{ color: '#ff4d4f' }} />}
-                                    valueStyle={{ fontSize: 20, color: '#ff4d4f' }}
+                                    styles={{ content: { fontSize: 20, color: '#ff4d4f' } }}
                                 />
                             </Card>
                         </Col>
@@ -247,7 +307,7 @@ export function LandlordDashboardPage() {
                                     value={performance.conversionRate}
                                     suffix="%"
                                     prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
-                                    valueStyle={{ fontSize: 20, color: '#722ed1' }}
+                                    styles={{ content: { fontSize: 20, color: '#722ed1' } }}
                                 />
                             </Card>
                         </Col>
@@ -357,6 +417,39 @@ export function LandlordDashboardPage() {
                     <Card
                         title={
                             <span>
+                                <HomeOutlined /> Trạng thái Phòng trọ
+                            </span>
+                        }
+                        variant="borderless"
+                        style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
+                    >
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={roomStatusData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, value }) =>
+                                        value > 0 ? `${name}: ${value}` : ''
+                                    }
+                                    outerRadius={100}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {roomStatusData.map((_, index) => (
+                                        <Cell key={`room-cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </Card>
+                </Col>
+                <Col xs={24} lg={12}>
+                    <Card
+                        title={
+                            <span>
                                 <ShoppingCartOutlined /> Trạng thái Đặt cọc
                             </span>
                         }
@@ -416,6 +509,22 @@ export function LandlordDashboardPage() {
                                     value={stats.preorders.byStatus.CONFIRMED}
                                     styles={{ content: { color: '#52c41a' } }}
                                     prefix={<CheckCircleOutlined />}
+                                />
+                            </Col>
+                            <Col xs={12} sm={6}>
+                                <Statistic
+                                    title="Phòng đang thuê"
+                                    value={stats.rooms.byStatus.RENTED}
+                                    styles={{ content: { color: '#1677ff' } }}
+                                    prefix={<HomeOutlined />}
+                                />
+                            </Col>
+                            <Col xs={12} sm={6}>
+                                <Statistic
+                                    title="Phòng sắp trống"
+                                    value={stats.rooms.byStatus.NEARLY_AVAILABLE}
+                                    styles={{ content: { color: '#fa8c16' } }}
+                                    prefix={<HomeOutlined />}
                                 />
                             </Col>
                         </Row>

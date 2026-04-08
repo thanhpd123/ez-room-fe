@@ -33,7 +33,9 @@ export interface RoomDetailData {
   price: number;
   area: number;
   max_occupants: number;
-  status: 'available' | 'occupied' | 'maintenance';
+  status: 'available' | 'occupied' | 'maintenance' | 'nearly_available';
+  availableFrom?: string | null;
+  daysUntilAvailable?: number | null;
   address: string;
   images: string[];
   amenities: string[];
@@ -126,7 +128,7 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
       return;
     }
 
-    if (room.status !== 'available') {
+    if (!['available', 'nearly_available'].includes(room.status)) {
       alert(t('roomDetail.roomNotAvailableDeposit'));
       return;
     }
@@ -190,6 +192,10 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
   const statusConfig: Record<string, { label: string; color: string }> = {
     available: { label: t('roomDetail.statusAvailable'), color: 'bg-primary text-primary-foreground' },
     occupied: { label: t('roomDetail.statusOccupied'), color: 'bg-muted text-muted-foreground' },
+    nearly_available: {
+      label: `Sắp trống${room.daysUntilAvailable != null ? ` (${room.daysUntilAvailable} ngày)` : ''}`,
+      color: 'bg-amber-500 text-white',
+    },
     maintenance: { label: t('roomDetail.statusMaintenance'), color: 'bg-accent text-accent-foreground' },
   };
   const statusInfo = statusConfig[room.status] ?? statusConfig.available;
@@ -370,11 +376,11 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                 <button
                   type="button"
                   onClick={handleOpenDepositModal}
-                  disabled={depositSubmitting || room.status !== 'available'}
+                  disabled={depositSubmitting || !['available', 'nearly_available'].includes(room.status)}
                   className="group relative w-full overflow-hidden rounded-lg bg-linear-to-r from-amber-500 to-rose-500 py-3 font-semibold text-white shadow-md transition-all duration-300 hover:scale-[1.01] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                  <span className="relative">{depositSubmitting ? t('roomDetail.depositSubmitting') : room.status === 'available' ? t('roomDetail.depositNow') : t('roomDetail.unavailable')}</span>
+                  <span className="relative">{depositSubmitting ? t('roomDetail.depositSubmitting') : ['available', 'nearly_available'].includes(room.status) ? t('roomDetail.depositNow') : t('roomDetail.unavailable')}</span>
                 </button>
               </div>
 

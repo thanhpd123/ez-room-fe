@@ -24,6 +24,7 @@ import {
     resumePreorderPaymentRequest,
     cancelUnpaidPreorderRequest,
     createFeedbackRequest,
+    createReportRequest,
     getFeedbackByRentalPeriodRequest,
     checkRoommateRatingRequest,
     type LifestyleProfileResponse,
@@ -35,7 +36,8 @@ import { trackEvent } from '@/lib/analytics';
 import { ReviewModal, ViewFeedbackModal, ReportModal } from '@/app/features/booking-history/components';
 import { RoommateRatingModal } from './RoommateRatingModal';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
-import type { ReviewData, FeedbackStatus } from '@/app/features/booking-history/types';
+import type { ReviewData, ReportData, FeedbackStatus } from '@/app/features/booking-history/types';
+import { buildBookingReportPayload } from '@/app/features/booking-history/utils';
 import type { ProvinceItem, WardItem } from '@/lib/provinces-api';
 
 type Tab = 'profile' | 'lifestyle' | 'preference' | 'bookings';
@@ -532,7 +534,7 @@ export function ProfilePage() {
         if (tab === 'bookings') {
             loadBookings();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab]);
 
     const avatarUrl = profileForm.avatarUrl?.trim() || user?.avatarUrl;
@@ -1027,7 +1029,10 @@ export function ProfilePage() {
                                                         } catch { setViewFeedbackData(null); }
                                                     }}
                                                     onReport={() => { setSelectedBookingItem(b); setModalState('report'); }}
-                                                    onContactLandlord={() => navigate(`/chat?booking=${b.id}`)}
+                                                    onContactLandlord={() => {
+                                                        if (b.landlordId) navigate(`/chat/${b.landlordId}`);
+                                                        else navigate(`/chat?booking=${encodeURIComponent(b.rentalPeriodId || b.id)}`);
+                                                    }}
                                                     onViewRoom={() => navigate(`/room/${b.roomId}`)}
                                                 />
                                             ))}
@@ -1075,7 +1080,18 @@ export function ProfilePage() {
                         <ReportModal
                             isOpen={modalState === 'report'}
                             onClose={() => { setModalState('none'); setSelectedBookingItem(null); }}
-                            onSubmit={() => { setModalState('none'); }}
+                            onSubmit={async (data: ReportData) => {
+                                if (!selectedBookingItem) return;
+                                try {
+                                    const body = buildBookingReportPayload(selectedBookingItem, data);
+                                    await createReportRequest(body);
+                                    setModalState('none');
+                                    setSelectedBookingItem(null);
+                                } catch (err) {
+                                    alert(err instanceof Error ? err.message : 'Gửi báo cáo thất bại');
+                                    throw err;
+                                }
+                            }}
                             propertyName={selectedBookingItem?.roomName || selectedBookingItem?.propertyName || ''}
                         />
                     </div>
@@ -1090,16 +1106,16 @@ export function ProfilePage() {
 type TFunc = (key: string, opts?: Record<string, unknown>) => string;
 
 const PREORDER_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
-    PENDING:   { label: 'Chờ xác nhận', icon: Clock3,         color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
-    CONFIRMED: { label: 'Đã xác nhận',  icon: CheckCircle2,   color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-    CANCELLED: { label: 'Đã hủy',       icon: XCircle,        color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
-    EXPIRED:   { label: 'Hết hạn',      icon: AlertCircle,    color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
+    PENDING: { label: 'Chờ xác nhận', icon: Clock3, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+    CONFIRMED: { label: 'Đã xác nhận', icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    CANCELLED: { label: 'Đã hủy', icon: XCircle, color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
+    EXPIRED: { label: 'Hết hạn', icon: AlertCircle, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' },
 };
 
 const PAYMENT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    UNPAID:   { label: 'Chưa thanh toán', color: 'text-amber-600' },
-    PAID:     { label: 'Đã thanh toán',   color: 'text-emerald-600' },
-    REFUNDED: { label: 'Đã hoàn tiền',    color: 'text-blue-600' },
+    UNPAID: { label: 'Chưa thanh toán', color: 'text-amber-600' },
+    PAID: { label: 'Đã thanh toán', color: 'text-emerald-600' },
+    REFUNDED: { label: 'Đã hoàn tiền', color: 'text-blue-600' },
 };
 
 function PreorderCard({
@@ -1278,15 +1294,15 @@ function PreorderCard({
 // ─── ProfileBookingCard (full-featured with Review, Report, Contact, Roommates) ──
 
 const BOOKING_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
-    active:    { label: 'Đang thuê',   icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-    completed: { label: 'Đã kết thúc', icon: Clock3,       color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
-    cancelled: { label: 'Đã hủy',      icon: XCircle,      color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+    active: { label: 'Đang thuê', icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    completed: { label: 'Đã kết thúc', icon: Clock3, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' },
+    cancelled: { label: 'Đã hủy', icon: XCircle, color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
 };
 
 const FEEDBACK_STATUS_CFG: Record<string, { bg: string; text: string; label: string }> = {
-    PENDING:  { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Đang chờ duyệt' },
+    PENDING: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Đang chờ duyệt' },
     APPROVED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã công khai' },
-    REJECTED: { bg: 'bg-red-100',   text: 'text-red-800',   label: 'Bị từ chối' },
+    REJECTED: { bg: 'bg-red-100', text: 'text-red-800', label: 'Bị từ chối' },
 };
 
 function ProfileBookingCard({ item, onWriteReview, onViewReview, onReport, onContactLandlord, onViewRoom }: {
@@ -1325,7 +1341,7 @@ function ProfileBookingCard({ item, onWriteReview, onViewReview, onReport, onCon
             const rated = new Set(results.filter(Boolean) as string[]);
             setRatedIds(rated);
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item.rentalPeriodId]);
 
     return (

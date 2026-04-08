@@ -38,6 +38,11 @@ const paymentStatusLabels: Record<RentalRequest['paymentStatus'], string> = {
     REFUNDED: 'Đã hoàn tiền',
 };
 
+const sourceTypeLabels: Record<'PREORDER' | 'FAVORITE', string> = {
+    PREORDER: 'Yêu cầu đặt cọc',
+    FAVORITE: 'Từ wishlist',
+};
+
 function getDisplayStatus(request: RentalRequest) {
     if (request.status === 'PENDING' && request.paymentStatus === 'PAID') {
         return 'PENDING_PAID';
@@ -161,7 +166,11 @@ export function RequestsPage() {
                     {requests.map((request) => {
                         // Show combined state so landlords can quickly spot deposits already paid by tenant.
                         const displayStatus = getDisplayStatus(request);
-                        const canConfirm = request.status === 'PENDING' && request.paymentStatus === 'PAID';
+                        const isPending = request.status === 'PENDING';
+                        const canConfirm = isPending;
+                        const sourceType = request.sourceType || 'PREORDER';
+                        const isFavoriteOnly = sourceType === 'FAVORITE' && request.paymentStatus === 'UNPAID';
+                        const canReject = isPending;
 
                         return (
                             <div
@@ -198,6 +207,10 @@ export function RequestsPage() {
                                             <p className="text-muted-foreground">Thanh toán cọc</p>
                                             <p className="font-medium">{paymentStatusLabels[request.paymentStatus]}</p>
                                         </div>
+                                        <div>
+                                            <p className="text-muted-foreground">Nguồn yêu cầu</p>
+                                            <p className="font-medium">{sourceTypeLabels[sourceType]}</p>
+                                        </div>
                                         <div className="col-span-2">
                                             <p className="text-muted-foreground">Nhà cho thuê</p>
                                             <p className="font-medium">{request.rental.title}</p>
@@ -210,7 +223,7 @@ export function RequestsPage() {
                                     </div>
 
                                     {/* Actions */}
-                                    {request.status === 'PENDING' && (
+                                    {isPending && (
                                         <div className="flex gap-2 pt-2">
                                             <button
                                                 onClick={() => handleConfirm(request.id)}
@@ -220,16 +233,25 @@ export function RequestsPage() {
                                                 {actioningId === request.id
                                                     ? 'Đang xử lý...'
                                                     : canConfirm
-                                                        ? '✓ Duyệt'
-                                                        : 'Chờ tenant thanh toán cọc'}
+                                                        ? 'Approve rental request'
+                                                        : 'Không thể duyệt'}
                                             </button>
                                             <button
                                                 onClick={() => handleReject(request.id)}
-                                                disabled={actioningId === request.id}
+                                                disabled={actioningId === request.id || !canReject}
                                                 className="flex-1 rounded-lg border border-red-200 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium text-red-600 transition-colors"
                                             >
-                                                {actioningId === request.id ? 'Đang xử lý...' : '✕ Từ chối'}
+                                                {actioningId === request.id
+                                                    ? 'Đang xử lý...'
+                                                    : canReject
+                                                        ? '✕ Từ chối'
+                                                        : 'Chưa thể từ chối'}
                                             </button>
+                                        </div>
+                                    )}
+                                    {isPending && isFavoriteOnly && (
+                                        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                                            Tenant chưa đặt cọc, nhưng bạn vẫn có thể duyệt cho thuê trực tiếp.
                                         </div>
                                     )}
                                 </div>

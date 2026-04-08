@@ -276,7 +276,7 @@ export function ViewListRoomPostPage() {
                                     {openedWishersRoomId === post.room_post_id && (
                                         <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-3">
                                             <p className="mb-2 text-sm font-semibold text-purple-900">
-                                                Priority order: prepaid preorder first, then first come first serve
+                                                Priority: paid deposit before unpaid, then higher deposit, then earlier preorder, then earlier favorite
                                             </p>
                                             {loadingWishersRoomId === post.room_post_id ? (
                                                 <p className="text-sm text-slate-600">Loading wishlist...</p>
@@ -291,6 +291,7 @@ export function ViewListRoomPostPage() {
                                                                 <th className="py-2 pr-3">User</th>
                                                                 <th className="py-2 pr-3">Contact</th>
                                                                 <th className="py-2 pr-3">Priority</th>
+                                                                <th className="py-2 pr-3">Deposit</th>
                                                                 <th className="py-2 pr-3">Favorited At</th>
                                                                 <th className="py-2 pr-3">Actions</th>
                                                             </tr>
@@ -303,7 +304,12 @@ export function ViewListRoomPostPage() {
                                                                         <div className="font-medium text-slate-900">{w.user.fullName}</div>
                                                                         {w.preorder?.paymentStatus === 'PAID' && (
                                                                             <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                                                                                Paid preorder
+                                                                                Paid deposit
+                                                                            </span>
+                                                                        )}
+                                                                        {w.preorder?.paymentStatus === 'UNPAID' && (
+                                                                            <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                                                                Preorder unpaid
                                                                             </span>
                                                                         )}
                                                                     </td>
@@ -320,6 +326,15 @@ export function ViewListRoomPostPage() {
                                                                             <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                                                                                 Normal queue
                                                                             </span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="py-2 pr-3 text-slate-700">
+                                                                        {w.preorder && w.preorder.depositAmount > 0 ? (
+                                                                            <span className="font-medium tabular-nums">
+                                                                                {formatCurrency(w.preorder.depositAmount)}
+                                                                            </span>
+                                                                        ) : (
+                                                                            '—'
                                                                         )}
                                                                     </td>
                                                                     <td className="py-2 pr-3 text-slate-700">
