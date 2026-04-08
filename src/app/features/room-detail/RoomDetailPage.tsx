@@ -28,6 +28,7 @@ function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
   return {
     id: String(api.id ?? ''),
     title: String(api.roomName ?? api.title ?? 'Phòng'),
+    
     description: String(api.description ?? ''),
     price: Number(api.price ?? 0),
     area: Number(api.sizeM2 ?? api.area ?? 0),
