@@ -122,13 +122,23 @@ export function CreateRentalPage() {
         setSubmitError(null);
         setIsSubmitting(true);
 
-        // Collect all document files
-        const allDocumentFiles = [
-            ...documents.cccd,
-            ...documents.soDo,
-            ...documents.gpkd,
-            ...documents.other,
+        // Collect all document files kèm type tương ứng
+        const allDocumentFiles: File[] = [];
+        const allDocumentTypes: string[] = [];
+
+        const docMapping: Array<{ files: File[]; type: string }> = [
+            { files: documents.cccd, type: 'CCCD' },
+            { files: documents.soDo, type: 'SO_DO' },
+            { files: documents.gpkd, type: 'GPKD' },
+            { files: documents.other, type: 'OTHER' },
         ];
+
+        for (const { files, type } of docMapping) {
+            for (const file of files) {
+                allDocumentFiles.push(file);
+                allDocumentTypes.push(type);
+            }
+        }
 
         try {
             await createRentalRequest({
@@ -139,6 +149,7 @@ export function CreateRentalPage() {
                 address: form.address,
                 imageUrls: form.images.length > 0 ? form.images : undefined,
                 documentFiles: allDocumentFiles.length > 0 ? allDocumentFiles : undefined,
+                documentTypes: allDocumentTypes.length > 0 ? allDocumentTypes : undefined,
             });
 
             navigate('/rental-management/rentals');
