@@ -55,12 +55,18 @@ export function SearchResultCard({
                 {/* Available + Match Score + CLIP Similarity */}
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                     <span
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold shadow-sm ${room.available
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-slate-600/80 text-white'
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold shadow-sm ${room.isNearlyAvailable
+                            ? 'bg-amber-500 text-white'
+                            : room.available
+                                ? 'bg-emerald-500 text-white'
+                                : 'bg-slate-600/80 text-white'
                             }`}
                     >
-                        {room.available ? t('listing.available') : t('listing.rented')}
+                        {room.isNearlyAvailable
+                            ? `Sắp trống${room.daysUntilAvailable != null ? ` (${room.daysUntilAvailable} ngày)` : ''}`
+                            : room.available
+                                ? t('listing.available')
+                                : t('listing.rented')}
                     </span>
                     {room.clipSimilarity != null && room.clipSimilarity > 0 && (
                         <span

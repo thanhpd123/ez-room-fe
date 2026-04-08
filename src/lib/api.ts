@@ -1984,6 +1984,10 @@ export interface SmartSearchRoomItem {
     location: { district: string | null; city: string | null; address?: string | null } | null;
     matchScore: number;
     rating: number | null;
+    available?: boolean;
+    isNearlyAvailable?: boolean;
+    availableFrom?: string | null;
+    daysUntilAvailable?: number | null;
     otherRoomsInRental: Array<{ id: string; roomName: string | null; price: number; area: number | null; roomType: string; image: string }>;
 }
 
@@ -2487,6 +2491,13 @@ export interface LandlordDashboardStats {
     };
     rooms: {
         total: number;
+        byStatus: {
+            PENDING: number;
+            AVAILABLE: number;
+            RENTED: number;
+            MAINTENANCE: number;
+            NEARLY_AVAILABLE: number;
+        };
     };
     wallet: {
         balance: number;
