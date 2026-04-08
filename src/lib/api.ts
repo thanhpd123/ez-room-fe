@@ -1820,6 +1820,132 @@ export async function getRoomReviewsRequest(
 }
 
 /**
+ * POST /tenant-reviews – landlord creates a tenant review
+ */
+export async function createTenantReviewRequest(body: {
+    rentalPeriodId: string;
+    rating: number;
+    paymentPunctualityRating?: number;
+    propertyCareRating?: number;
+    communicationRating?: number;
+    comment: string;
+}): Promise<{
+    success: boolean;
+    message: string;
+    data: { id: string; status: string; rating: number };
+}> {
+    const res = await authFetch('/tenant-reviews', {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Gửi đánh giá tenant thất bại');
+    return data;
+}
+
+/**
+ * GET /tenant-reviews/by-rental-period/:rentalPeriodId – get tenant review for a rental period
+ */
+export async function getTenantReviewByRentalPeriodRequest(rentalPeriodId: string): Promise<{
+    success: boolean;
+    data: {
+        id: string;
+        rating: number;
+        paymentPunctualityRating: number | null;
+        propertyCareRating: number | null;
+        communicationRating: number | null;
+        comment: string | null;
+        status: string;
+        moderatorNote: string | null;
+        createdAt: string;
+    } | null;
+}> {
+    const res = await authFetch(`/tenant-reviews/by-rental-period/${encodeURIComponent(rentalPeriodId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải đánh giá tenant');
+    return data;
+}
+
+/**
+ * GET /tenant-reviews/tenant/:tenantId – get all reviews for a tenant (internal, for landlords only)
+ */
+export async function getTenantReviewsRequest(tenantId: string): Promise<{
+    success: boolean;
+    data: any[];
+    stats: {
+        totalReviews: number;
+        avgRating: number;
+        avgPaymentPunctuality: number;
+        avgPropertyCare: number;
+        avgCommunication: number;
+    };
+}> {
+    const res = await authFetch(`/tenant-reviews/tenant/${encodeURIComponent(tenantId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải đánh giá của tenant');
+    return data;
+}
+
+/**
+ * POST /tenant-reviews/:reviewId/reply – landlord replies to a tenant review
+ */
+export async function replyToTenantReviewRequest(reviewId: string, content: string): Promise<{
+    success: boolean;
+    data: any;
+}> {
+    const res = await authFetch(`/tenant-reviews/${encodeURIComponent(reviewId)}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi phản hồi đánh giá tenant');
+    return data;
+}
+
+/**
+ * GET /tenant-reviews/moderation/pending – get pending tenant reviews for moderation
+ */
+export async function getPendingTenantReviewsRequest(page = 1, limit = 10): Promise<{
+    success: boolean;
+    data: any[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        pages: number;
+    };
+}> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    const res = await authFetch(`/tenant-reviews/moderation/pending?${params}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải danh sách đánh giá chờ duyệt');
+    return data;
+}
+
+/**
+ * PATCH /tenant-reviews/:reviewId/status/:action – moderator updates review status
+ */
+export async function updateTenantReviewStatusRequest(
+    reviewId: string,
+    action: 'approve' | 'reject' | 'hide',
+    notes?: string
+): Promise<{
+    success: boolean;
+    data: any;
+}> {
+    const res = await authFetch(
+        `/tenant-reviews/${encodeURIComponent(reviewId)}/status/${action}`,
+        {
+            method: 'PATCH',
+            body: JSON.stringify({ notes }),
+        }
+    );
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi cập nhật trạng thái đánh giá');
+    return data;
+}
+
+/**
  * GET /auth/me – current user from backend (verifies token end-to-end).
  */
 export async function fetchAuthMe(): Promise<{
@@ -1877,6 +2003,10 @@ export interface SmartSearchRoomItem {
     location: { district: string | null; city: string | null; address?: string | null } | null;
     matchScore: number;
     rating: number | null;
+    available?: boolean;
+    isNearlyAvailable?: boolean;
+    availableFrom?: string | null;
+    daysUntilAvailable?: number | null;
     otherRoomsInRental: Array<{ id: string; roomName: string | null; price: number; area: number | null; roomType: string; image: string }>;
     /** DB room status (e.g. AVAILABLE). */
     roomStatus?: string;
@@ -2420,6 +2550,13 @@ export interface LandlordDashboardStats {
     };
     rooms: {
         total: number;
+        byStatus: {
+            PENDING: number;
+            AVAILABLE: number;
+            RENTED: number;
+            MAINTENANCE: number;
+            NEARLY_AVAILABLE: number;
+        };
     };
     wallet: {
         balance: number;

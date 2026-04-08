@@ -20,6 +20,9 @@ export interface Room {
     image: string;
     rating: number;
     available: boolean;
+    isNearlyAvailable?: boolean;
+    availableFrom?: string | null;
+    daysUntilAvailable?: number | null;
     rentalId?: string;
     /** Match score 0–100 from recommendation system. Higher = better fit. */
     matchScore?: number;

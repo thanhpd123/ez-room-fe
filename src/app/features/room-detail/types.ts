@@ -5,7 +5,9 @@ export interface RoomDetailData {
   price: number;
   area: number;
   max_occupants: number;
-  status: 'available' | 'occupied' | 'maintenance' | 'pending';
+  status: 'available' | 'occupied' | 'maintenance' | 'nearly_available';
+  availableFrom?: string | null;
+  daysUntilAvailable?: number | null;
   address: string;
   images: string[];
   amenities: string[];
