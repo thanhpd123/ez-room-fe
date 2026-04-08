@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Header } from '@/app/features/home/components';
 import { Crown } from 'lucide-react';
 import {
     depositWalletRequest,
@@ -201,19 +200,17 @@ export function WalletPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background">
-            <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-foreground">Ví tiền</h1>
-                    <p className="text-muted-foreground text-sm mt-1">
-                        Quản lý số dư và lịch sử giao dịch.
-                    </p>
-                </div>
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold text-foreground">Ví tiền</h1>
+                <p className="text-muted-foreground text-sm mt-1">
+                    Quản lý số dư và lịch sử giao dịch.
+                </p>
+            </div>
 
-                {canUpgradeVip && (
-                    <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
-                        <p className="text-sm text-amber-900">Tài khoản thường đang bị giới hạn một số quyền lợi. Nâng cấp VIP để mở rộng trải nghiệm.</p>
+            {canUpgradeVip && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+                    <p className="text-sm text-amber-900">Tài khoản thường đang bị giới hạn một số quyền lợi. Nâng cấp VIP để mở rộng trải nghiệm.</p>
                         <button
                             type="button"
                             onClick={() => {
@@ -356,7 +353,6 @@ export function WalletPage() {
                         </div>
                     )}
                 </div>
-            </main>
         </div>
     );
 }

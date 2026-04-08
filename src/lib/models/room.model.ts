@@ -9,6 +9,9 @@ export interface Room {
     area?: number;
     max_occupants: number;
     status: RoomStatus;
+    isNearlyAvailable?: boolean;
+    availableFrom?: string | null;
+    daysUntilAvailable?: number | null;
     created_at: Date | string;
 }
 
