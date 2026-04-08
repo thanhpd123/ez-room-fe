@@ -11,6 +11,10 @@ export function ImageWithFallback(props: React.ImgHTMLAttributes<HTMLImageElemen
     };
 
     const { src, alt, style, className, ...rest } = props;
+    const sanitizedSrc =
+        typeof src === 'string' && src.trim() === ''
+            ? undefined
+            : src;
 
     return didError ? (
         <div
@@ -22,6 +26,6 @@ export function ImageWithFallback(props: React.ImgHTMLAttributes<HTMLImageElemen
             </div>
         </div>
     ) : (
-        <img src={src} alt={alt} className={className} style={style} loading="lazy" {...rest} onError={handleError} />
+        <img src={sanitizedSrc} alt={alt} className={className} style={style} loading="lazy" {...rest} onError={handleError} />
     );
 }
