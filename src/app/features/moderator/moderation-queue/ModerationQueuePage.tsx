@@ -419,11 +419,12 @@ export function ModerationQueuePage() {
                 <div>
                     <select
                         value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as 'asc' | 'desc')}
+                        onChange={(e) => setSortBy(e.target.value as 'desc' | 'asc')}
                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
                     >
-                        <option value="asc">Thời gian: Sớm nhất</option>
-                        <option value="desc">Thời gian: Muộn nhất</option>
+                        <option value="desc">Thời gian: Sớm nhất</option>
+                        <option value="asc">Thời gian: Muộn nhất</option>
+                    
                     </select>
                 </div>
             </div>

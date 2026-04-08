@@ -859,6 +859,11 @@ export interface RoommateSuggestionItem {
     } | null;
     preference: { preferred_districts: string[]; room_type: string | null; budget_min: number | null; budget_max: number | null; preferredLocation: string | null } | null;
     matchScore: number;
+    cfScore: number;
+    experienceScore: number;
+    wouldLiveAgainRate: number | null;
+    isSameGender: boolean;
+    matchStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED' | null;
 }
 
 export async function getRoommateSuggestionsRequest(limit?: number): Promise<{
@@ -1006,6 +1011,7 @@ export async function createRoommateRatingRequest(body: {
     targetId: string;
     rentalPeriodId: string;
     overallRating: number;
+    wouldLiveAgain: boolean;
     comment?: string;
 }): Promise<{ success: boolean; message: string; data: { id: string } }> {
     const res = await authFetch('/roommate/experiences', {
@@ -1231,6 +1237,7 @@ export async function createRentalRequest(body: {
     address: string;
     imageUrls?: string[];     // URLs từ MultiImageUpload
     documentFiles?: File[];    // Files để upload Supabase
+    documentTypes?: string[];  // Tương ứng 1-1 với documentFiles
 }): Promise<{ success: boolean; data: Record<string, unknown>; message: string }> {
     const token = await getAccessToken();
     if (!token) throw new Error('Cần đăng nhập để tạo bài đăng');
@@ -1248,10 +1255,11 @@ export async function createRentalRequest(body: {
         formData.append('images', JSON.stringify(body.imageUrls));
     }
 
-    // Add document files
+    // Add document files kèm document_type tương ứng
     if (body.documentFiles && body.documentFiles.length > 0) {
-        for (const file of body.documentFiles) {
-            formData.append('file', file);
+        for (let i = 0; i < body.documentFiles.length; i++) {
+            formData.append('file', body.documentFiles[i]);
+            formData.append('document_type', body.documentTypes?.[i] ?? 'OTHER');
         }
     }
 

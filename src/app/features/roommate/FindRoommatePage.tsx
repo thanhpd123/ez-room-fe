@@ -414,8 +414,8 @@ export function FindRoommatePage() {
                 )}
 
                 <>
-                    {/* AI Personality Search (VIP) */}
-                    <section className="mb-8">
+                    {/* AI Personality Search (VIP) - Temporarily hidden */}
+                    {/* <section className="mb-8">
                         <div className="bg-gradient-to-r from-amber-50/80 to-orange-50/80 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200/60 dark:border-amber-800/40 rounded-2xl p-5">
                             <div className="flex items-center gap-2 mb-3">
                                 <Sparkles className="w-5 h-5 text-amber-500" />
@@ -465,10 +465,10 @@ export function FindRoommatePage() {
                                 <p className="text-sm text-red-500 mt-2">{aiError}</p>
                             )}
                         </div>
-                    </section>
+                    </section> */}
 
-                    {/* AI Search Results */}
-                    {aiActive && (
+                    {/* AI Search Results - Temporarily hidden */}
+                    {/* {aiActive && (
                         <section className="mb-12">
                             <h2 className="font-heading text-xl font-semibold text-foreground flex items-center gap-2 mb-4">
                                 <Sparkles className="w-5 h-5 text-amber-500" />
@@ -494,7 +494,6 @@ export function FindRoommatePage() {
                                             key={r.user.id}
                                             className="bg-card border border-border rounded-2xl p-5 hover:shadow-md transition-shadow relative"
                                         >
-                                            {/* Similarity badge */}
                                             <div className="absolute top-3 right-3">
                                                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${r.similarityScore >= 70
                                                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
@@ -522,7 +521,6 @@ export function FindRoommatePage() {
                                                 </div>
                                             </div>
 
-                                            {/* Tags */}
                                             {r.lifestyle && (
                                                 <div className="flex flex-wrap gap-1.5 mb-3">
                                                     {r.lifestyle.personalityType && (
@@ -563,7 +561,6 @@ export function FindRoommatePage() {
                                                 </div>
                                             )}
 
-                                            {/* AI Reason */}
                                             {r.aiReason && (
                                                 <p className="text-xs italic text-primary/80 mb-3 leading-relaxed bg-primary/5 rounded-lg px-3 py-2">
                                                     💡 {r.aiReason}
@@ -603,7 +600,7 @@ export function FindRoommatePage() {
                                 </div>
                             )}
                         </section>
-                    )}
+                    )} */}
 
                     {/* Suggestions */}
                     <section className="mb-12">
@@ -1075,10 +1072,15 @@ export function FindRoommatePage() {
                                                     >
                                                         {item.user.fullName}
                                                     </button>
-                                                    <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                         <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                                                             {item.matchScore}% phù hợp
                                                         </span>
+                                                        {item.experienceScore >= 8 && (
+                                                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                                ⭐ Đánh giá tốt
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <LifestyleTags item={item} />
                                                 </div>
@@ -1092,19 +1094,31 @@ export function FindRoommatePage() {
                                                     <Eye className="w-4 h-4" />
                                                     Xem hồ sơ
                                                 </button>
-                                                <button
-                                                    type="button"
-                                                    disabled={!!sendingId}
-                                                    onClick={() => handleSendRequest(item.user.id)}
-                                                    className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
-                                                >
-                                                    {sendingId === item.user.id ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <UserPlus className="w-4 h-4" />
-                                                    )}
-                                                    Gửi lời mời
-                                                </button>
+                                                {item.matchStatus === 'ACCEPTED' ? (
+                                                    <span className="flex-1 py-2.5 rounded-xl font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 flex items-center justify-center gap-2 text-sm">
+                                                        <Check className="w-4 h-4" />
+                                                        Đã kết bạn
+                                                    </span>
+                                                ) : item.matchStatus === 'PENDING' ? (
+                                                    <span className="flex-1 py-2.5 rounded-xl font-medium bg-muted text-muted-foreground flex items-center justify-center gap-2 text-sm">
+                                                        <Loader2 className="w-4 h-4" />
+                                                        Đang chờ
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        disabled={!!sendingId}
+                                                        onClick={() => handleSendRequest(item.user.id)}
+                                                        className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
+                                                    >
+                                                        {sendingId === item.user.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <UserPlus className="w-4 h-4" />
+                                                        )}
+                                                        Gửi lời mời
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
