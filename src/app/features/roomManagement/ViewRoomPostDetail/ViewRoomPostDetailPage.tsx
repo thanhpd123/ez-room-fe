@@ -50,19 +50,23 @@ export function ViewRoomPostDetailPage() {
         preorders: [],
     });
     const [isLoadingTenants, setIsLoadingTenants] = useState(false);
+    const [hasLoadedTenants, setHasLoadedTenants] = useState(false);
 
     useEffect(() => {
         let active = true;
 
         const load = async () => {
             setIsLoading(true);
-            const [rental, post] = await Promise.all([
+            const [rental, post, tenants] = await Promise.all([
                 getManagedRentalById(rentalId),
                 getRoomPostById(rentalId, roomPostId),
+                getRoomTenants(roomPostId),
             ]);
             if (!active) return;
             setRentalTitle(rental?.title ?? '');
             setRoomPost(post);
+            setTenantData(tenants);
+            setHasLoadedTenants(true);
             setIsLoading(false);
         };
 
@@ -80,18 +84,22 @@ export function ViewRoomPostDetailPage() {
 
     // Load tenants when tab changes to 'tenants'
     useEffect(() => {
-        if (currentTab === 'tenants' && roomPostId && tenantData.rentals.length === 0 && tenantData.preorders.length === 0) {
+        if (currentTab === 'tenants' && roomPostId && !hasLoadedTenants) {
             const loadTenants = async () => {
                 setIsLoadingTenants(true);
                 const data = await getRoomTenants(roomPostId);
                 setTenantData(data);
+                setHasLoadedTenants(true);
                 setIsLoadingTenants(false);
             };
             void loadTenants();
         }
-    }, [currentTab, roomPostId, tenantData]);
+    }, [currentTab, roomPostId, hasLoadedTenants]);
 
     const rentalLabel = useMemo(() => rentalTitle || rentalId, [rentalId, rentalTitle]);
+    const activeTenantCount = tenantData.rentals.length;
+    const maxOccupants = Math.max(1, Number(roomPost?.max_occupants || 1));
+    const isRoomAtCapacity = hasLoadedTenants && activeTenantCount >= maxOccupants;
 
     const refetchRoomAndTenants = useCallback(async () => {
         if (!rentalId || !roomPostId) return;
@@ -103,6 +111,7 @@ export function ViewRoomPostDetailPage() {
         setRentalTitle(rental?.title ?? '');
         setRoomPost(post);
         setTenantData(tenants);
+        setHasLoadedTenants(true);
     }, [rentalId, roomPostId]);
 
     const getImageArray = () => {
@@ -156,10 +165,15 @@ export function ViewRoomPostDetailPage() {
                     {(roomPost.status === 'AVAILABLE' || roomPost.status === 'RENTED') && (
                         <button
                             type="button"
-                            onClick={() => setShowCreateContract(true)}
-                            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                            onClick={() => {
+                                if (!isRoomAtCapacity) setShowCreateContract(true);
+                            }}
+                            disabled={isRoomAtCapacity}
+                            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                         >
-                            📄 Tạo hợp đồng thuê
+                            {isRoomAtCapacity
+                                ? `🚫 Đã đủ người (${activeTenantCount}/${maxOccupants})`
+                                : '📄 Tạo hợp đồng thuê'}
                         </button>
                     )}
                     {roomPost.status === 'PENDING' ? (
@@ -319,7 +333,7 @@ export function ViewRoomPostDetailPage() {
                                         : 'border-transparent text-slate-600 hover:text-slate-900'
                                 }`}
                             >
-                                Người thuê ({tenantData.rentals.length + tenantData.preorders.length})
+                                Người thuê ({activeTenantCount})
                             </button>
                         </div>
                     </div>
