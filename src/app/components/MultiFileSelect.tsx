@@ -8,6 +8,8 @@ interface MultiFileSelectProps {
     accept?: string;
     maxFiles?: number;
     maxSizeMB?: number;
+    existingFiles?: Array<{ id: string; name: string; url?: string }>;
+    onRemoveExisting?: (id: string) => void;
 }
 
 const DEFAULT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp';
@@ -19,6 +21,8 @@ export function MultiFileSelect({
     accept = DEFAULT_ACCEPT,
     maxFiles = 5,
     maxSizeMB = 10,
+    existingFiles = [],
+    onRemoveExisting,
 }: MultiFileSelectProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [error, setError] = useState<string | null>(null);
@@ -33,7 +37,8 @@ export function MultiFileSelect({
         e.target.value = '';
         setError(null);
 
-        const remaining = maxFiles - value.length;
+        const totalCount = value.length + existingFiles.length;
+        const remaining = maxFiles - totalCount;
         if (remaining <= 0) {
             setError(`Tối đa ${maxFiles} file`);
             return;
@@ -100,8 +105,67 @@ export function MultiFileSelect({
                 <p className="mt-2 text-xs text-rose-600">{error}</p>
             )}
 
-            {value.length > 0 && (
+            {(value.length > 0 || existingFiles.length > 0) && (
                 <div className="mt-3 space-y-2">
+                    {/* Render Existing Files */}
+                    {existingFiles.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2">
+                            {existingFiles.map((file) => (
+                                <div
+                                    key={file.id}
+                                    className="group relative block rounded-lg overflow-hidden border border-emerald-200 bg-emerald-50 hover:border-emerald-400 transition-colors"
+                                >
+                                    {file.url ? (
+                                        <img
+                                            src={file.url}
+                                            alt={file.name}
+                                            className="w-full h-24 object-cover"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                            }}
+                                        />
+                                    ) : null}
+                                    <div className={`${file.url ? 'hidden' : ''} w-full h-24 flex items-center justify-center text-xs text-slate-400`}>
+                                        Không tải được ảnh
+                                    </div>
+                                    
+                                    {/* Overlay for viewing image */}
+                                    <div className="absolute inset-0 pointer-events-none bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                        <a 
+                                            href={file.url || '#'} 
+                                            target="_blank" 
+                                            rel="noreferrer"
+                                            className="pointer-events-auto text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-2 py-1 rounded hover:bg-black/70"
+                                        >
+                                            Xem ảnh gốc
+                                        </a>
+                                    </div>
+                                    
+                                    {/* Remove button */}
+                                    {onRemoveExisting && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                onRemoveExisting(file.id);
+                                            }}
+                                            className="absolute top-1 right-1 p-1 bg-white/80 hover:bg-rose-100 text-slate-600 hover:text-rose-600 rounded-full transition-colors z-10"
+                                            title="Xóa giấy tờ này"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    )}
+
+                                    <div className="px-2 py-1.5 text-[11px] font-medium text-emerald-700 truncate border-t border-emerald-100">
+                                        ✓ {file.name}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Render New Files */}
                     {value.map((file, index) => (
                         <div
                             key={`${file.name}-${index}`}
@@ -139,7 +203,7 @@ export function MultiFileSelect({
             )}
 
             <p className="mt-2 text-xs text-slate-500">
-                {value.length}/{maxFiles} file được chọn
+                {value.length + existingFiles.length}/{maxFiles} file được chọn
             </p>
         </div>
     );

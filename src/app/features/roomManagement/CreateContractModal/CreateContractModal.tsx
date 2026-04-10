@@ -141,9 +141,8 @@ export function CreateContractModal({
                         {[1, 2, 3].map((s) => (
                             <span
                                 key={s}
-                                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                                    step >= s ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'
-                                }`}
+                                className={`rounded-full px-3 py-1 text-xs font-medium ${step >= s ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'
+                                    }`}
                             >
                                 Bước {s}
                             </span>
@@ -248,11 +247,10 @@ export function CreateContractModal({
                                     type="date"
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
-                                    className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-1 ${
-                                        formErrors.startDate
+                                    className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-1 ${formErrors.startDate
                                             ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500'
                                             : 'border-slate-300 focus:border-slate-900 focus:ring-slate-900'
-                                    }`}
+                                        }`}
                                 />
                                 {formErrors.startDate && (
                                     <p className="mt-1 text-sm text-rose-600">{formErrors.startDate}</p>
@@ -282,11 +280,10 @@ export function CreateContractModal({
                                     value={actualPrice}
                                     onChange={(e) => setActualPrice(e.target.value)}
                                     placeholder={String(listedPrice)}
-                                    className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-1 ${
-                                        formErrors.actualPrice
+                                    className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-1 ${formErrors.actualPrice
                                             ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500'
                                             : 'border-slate-300 focus:border-slate-900 focus:ring-slate-900'
-                                    }`}
+                                        }`}
                                 />
                                 <p className="mt-0.5 text-xs text-slate-500">
                                     Giá niêm yết: {formatCurrency(listedPrice)}
