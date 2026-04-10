@@ -33,7 +33,7 @@ function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
     AVAILABLE: 'available',
     RENTED: 'occupied',
     MAINTENANCE: 'maintenance',
-    PENDING: 'pending',
+    PENDING: 'available' as RoomDetailData['status'],
   };
   const status = isNearlyAvailable ? 'nearly_available' : (statusMap[rawStatus] ?? 'available');
 

@@ -1031,7 +1031,7 @@
     "location": "Địa điểm",
     "locationSub": "Khu vực và khoảng cách tối đa",
     "preferredLocation": "Địa điểm ưa thích (mô tả tự do)",
-    "preferredWard": "Phường/xã ưa thích",
+    "preferredWard": "Phường/xã muốn tìm phòng & Bạn ghép",
     "preferredWardNote": "Chọn nhiều phường/xã từ danh sách",
     "maxRadius": "Bán kính tối đa (km)",
     "nearTransport": "Gần phương tiện công cộng",
