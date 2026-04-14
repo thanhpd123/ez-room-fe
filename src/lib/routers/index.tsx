@@ -150,6 +150,16 @@ const routes = [
             </ProtectedRoute>
         ),
     },
+     {
+        path: '/wallet',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <WalletPage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
     {
         path: '/roommate',
         element: (
@@ -163,6 +173,26 @@ const routes = [
     {
         path: '/login',
         element: <LoginPage />,
+    },
+      {
+        path: '/chat',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <ChatPage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/chat/:userId',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <ChatPage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
     },
     {
         path: '/rental-management',

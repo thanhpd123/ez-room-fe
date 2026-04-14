@@ -859,6 +859,11 @@ export interface RoommateSuggestionItem {
     } | null;
     preference: { preferred_districts: string[]; room_type: string | null; budget_min: number | null; budget_max: number | null; preferredLocation: string | null } | null;
     matchScore: number;
+    cfScore: number;
+    experienceScore: number;
+    wouldLiveAgainRate: number | null;
+    isSameGender: boolean;
+    matchStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED' | null;
 }
 
 export async function getRoommateSuggestionsRequest(limit?: number): Promise<{
@@ -966,6 +971,31 @@ export async function getRoommateProfileRequest(userId: string): Promise<{
     return data;
 }
 
+/** "Có thể bạn biết" — People You May Know */
+export interface PymkReason {
+    type: 'mutual_friends' | 'common_area';
+    count?: number;
+    names?: string[];
+    districts?: string[];
+}
+
+export interface PeopleYouMayKnowItem {
+    user: { id: string; fullName: string; avatarUrl: string | null; gender: string | null };
+    reasons: PymkReason[];
+    matchStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED' | null;
+    matchScore: number;
+}
+
+export async function getPeopleYouMayKnowRequest(): Promise<{
+    success: boolean;
+    data: PeopleYouMayKnowItem[];
+}> {
+    const res = await authFetch('/roommate/people-you-may-know');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải gợi ý "Có thể bạn biết"');
+    return data;
+}
+
 /** Danh sách phòng đang thuê (để mời roommate) */
 export interface MyActiveRoomItem {
     rentalPeriodId: string;
@@ -1006,6 +1036,7 @@ export async function createRoommateRatingRequest(body: {
     targetId: string;
     rentalPeriodId: string;
     overallRating: number;
+    wouldLiveAgain: boolean;
     comment?: string;
 }): Promise<{ success: boolean; message: string; data: { id: string } }> {
     const res = await authFetch('/roommate/experiences', {
@@ -1231,6 +1262,7 @@ export async function createRentalRequest(body: {
     address: string;
     imageUrls?: string[];     // URLs từ MultiImageUpload
     documentFiles?: File[];    // Files để upload Supabase
+    documentTypes?: string[];  // Tương ứng 1-1 với documentFiles
 }): Promise<{ success: boolean; data: Record<string, unknown>; message: string }> {
     const token = await getAccessToken();
     if (!token) throw new Error('Cần đăng nhập để tạo bài đăng');
@@ -1248,10 +1280,11 @@ export async function createRentalRequest(body: {
         formData.append('images', JSON.stringify(body.imageUrls));
     }
 
-    // Add document files
+    // Add document files kèm document_type tương ứng
     if (body.documentFiles && body.documentFiles.length > 0) {
-        for (const file of body.documentFiles) {
-            formData.append('file', file);
+        for (let i = 0; i < body.documentFiles.length; i++) {
+            formData.append('file', body.documentFiles[i]);
+            formData.append('document_type', body.documentTypes?.[i] ?? 'OTHER');
         }
     }
 
@@ -1320,6 +1353,29 @@ export async function getRentalByIdRequest(rentalId: string): Promise<{
     if (!res.ok) throw new Error(data?.message || 'Lấy chi tiết thất bại');
     return data;
 }
+
+/**
+ * GET /rentals/:rentalId/landlord-documents – fetch landlord's own specific documents.
+ */
+export async function getLandlordRentalDocumentsRequest(rentalId: string): Promise<{
+    success: boolean;
+    data: {
+        id: string;
+        documents: Array<{
+            id: string;
+            documentType: string;
+            status: string;
+            signedUrl: string | null;
+            uploadedAt: string;
+        }>;
+    };
+}> {
+    const res = await authFetch(`/rentals/${rentalId}/landlord-documents`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lấy giấy tờ thất bại');
+    return data;
+}
+
 
 /**
  * GET /rentals/moderation – moderator fetches all rentals for review.
@@ -1417,11 +1473,37 @@ export async function updateRentalRequest(
         images?: string[];
         status?: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN';
         resubmit?: boolean;
+        documentFiles?: File[];
+        documentTypes?: string[];
+        deletedDocuments?: string[];
     }
 ): Promise<{ success: boolean; message: string; data: Record<string, unknown> }> {
+    const formData = new FormData();
+    if (payload.title !== undefined) formData.append('title', payload.title);
+    if (payload.description !== undefined) formData.append('description', payload.description);
+    if (payload.address !== undefined) formData.append('address', payload.address);
+    if (payload.district !== undefined) formData.append('district', payload.district);
+    if (payload.city !== undefined) formData.append('city', payload.city);
+    if (payload.status !== undefined) formData.append('status', payload.status);
+    if (payload.resubmit !== undefined) formData.append('resubmit', String(payload.resubmit));
+    if (payload.deletedDocuments && payload.deletedDocuments.length > 0) {
+        formData.append('deleted_documents', JSON.stringify(payload.deletedDocuments));
+    }
+    
+    if (payload.images && payload.images.length > 0) {
+        formData.append('images', JSON.stringify(payload.images));
+    }
+
+    if (payload.documentFiles && payload.documentFiles.length > 0) {
+        for (let i = 0; i < payload.documentFiles.length; i++) {
+            formData.append('file', payload.documentFiles[i]);
+            formData.append('document_type', payload.documentTypes?.[i] ?? 'OTHER');
+        }
+    }
+
     const res = await authFetch(`/rentals/${rentalId}`, {
         method: 'PUT',
-        body: JSON.stringify(payload),
+        body: formData,
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Cập nhật bài đăng thất bại');
@@ -2042,8 +2124,6 @@ export interface SmartSearchRoomItem {
     otherRoomsInRental: Array<{ id: string; roomName: string | null; price: number; area: number | null; roomType: string; image: string }>;
     /** DB room status (e.g. AVAILABLE). */
     roomStatus?: string;
-    /** True when the room can be preordered (matches backend). */
-    available?: boolean;
 }
 
 export interface ApiErrorWithCode extends Error {

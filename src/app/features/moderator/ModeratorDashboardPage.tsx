@@ -10,6 +10,9 @@ import {
     Tag,
     Badge,
     Avatar,
+    Select,
+    Progress,
+    Table,
 } from 'antd';
 import {
     CheckCircleOutlined,
@@ -24,6 +27,8 @@ import {
     TeamOutlined,
     SolutionOutlined,
     DashboardOutlined,
+    RiseOutlined,
+    TrophyOutlined,
 } from '@ant-design/icons';
 import {
     PieChart,
@@ -37,10 +42,16 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
+    LineChart,
+    Line,
+    Area,
+    AreaChart,
 } from 'recharts';
 import {
     getModeratorOverview,
     listModerationHistory,
+    getModeratorKpi,
+    type ModeratorKpiData,
 } from './shared/moderator-storage';
 import type { ModerationHistoryRecord } from './shared/types';
 

@@ -890,3 +890,40 @@ export async function getModeratorOverview() {
         rejectedReviewCount: 0,
     };
 }
+
+export interface ModeratorKpiItem {
+    moderatorId: string;
+    moderatorName: string;
+    totalActions: number;
+    approvals: number;
+    rejections: number;
+    reportHandled: number;
+    reviewHandled: number;
+    avgPerDay: number;
+    approvalRate: number | null;
+}
+
+export interface ModeratorKpiData {
+    period: { days: number; since: string };
+    moderators: ModeratorKpiItem[];
+    trend: Array<{ date: string; count: number }>;
+    actionBreakdown: Record<string, number>;
+    totals: {
+        totalActions: number;
+        totalApprovals: number;
+        totalRejections: number;
+        totalReportsHandled: number;
+        totalReviewsHandled: number;
+    };
+}
+
+export async function getModeratorKpi(days = 30): Promise<ModeratorKpiData | null> {
+    try {
+        const res = await authFetch(`/moderator/kpi?days=${days}`);
+        const json = await res.json();
+        if (res.ok && json.data) return json.data as ModeratorKpiData;
+    } catch (err) {
+        console.error('Failed to fetch moderator KPI:', err);
+    }
+    return null;
+}

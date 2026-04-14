@@ -39,11 +39,13 @@ import {
     getTopSearchersByAreaRequest,
     getPreferenceRequest,
     fetchAuthMe,
+    getPeopleYouMayKnowRequest,
     type RoommateSuggestionItem,
     type RoommateMatchItem,
     type MyActiveRoomItem,
     type RoommateSearchResultItem,
     type AreaSearcherItem,
+    type PeopleYouMayKnowItem,
 } from '@/lib/api';
 
 const AVATAR_PLACEHOLDER = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
@@ -152,6 +154,10 @@ export function FindRoommatePage() {
 
     // Current user's preferred districts (for quick-select chips)
     const [myPreferredDistricts, setMyPreferredDistricts] = useState<string[]>([]);
+
+    // People You May Know
+    const [pymkList, setPymkList] = useState<PeopleYouMayKnowItem[]>([]);
+    const [loadingPymk, setLoadingPymk] = useState(true);
 
     // Filter state (live inputs)
     const [filterArea, setFilterArea] = useState('');
@@ -274,7 +280,7 @@ export function FindRoommatePage() {
         if (!user?.id) return;
         fetchAuthMe()
             .then((r) => { if (r.user?.gender !== undefined) setMyGender(r.user.gender ?? null); })
-            .catch(() => {});
+            .catch(() => { });
     }, [user?.id]);
 
     // Fetch current user's preferred_districts for quick-select chips
@@ -287,12 +293,22 @@ export function FindRoommatePage() {
                     setMyPreferredDistricts(districts);
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, [user?.id]);
 
     useEffect(() => {
         loadMatches();
     }, []);
+
+    // Load People You May Know
+    useEffect(() => {
+        if (!user?.id) return;
+        setLoadingPymk(true);
+        getPeopleYouMayKnowRequest()
+            .then((r) => setPymkList(r.data || []))
+            .catch(() => setPymkList([]))
+            .finally(() => setLoadingPymk(false));
+    }, [user?.id]);
 
     const handleSendRequest = (targetId: string) => {
         setSendingId(targetId);
@@ -414,8 +430,8 @@ export function FindRoommatePage() {
                 )}
 
                 <>
-                    {/* AI Personality Search (VIP) */}
-                    <section className="mb-8">
+                    {/* AI Personality Search (VIP) - Temporarily hidden */}
+                    {/* <section className="mb-8">
                         <div className="bg-gradient-to-r from-amber-50/80 to-orange-50/80 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200/60 dark:border-amber-800/40 rounded-2xl p-5">
                             <div className="flex items-center gap-2 mb-3">
                                 <Sparkles className="w-5 h-5 text-amber-500" />
@@ -465,10 +481,10 @@ export function FindRoommatePage() {
                                 <p className="text-sm text-red-500 mt-2">{aiError}</p>
                             )}
                         </div>
-                    </section>
+                    </section> */}
 
-                    {/* AI Search Results */}
-                    {aiActive && (
+                    {/* AI Search Results - Temporarily hidden */}
+                    {/* {aiActive && (
                         <section className="mb-12">
                             <h2 className="font-heading text-xl font-semibold text-foreground flex items-center gap-2 mb-4">
                                 <Sparkles className="w-5 h-5 text-amber-500" />
@@ -494,7 +510,6 @@ export function FindRoommatePage() {
                                             key={r.user.id}
                                             className="bg-card border border-border rounded-2xl p-5 hover:shadow-md transition-shadow relative"
                                         >
-                                            {/* Similarity badge */}
                                             <div className="absolute top-3 right-3">
                                                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${r.similarityScore >= 70
                                                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
@@ -522,7 +537,6 @@ export function FindRoommatePage() {
                                                 </div>
                                             </div>
 
-                                            {/* Tags */}
                                             {r.lifestyle && (
                                                 <div className="flex flex-wrap gap-1.5 mb-3">
                                                     {r.lifestyle.personalityType && (
@@ -563,7 +577,6 @@ export function FindRoommatePage() {
                                                 </div>
                                             )}
 
-                                            {/* AI Reason */}
                                             {r.aiReason && (
                                                 <p className="text-xs italic text-primary/80 mb-3 leading-relaxed bg-primary/5 rounded-lg px-3 py-2">
                                                     💡 {r.aiReason}
@@ -603,7 +616,7 @@ export function FindRoommatePage() {
                                 </div>
                             )}
                         </section>
-                    )}
+                    )} */}
 
                     {/* Suggestions */}
                     <section className="mb-12">
@@ -616,8 +629,8 @@ export function FindRoommatePage() {
                                 type="button"
                                 onClick={() => setShowFilters((v) => !v)}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${showFilters
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-muted text-foreground hover:bg-muted/80'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-foreground hover:bg-muted/80'
                                     }`}
                             >
                                 <SlidersHorizontal className="w-4 h-4" />
@@ -751,7 +764,7 @@ export function FindRoommatePage() {
                                     <div className="mt-3 flex items-center gap-2 flex-wrap">
                                         <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                                             <MapPin className="w-3 h-3" />
-                                            Khu vực ưa thích của bạn:
+                                            Khu vực muốn tìm roommate của bạn:
                                         </span>
                                         {myPreferredDistricts.map((district) => (
                                             <button
@@ -776,11 +789,10 @@ export function FindRoommatePage() {
                                                         setAreaSearching(false);
                                                     }
                                                 }}
-                                                className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border transition-all font-medium ${
-                                                    filterArea === district
-                                                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                                        : 'bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5'
-                                                }`}
+                                                className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border transition-all font-medium ${filterArea === district
+                                                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                                    : 'bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5'
+                                                    }`}
                                             >
                                                 <MapPin className="w-2.5 h-2.5" />
                                                 {district}
@@ -815,12 +827,11 @@ export function FindRoommatePage() {
                                         >
                                             <div className="flex items-stretch">
                                                 {/* Rank badge */}
-                                                <div className={`flex items-center justify-center px-4 shrink-0 ${
-                                                    index === 0 ? 'bg-gradient-to-b from-amber-400 to-orange-500 text-white' :
+                                                <div className={`flex items-center justify-center px-4 shrink-0 ${index === 0 ? 'bg-gradient-to-b from-amber-400 to-orange-500 text-white' :
                                                     index === 1 ? 'bg-gradient-to-b from-slate-300 to-slate-400 text-white' :
-                                                    index === 2 ? 'bg-gradient-to-b from-amber-600 to-amber-700 text-white' :
-                                                    'bg-muted/50 text-muted-foreground'
-                                                }`}>
+                                                        index === 2 ? 'bg-gradient-to-b from-amber-600 to-amber-700 text-white' :
+                                                            'bg-muted/50 text-muted-foreground'
+                                                    }`}>
                                                     <span className="text-lg font-bold">{index + 1}</span>
                                                 </div>
 
@@ -1075,10 +1086,15 @@ export function FindRoommatePage() {
                                                     >
                                                         {item.user.fullName}
                                                     </button>
-                                                    <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                         <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                                                             {item.matchScore}% phù hợp
                                                         </span>
+                                                        {item.experienceScore >= 8 && (
+                                                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                                ⭐ Đánh giá tốt
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <LifestyleTags item={item} />
                                                 </div>
@@ -1092,19 +1108,31 @@ export function FindRoommatePage() {
                                                     <Eye className="w-4 h-4" />
                                                     Xem hồ sơ
                                                 </button>
-                                                <button
-                                                    type="button"
-                                                    disabled={!!sendingId}
-                                                    onClick={() => handleSendRequest(item.user.id)}
-                                                    className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
-                                                >
-                                                    {sendingId === item.user.id ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <UserPlus className="w-4 h-4" />
-                                                    )}
-                                                    Gửi lời mời
-                                                </button>
+                                                {item.matchStatus === 'ACCEPTED' ? (
+                                                    <span className="flex-1 py-2.5 rounded-xl font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 flex items-center justify-center gap-2 text-sm">
+                                                        <Check className="w-4 h-4" />
+                                                        Đã kết bạn
+                                                    </span>
+                                                ) : item.matchStatus === 'PENDING' ? (
+                                                    <span className="flex-1 py-2.5 rounded-xl font-medium bg-muted text-muted-foreground flex items-center justify-center gap-2 text-sm">
+                                                        <Loader2 className="w-4 h-4" />
+                                                        Đang chờ
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        disabled={!!sendingId}
+                                                        onClick={() => handleSendRequest(item.user.id)}
+                                                        className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
+                                                    >
+                                                        {sendingId === item.user.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <UserPlus className="w-4 h-4" />
+                                                        )}
+                                                        Gửi lời mời
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -1112,6 +1140,133 @@ export function FindRoommatePage() {
                             )
                         ) : null}
                     </section>
+
+                    {/* ── People You May Know ── */}
+                    {!loadingPymk && pymkList.length > 0 && (
+                        <section className="mt-2">
+                            <h2 className="font-heading text-xl font-semibold text-foreground mb-2 flex items-center gap-2">
+                                <Users className="w-5 h-5 text-primary" />
+                                Có thể bạn quan tâm
+                            </h2>
+                            <p className="text-sm text-muted-foreground mb-5">
+                                Gợi ý dựa trên bạn chung và khu vực tìm phòng
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {pymkList.map((item) => (
+                                    <div
+                                        key={item.user.id}
+                                        className="rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col"
+                                    >
+                                        {/* User info */}
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <ImageWithFallback
+                                                src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
+                                                alt={item.user.fullName}
+                                                className="w-11 h-11 rounded-full object-cover border-2 border-primary/20"
+                                            />
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-sm text-foreground truncate">
+                                                    {item.user.fullName}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    {item.user.gender && (
+                                                        <span className="text-xs text-muted-foreground">{item.user.gender}</span>
+                                                    )}
+                                                    {item.matchScore > 0 && (
+                                                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${item.matchScore >= 80 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                                                            {Math.round(item.matchScore)}% phù hợp
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Reason badges */}
+                                        <div className="flex flex-col gap-1.5 mb-4 flex-1">
+                                            {item.reasons.map((reason, idx) => (
+                                                <div key={idx}>
+                                                    {reason.type === 'mutual_friends' && (
+                                                        <div className="flex items-start gap-1.5 text-xs">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 font-medium shrink-0">
+                                                                🤝 {reason.count} bạn chung
+                                                            </span>
+                                                            {(reason.names?.length ?? 0) > 0 && (
+                                                                <span className="text-muted-foreground pt-1 leading-tight">
+                                                                    {reason.names!.join(', ')}{(reason.count ?? 0) > (reason.names?.length ?? 0) ? '...' : ''}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {reason.type === 'common_area' && (
+                                                        <div className="flex items-start gap-1.5 text-xs">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium shrink-0">
+                                                                📍 Cùng khu vực
+                                                            </span>
+                                                            <span className="text-muted-foreground pt-1 leading-tight">
+                                                                {reason.districts?.join(', ')}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Action buttons */}
+                                        <div className="flex items-center gap-2 mt-auto pt-3 border-t border-border">
+                                            <button
+                                                type="button"
+                                                onClick={() => setViewingProfile({ userId: item.user.id })}
+                                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                            >
+                                                <Eye className="w-3.5 h-3.5" />
+                                                Xem hồ sơ
+                                            </button>
+                                            {item.matchStatus === 'ACCEPTED' ? (
+                                                <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                                    <Check className="w-3.5 h-3.5" />
+                                                    Đã kết bạn
+                                                </span>
+                                            ) : item.matchStatus === 'PENDING' ? (
+                                                <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                    <Loader2 className="w-3.5 h-3.5" />
+                                                    Đang chờ
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    disabled={sendingId === item.user.id}
+                                                    onClick={() => {
+                                                        setSendingId(item.user.id);
+                                                        sendRoommateRequestRequest(item.user.id)
+                                                            .then(() => {
+                                                                setPymkList((prev) =>
+                                                                    prev.map((p) =>
+                                                                        p.user.id === item.user.id
+                                                                            ? { ...p, matchStatus: 'PENDING' }
+                                                                            : p
+                                                                    )
+                                                                );
+                                                                loadMatches();
+                                                            })
+                                                            .catch((e) => setMessage(e instanceof Error ? e.message : 'Lỗi gửi lời mời'))
+                                                            .finally(() => setSendingId(null));
+                                                    }}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                                >
+                                                    {sendingId === item.user.id ? (
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    ) : (
+                                                        <UserPlus className="w-3.5 h-3.5" />
+                                                    )}
+                                                    Gửi lời mời
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
                     {/* My matches */}
                     <section>
@@ -1331,11 +1486,10 @@ export function FindRoommatePage() {
                                                             setCopiedLink(true);
                                                             setTimeout(() => setCopiedLink(false), 2000);
                                                         }}
-                                                        className={`shrink-0 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${
-                                                            copiedLink
-                                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
-                                                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                                        }`}
+                                                        className={`shrink-0 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${copiedLink
+                                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                                                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                                            }`}
                                                     >
                                                         {copiedLink ? (
                                                             <><Check className="w-3.5 h-3.5" /> Đã sao chép</>
@@ -1384,8 +1538,8 @@ export function FindRoommatePage() {
                                                 <label
                                                     key={room.roomId}
                                                     className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${selectedRoomId === room.roomId
-                                                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                                                            : 'border-border hover:border-primary/30 hover:bg-muted/30'
+                                                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                                                        : 'border-border hover:border-primary/30 hover:bg-muted/30'
                                                         }`}
                                                 >
                                                     <input
