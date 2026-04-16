@@ -18,21 +18,18 @@ const TABS: { value: string; label: string; status?: FeedbackStatusEnum }[] = [
     { value: 'PENDING', label: 'Chờ duyệt', status: 'PENDING' },
     { value: 'APPROVED', label: 'Đã duyệt', status: 'APPROVED' },
     { value: 'REJECTED', label: 'Đã từ chối', status: 'REJECTED' },
-    { value: 'HIDDEN', label: 'Đã ẩn', status: 'HIDDEN' },
 ];
 
 const STATUS_BADGE: Record<FeedbackStatusEnum, string> = {
     PENDING: 'bg-amber-100 text-amber-700',
     APPROVED: 'bg-emerald-100 text-emerald-700',
     REJECTED: 'bg-rose-100 text-rose-700',
-    HIDDEN: 'bg-slate-200 text-slate-700',
 };
 
 const STATUS_LABEL: Record<FeedbackStatusEnum, string> = {
     PENDING: 'Chờ duyệt',
     APPROVED: 'Đã duyệt',
     REJECTED: 'Đã từ chối',
-    HIDDEN: 'Đã ẩn',
 };
 
 function formatDateTime(dateString?: string | null) {
@@ -165,7 +162,6 @@ export function ModerateReviewsPage() {
 
     const canApprove = selectedItem?.status === 'PENDING' && !isLocked;
     const canReject = selectedItem?.status === 'PENDING' && !isLocked;
-    const canHide = selectedItem?.status === 'APPROVED' && !isLocked;
     const alreadyProcessed = selectedItem?.status !== 'PENDING' && selectedItem?.status !== undefined;
 
     const handleApprove = async () => {
@@ -200,27 +196,6 @@ export function ModerateReviewsPage() {
             await Promise.all([loadList(), refreshDetailForSelection()]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Từ chối thất bại');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleHide = async () => {
-        if (!selectedId || !canHide) return;
-        const note = moderatorNote.trim();
-        if (note.length < 10) {
-            setError('Vui lòng nhập lý do ẩn (tối thiểu 10 ký tự)');
-            return;
-        }
-        setError(null);
-        setIsSubmitting(true);
-        try {
-            await moderateReviewStatus(selectedId, 'HIDDEN', note);
-            setModeratorNote('');
-            invalidateDetailCache(selectedId);
-            await Promise.all([loadList(), refreshDetailForSelection()]);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Ẩn thất bại');
         } finally {
             setIsSubmitting(false);
         }
@@ -410,7 +385,7 @@ export function ModerateReviewsPage() {
                                     </div>
                                 )}
 
-                                {(canApprove || canReject || canHide || (selectedItem?.status === 'PENDING' && isLocked) || (selectedItem?.status === 'APPROVED' && isLocked)) && (
+                                {(canApprove || canReject || (selectedItem?.status === 'PENDING' && isLocked) || (selectedItem?.status === 'APPROVED' && isLocked)) && (
                                     <>
                                         {queueLock.hasQueue && queueLock.status === 'OPEN' && (
                                             <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -424,14 +399,14 @@ export function ModerateReviewsPage() {
                                         )}
                                         <div>
                                             <label className="mb-1 block text-sm font-medium text-slate-700">
-                                                Ghi chú {canReject || canHide ? '(bắt buộc khi từ chối/ẩn)' : '(không bắt buộc)'}
+                                                Ghi chú {canReject ? '(bắt buộc khi từ chối)' : '(không bắt buộc)'}
                                             </label>
                                             <textarea
                                                 value={moderatorNote}
                                                 onChange={(e) => setModeratorNote(e.target.value)}
                                                 rows={3}
                                                 placeholder={
-                                                    canReject || canHide
+                                                    canReject
                                                         ? 'Nhập lý do (tối thiểu 10 ký tự)'
                                                         : 'Ghi chú tùy chọn'
                                                 }
@@ -457,16 +432,6 @@ export function ModerateReviewsPage() {
                                                     className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-70"
                                                 >
                                                     Từ chối
-                                                </button>
-                                            )}
-                                            {canHide && (
-                                                <button
-                                                    type="button"
-                                                    disabled={isSubmitting}
-                                                    onClick={handleHide}
-                                                    className="rounded-xl bg-slate-600 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-70"
-                                                >
-                                                    Ẩn
                                                 </button>
                                             )}
                                         </div>
