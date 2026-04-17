@@ -96,6 +96,7 @@ function hasActiveVip(status: VipStatusData | null): boolean {
 }
 
 export function LandlordDashboardPage() {
+    const [allTimeStats, setAllTimeStats] = useState<LandlordDashboardStats | null>(null);
     const [stats, setStats] = useState<LandlordDashboardStats | null>(null);
     const [compareStats, setCompareStats] = useState<LandlordDashboardStats | null>(null);
     const [performance, setPerformance] = useState<LandlordPerformanceMetrics | null>(null);
@@ -117,8 +118,9 @@ export function LandlordDashboardPage() {
             setLoading(true);
             setError(null);
             try {
-                const [vipRes, statsRes, topSearchRes] = await Promise.all([
+                const [vipRes, allTimeStatsRes, statsRes, topSearchRes] = await Promise.all([
                     getMyVipStatusRequest(),
+                    getLandlordDashboardStatsRequest(),
                     getLandlordDashboardStatsRequest(selectedMonth),
                     getTopSearchedRoomsRequest(5),
                 ]);
@@ -126,6 +128,7 @@ export function LandlordDashboardPage() {
                 const vipData = vipRes.data;
                 const vipEnabled = hasActiveVip(vipData);
 
+                setAllTimeStats(allTimeStatsRes.data);
                 setStats(statsRes.data);
                 setVipStatus(vipData);
                 setTopSearchedRooms(topSearchRes.data.rooms);
@@ -162,7 +165,7 @@ export function LandlordDashboardPage() {
         );
     }
 
-    if (error || !stats) {
+    if (error || !stats || !allTimeStats) {
         return (
             <div style={{ textAlign: 'center', padding: '100px 0' }}>
                 <p style={{ color: 'red', fontSize: 16 }}>{error || 'Không thể tải dữ liệu'}</p>
@@ -322,7 +325,7 @@ export function LandlordDashboardPage() {
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Tổng số Nhà cho thuê"
-                            value={stats.rentals.total}
+                            value={allTimeStats.rentals.total}
                             prefix={<HomeOutlined style={{ color: '#1677ff' }} />}
                         />
                     </Card>
@@ -331,7 +334,7 @@ export function LandlordDashboardPage() {
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Tổng số Phòng trọ"
-                            value={stats.rooms.total}
+                            value={allTimeStats.rooms.total}
                             prefix={<HomeOutlined style={{ color: '#722ed1' }} />}
                         />
                     </Card>
@@ -340,7 +343,7 @@ export function LandlordDashboardPage() {
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Tổng số dư ví"
-                            value={Number(stats.wallet.balance).toLocaleString('vi-VN') + ' đ'}
+                            value={Number(allTimeStats.wallet.balance).toLocaleString('vi-VN') + ' đ'}
                             prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
                             styles={{ content: { color: '#52c41a', fontSize: 18 } }}
                         />
@@ -350,7 +353,7 @@ export function LandlordDashboardPage() {
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Tổng đặt cọc"
-                            value={stats.preorders.total}
+                            value={allTimeStats.preorders.total}
                             prefix={<ShoppingCartOutlined style={{ color: '#eb2f96' }} />}
                         />
                     </Card>
@@ -363,7 +366,7 @@ export function LandlordDashboardPage() {
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Tổng đánh giá"
-                            value={stats.feedback.total}
+                            value={allTimeStats.feedback.total}
                             prefix={<StarOutlined style={{ color: '#faad14' }} />}
                         />
                     </Card>
@@ -372,7 +375,7 @@ export function LandlordDashboardPage() {
                     <Card variant="borderless" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                         <Statistic
                             title="Đánh giá trung bình"
-                            value={stats.feedback.averageRating.toFixed(1)}
+                            value={allTimeStats.feedback.averageRating.toFixed(1)}
                             suffix="/ 5"
                             prefix={<StarOutlined style={{ color: '#faad14' }} />}
                         />
