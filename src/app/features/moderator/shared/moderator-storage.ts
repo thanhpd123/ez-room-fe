@@ -426,7 +426,7 @@ export async function handleViolationReport(input: HandleReportInput) {
     }
 }
 
-export type FeedbackStatusEnum = 'PENDING' | 'APPROVED' | 'REJECTED' | 'HIDDEN';
+export type FeedbackStatusEnum = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface ModeratorReviewFilters {
     status?: FeedbackStatusEnum;
@@ -558,7 +558,7 @@ export async function getReviewDetail(
 
 export async function moderateReviewStatus(
     reviewId: string,
-    status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
+    status: 'APPROVED' | 'REJECTED',
     moderatorNote?: string
 ): Promise<void> {
     const res = await authFetch(`/moderator/reviews/${encodeURIComponent(reviewId)}`, {
@@ -574,9 +574,8 @@ export async function moderateReviewStatus(
 
 /** @deprecated Use moderateReviewStatus for new flow */
 export async function moderateReview(input: ModerateReviewInput) {
-    let status: 'APPROVED' | 'REJECTED' | 'HIDDEN';
+    let status: 'APPROVED' | 'REJECTED';
     if (input.action === 'approve') status = 'APPROVED';
-    else if (input.action === 'hide' || input.action === 'warn_user') status = 'HIDDEN';
     else status = 'REJECTED';
     await moderateReviewStatus(input.review_id, status, input.note);
 }
