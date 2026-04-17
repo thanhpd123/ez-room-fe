@@ -1141,7 +1141,7 @@ export function FindRoommatePage() {
                         ) : null}
                     </section>
 
-                    {/* ── People You May Know ── */}
+                    {/* ── People You May Know ──
                     {!loadingPymk && pymkList.length > 0 && (
                         <section className="mt-2">
                             <h2 className="font-heading text-xl font-semibold text-foreground mb-2 flex items-center gap-2">
@@ -1157,7 +1157,7 @@ export function FindRoommatePage() {
                                         key={item.user.id}
                                         className="rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col"
                                     >
-                                        {/* User info */}
+                                        
                                         <div className="flex items-center gap-3 mb-3">
                                             <ImageWithFallback
                                                 src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
@@ -1181,7 +1181,7 @@ export function FindRoommatePage() {
                                             </div>
                                         </div>
 
-                                        {/* Reason badges */}
+                                        
                                         <div className="flex flex-col gap-1.5 mb-4 flex-1">
                                             {item.reasons.map((reason, idx) => (
                                                 <div key={idx}>
@@ -1211,7 +1211,7 @@ export function FindRoommatePage() {
                                             ))}
                                         </div>
 
-                                        {/* Action buttons */}
+                                        
                                         <div className="flex items-center gap-2 mt-auto pt-3 border-t border-border">
                                             <button
                                                 type="button"
@@ -1266,7 +1266,8 @@ export function FindRoommatePage() {
                                 ))}
                             </div>
                         </section>
-                    )}
+                    )} 
+                    */}
 
                     {/* My matches */}
                     <section>
