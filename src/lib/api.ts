@@ -2671,22 +2671,28 @@ export interface LandlordPerformanceMetrics {
     };
 }
 
-export async function getLandlordDashboardStatsRequest(): Promise<{
+export async function getLandlordDashboardStatsRequest(month?: string): Promise<{
     success: boolean;
     data: LandlordDashboardStats;
 }> {
-    const res = await authFetch('/rentals/dashboard');
+    const search = new URLSearchParams();
+    if (month) search.set('month', month);
+    const qs = search.toString();
+    const res = await authFetch(`/rentals/dashboard${qs ? `?${qs}` : ''}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải dashboard');
     return data;
 }
 
 
-export async function getLandlordPerformanceMetricsRequest(): Promise<{
+export async function getLandlordPerformanceMetricsRequest(month?: string): Promise<{
     success: boolean;
     data: LandlordPerformanceMetrics;
 }> {
-    const res = await authFetch('/rentals/performance');
+    const search = new URLSearchParams();
+    if (month) search.set('month', month);
+    const qs = search.toString();
+    const res = await authFetch(`/rentals/performance${qs ? `?${qs}` : ''}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải chỉ số hiệu suất');
     return data;

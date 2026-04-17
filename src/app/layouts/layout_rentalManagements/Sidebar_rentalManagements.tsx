@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
     Building2,
     CirclePlus,
+    Crown,
     ChevronLeft,
     ChevronRight,
     LayoutDashboard,
@@ -31,6 +32,7 @@ const items = [
     { label: 'Đánh giá phòng', path: '/rental-management/reviews', Icon: Star },
     { label: 'Đánh giá người thuê', path: '/rental-management/tenant-reviews', Icon: Users },
     { label: 'Tin nhắn', path: '/rental-management/messages', Icon: MessageSquare },
+    { label: 'Đăng ký VIP', path: '/vip-plans?source=landlord-sidebar', Icon: Crown },
     { label: 'Thêm nhà cho thuê', path: '/rental-management/rentals/create', Icon: CirclePlus },
 ] as const;
 
