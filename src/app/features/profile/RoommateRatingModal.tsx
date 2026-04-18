@@ -23,7 +23,6 @@ export function RoommateRatingModal({
 }: RoommateRatingModalProps) {
     const [rating, setRating] = useState(0);
     const [hovered, setHovered] = useState(0);
-    const [wouldLiveAgain, setWouldLiveAgain] = useState<boolean | null>(null);
     const [comment, setComment] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +30,6 @@ export function RoommateRatingModal({
     const handleClose = () => {
         setRating(0);
         setHovered(0);
-        setWouldLiveAgain(null);
         setComment('');
         setError(null);
         onClose();
@@ -40,11 +38,10 @@ export function RoommateRatingModal({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (rating === 0) { setError('Vui lòng chọn số sao'); return; }
-        if (wouldLiveAgain === null) { setError('Vui lòng cho biết bạn có muốn ở cùng lại không'); return; }
         setSubmitting(true);
         setError(null);
         try {
-            await createRoommateRatingRequest({ targetId, rentalPeriodId, overallRating: rating, wouldLiveAgain, comment: comment.trim() || undefined });
+            await createRoommateRatingRequest({ targetId, rentalPeriodId, overallRating: rating, comment: comment.trim() || undefined });
             onSuccess();
             handleClose();
         } catch (err) {
@@ -102,28 +99,6 @@ export function RoommateRatingModal({
                                     {RATING_LABELS[hovered || rating]}
                                 </span>
                             )}
-                        </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <label className="text-sm text-foreground/80">
-                            Bạn có muốn ở cùng lại không? <span className="text-destructive">*</span>
-                        </label>
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setWouldLiveAgain(true)}
-                                className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${wouldLiveAgain === true ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted'}`}
-                            >
-                                👍 Có
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setWouldLiveAgain(false)}
-                                className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${wouldLiveAgain === false ? 'bg-destructive text-destructive-foreground border-destructive' : 'border-border hover:bg-muted'}`}
-                            >
-                                👎 Không
-                            </button>
                         </div>
                     </div>
 

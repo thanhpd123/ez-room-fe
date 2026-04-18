@@ -50,6 +50,148 @@ import {
 
 const AVATAR_PLACEHOLDER = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
 
+function PymkCard({
+    item,
+    sendingId,
+    onViewProfile,
+    onSendRequest,
+}: {
+    item: PeopleYouMayKnowItem;
+    sendingId: string | null;
+    onViewProfile: (id: string) => void;
+    onSendRequest: (id: string) => void;
+}) {
+    const reason = item.reasons[0];
+    const activity = reason?.activity;
+    const L = item.lifestyle;
+
+    // Build lifestyle tags
+    const tags: { label: string; color?: string }[] = [];
+    if (L) {
+        if (L.smoking === true) tags.push({ label: 'Hút thuốc', color: 'warning' });
+        else if (L.smoking === false && L.drinking === false) tags.push({ label: 'Không thuốc/rượu' });
+        else if (L.smoking === false) tags.push({ label: 'Không hút thuốc' });
+        if (L.pets_allowed) tags.push({ label: 'Nuôi thú cưng' });
+        if (L.sleep_schedule) tags.push({ label: `Ngủ: ${L.sleep_schedule}` });
+        if (L.personalityType) tags.push({ label: L.personalityType });
+        if (L.cleanliness) tags.push({ label: `Sạch sẽ: ${L.cleanliness}` });
+        if (L.noise_tolerance) tags.push({ label: `Chịu ồn: ${L.noise_tolerance}` });
+        if (L.guest_frequency) tags.push({ label: `Khách: ${L.guest_frequency}` });
+    }
+
+    const getTagStyle = (color?: string) => {
+        switch (color) {
+            case 'warning': return 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+            default: return 'bg-muted text-muted-foreground';
+        }
+    };
+
+    return (
+        <div className="rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col">
+            <div className="flex items-center gap-3 mb-2">
+                <ImageWithFallback
+                    src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
+                    alt={item.user.fullName}
+                    className="w-11 h-11 rounded-full object-cover border-2 border-primary/20"
+                />
+                <div className="min-w-0">
+                    <p className="font-semibold text-sm text-foreground truncate">{item.user.fullName}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        {item.user.gender && (
+                            <span className="text-xs text-muted-foreground">{item.user.gender}</span>
+                        )}
+                        {item.matchScore > 0 && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                {Math.round(item.matchScore)}% phù hợp
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Lifestyle tags */}
+            {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                    {tags.slice(0, 4).map((t, idx) => (
+                        <span key={idx} className={`text-[10px] px-1.5 py-0.5 rounded-full ${getTagStyle(t.color)}`}>
+                            {t.label}
+                        </span>
+                    ))}
+                </div>
+            )}
+
+            {/* Area + activity */}
+            <div className="mb-3 flex-1">
+                {reason?.type === 'same_area_search' && reason.area && (
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium">
+                            <MapPin className="w-3 h-3" />
+                            {reason.area}
+                        </span>
+                        {activity && activity.totalScore > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400 font-medium">
+                                <TrendingUp className="w-3 h-3" />
+                                {activity.totalScore} điểm
+                            </span>
+                        )}
+                        {activity && activity.views > 0 && (
+                            <span className="text-muted-foreground">👁️ {activity.views}</span>
+                        )}
+                        {activity && activity.favorites > 0 && (
+                            <span className="text-muted-foreground">❤️ {activity.favorites}</span>
+                        )}
+                        {activity && activity.preorders > 0 && (
+                            <span className="text-muted-foreground">📝 {activity.preorders}</span>
+                        )}
+                    </div>
+                )}
+                {reason?.type === 'random_suggestion' && (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                        <Sparkles className="w-3 h-3" />
+                        Gợi ý cho bạn
+                    </span>
+                )}
+            </div>
+
+            <div className="flex items-center gap-2 mt-auto pt-3 border-t border-border">
+                <button
+                    type="button"
+                    onClick={() => onViewProfile(item.user.id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                    <Eye className="w-3.5 h-3.5" />
+                    Xem hồ sơ
+                </button>
+                {item.matchStatus === 'ACCEPTED' ? (
+                    <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                        <Check className="w-3.5 h-3.5" />
+                        Đã kết bạn
+                    </span>
+                ) : item.matchStatus === 'PENDING' ? (
+                    <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                        <Loader2 className="w-3.5 h-3.5" />
+                        Đang chờ
+                    </span>
+                ) : (
+                    <button
+                        type="button"
+                        disabled={sendingId === item.user.id}
+                        onClick={() => onSendRequest(item.user.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                        {sendingId === item.user.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                            <UserPlus className="w-3.5 h-3.5" />
+                        )}
+                        Gửi lời mời
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function LifestyleTags({ item }: { item: RoommateSuggestionItem }) {
     const tags: { label: string; color?: string }[] = [];
     const L = item.lifestyle;
@@ -157,7 +299,13 @@ export function FindRoommatePage() {
 
     // People You May Know
     const [pymkList, setPymkList] = useState<PeopleYouMayKnowItem[]>([]);
+    const [pymkGrouped, setPymkGrouped] = useState<{ area: string; users: PeopleYouMayKnowItem[] }[]>([]);
+    const [pymkIsRandom, setPymkIsRandom] = useState(false);
     const [loadingPymk, setLoadingPymk] = useState(true);
+
+    // Pagination cho suggestions
+    const PAGE_SIZE = 9;
+    const [suggestionPage, setSuggestionPage] = useState(1);
 
     // Filter state (live inputs)
     const [filterArea, setFilterArea] = useState('');
@@ -188,6 +336,7 @@ export function FindRoommatePage() {
         setAppliedFilter({ area: '', budgetMax: '', roomType: '', gender: '' });
         setAreaSearchActive(false);
         setAreaSearchResults([]);
+        setSuggestionPage(1);
     };
 
     const handleSearch = async () => {
@@ -198,6 +347,7 @@ export function FindRoommatePage() {
             roomType: filterRoomType,
             gender: filterGender,
         });
+        setSuggestionPage(1);
 
         // 2. If area is set, also call area searcher API
         const area = filterArea.trim();
@@ -205,7 +355,7 @@ export function FindRoommatePage() {
             setAreaSearching(true);
             setAreaSearchActive(true);
             try {
-                const r = await getTopSearchersByAreaRequest(area, 10);
+                const r = await getTopSearchersByAreaRequest(area, 9);
                 setAreaSearchResults(r.data || []);
                 setAreaSearchArea(r.area || area);
                 setAreaSearchTotalRooms(r.totalRoomsInArea || 0);
@@ -305,8 +455,15 @@ export function FindRoommatePage() {
         if (!user?.id) return;
         setLoadingPymk(true);
         getPeopleYouMayKnowRequest()
-            .then((r) => setPymkList(r.data || []))
-            .catch(() => setPymkList([]))
+            .then((r) => {
+                setPymkList(r.data || []);
+                setPymkGrouped(r.groupedByArea || []);
+                setPymkIsRandom(r.isRandom || false);
+            })
+            .catch(() => {
+                setPymkList([]);
+                setPymkGrouped([]);
+            })
             .finally(() => setLoadingPymk(false));
     }, [user?.id]);
 
@@ -315,7 +472,13 @@ export function FindRoommatePage() {
         setMessage(null);
         sendRoommateRequestRequest(targetId)
             .then(() => {
-                setSuggestions((prev) => prev.filter((s) => s.user.id !== targetId));
+                // Cập nhật matchStatus trong tất cả các danh sách
+                setSuggestions((prev) => prev.map((s) =>
+                    s.user.id === targetId ? { ...s, matchStatus: 'PENDING' as const } : s
+                ));
+                setAreaSearchResults((prev) => prev.map((s) =>
+                    s.user.id === targetId ? { ...s, matchStatus: 'PENDING' as const } : s
+                ));
                 loadMatches();
             })
             .catch((e) => setMessage(e instanceof Error ? e.message : 'Gửi thất bại'))
@@ -355,9 +518,9 @@ export function FindRoommatePage() {
         setMessage(null);
         inviteRoommateRequest(inviteTarget.userId, selectedRoomId)
             .then((r) => {
-                setInviteSuccess(r.message || 'Đã gửi lời mời ở ghép!');
+                setInviteSuccess(r.message || 'Đã tạo link giới thiệu phòng!');
             })
-            .catch((e) => setMessage(e instanceof Error ? e.message : 'Gửi lời mời thất bại'))
+            .catch((e) => setMessage(e instanceof Error ? e.message : 'Có lỗi xảy ra'))
             .finally(() => setSendingInvite(false));
     };
 
@@ -777,7 +940,7 @@ export function FindRoommatePage() {
                                                     setAreaSearching(true);
                                                     setAreaSearchActive(true);
                                                     try {
-                                                        const r = await getTopSearchersByAreaRequest(district, 10);
+                                                        const r = await getTopSearchersByAreaRequest(district, 9);
                                                         setAreaSearchResults(r.data || []);
                                                         setAreaSearchArea(r.area || district);
                                                         setAreaSearchTotalRooms(r.totalRoomsInArea || 0);
@@ -863,45 +1026,52 @@ export function FindRoommatePage() {
                                                                 >
                                                                     {item.user.fullName}
                                                                 </button>
-                                                                <div className="flex items-center gap-2 shrink-0">
-                                                                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                                                        {item.matchScore}% phù hợp
-                                                                    </span>
-                                                                    {item.isSameGender && (
-                                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium">Cùng giới</span>
-                                                                    )}
-                                                                </div>
+                                                                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">
+                                                                    {item.matchScore}% phù hợp
+                                                                </span>
                                                             </div>
 
-                                                            {/* Activity badges - the core info for area search */}
-                                                            <div className="flex items-center gap-3 mt-2 flex-wrap">
-                                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                                            {/* Activity badges */}
+                                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
                                                                     <TrendingUp className="w-3 h-3" />
                                                                     {item.activityInArea.totalScore} điểm tương tác
                                                                 </span>
                                                                 {item.activityInArea.views > 0 && (
-                                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-sky-50 text-sky-600 dark:bg-sky-900/20 dark:text-sky-400">
-                                                                        👁️ {item.activityInArea.views} lượt xem
-                                                                    </span>
+                                                                    <span className="text-xs text-muted-foreground">👁️ {item.activityInArea.views}</span>
                                                                 )}
                                                                 {item.activityInArea.favorites > 0 && (
-                                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400">
-                                                                        ❤️ {item.activityInArea.favorites} lưu
-                                                                    </span>
+                                                                    <span className="text-xs text-muted-foreground">❤️ {item.activityInArea.favorites}</span>
                                                                 )}
                                                                 {item.activityInArea.preorders > 0 && (
-                                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
-                                                                        📝 {item.activityInArea.preorders} đặt cọc
-                                                                    </span>
+                                                                    <span className="text-xs text-muted-foreground">📝 {item.activityInArea.preorders}</span>
                                                                 )}
                                                             </div>
 
-                                                            {/* Gender info */}
-                                                            {item.user.gender && (
-                                                                <p className="text-xs text-muted-foreground mt-1">
-                                                                    {item.user.gender}
-                                                                </p>
-                                                            )}
+                                                            {/* Lifestyle tags */}
+                                                            {item.lifestyle && (() => {
+                                                                const L = item.lifestyle;
+                                                                const tags: { label: string; color?: string }[] = [];
+                                                                if (L.smoking === true) tags.push({ label: 'Hút thuốc', color: 'warning' });
+                                                                else if (L.smoking === false && L.drinking === false) tags.push({ label: 'Không thuốc/rượu' });
+                                                                else if (L.smoking === false) tags.push({ label: 'Không hút thuốc' });
+                                                                if (L.pets_allowed) tags.push({ label: 'Nuôi thú cưng' });
+                                                                if (L.sleep_schedule) tags.push({ label: `Ngủ: ${L.sleep_schedule}` });
+                                                                if (L.personalityType) tags.push({ label: L.personalityType });
+                                                                if (L.cleanliness) tags.push({ label: `Sạch sẽ: ${L.cleanliness}` });
+                                                                if (L.noise_tolerance) tags.push({ label: `Chịu ồn: ${L.noise_tolerance}` });
+                                                                if (L.guest_frequency) tags.push({ label: `Khách: ${L.guest_frequency}` });
+                                                                if (tags.length === 0) return null;
+                                                                return (
+                                                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                        {tags.slice(0, 5).map((t, idx) => (
+                                                                            <span key={idx} className={`text-[10px] px-1.5 py-0.5 rounded-full ${t.color === 'warning' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-muted text-muted-foreground'}`}>
+                                                                                {t.label}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -915,19 +1085,29 @@ export function FindRoommatePage() {
                                                     >
                                                         <Eye className="w-4 h-4" /> Hồ sơ
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        disabled={!!sendingId}
-                                                        onClick={() => handleSendRequest(item.user.id)}
-                                                        className="py-2.5 px-4 rounded-xl font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-1.5 transition-colors"
-                                                    >
-                                                        {sendingId === item.user.id ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : (
-                                                            <UserPlus className="w-4 h-4" />
-                                                        )}
-                                                        Gửi lời mời
-                                                    </button>
+                                                    {item.matchStatus === 'ACCEPTED' ? (
+                                                        <span className="py-2.5 px-4 rounded-xl font-medium text-sm bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 flex items-center justify-center gap-1.5">
+                                                            <Check className="w-4 h-4" /> Đã kết bạn
+                                                        </span>
+                                                    ) : item.matchStatus === 'PENDING' ? (
+                                                        <span className="py-2.5 px-4 rounded-xl font-medium text-sm bg-muted text-muted-foreground flex items-center justify-center gap-1.5">
+                                                            <Loader2 className="w-4 h-4" /> Đang chờ
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            disabled={!!sendingId}
+                                                            onClick={() => handleSendRequest(item.user.id)}
+                                                            className="py-2.5 px-4 rounded-xl font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-1.5 transition-colors"
+                                                        >
+                                                            {sendingId === item.user.id ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <UserPlus className="w-4 h-4" />
+                                                            )}
+                                                            Gửi lời mời
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -1055,8 +1235,9 @@ export function FindRoommatePage() {
                                         : 'Chưa có gợi ý phù hợp. Hãy cập nhật Phong cách sống và Sở thích tìm phòng trong Hồ sơ để nhận gợi ý tốt hơn.'}
                                 </div>
                             ) : (
+                                <>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                                    {filteredSuggestions.map((item) => (
+                                    {filteredSuggestions.slice((suggestionPage - 1) * PAGE_SIZE, suggestionPage * PAGE_SIZE).map((item) => (
                                         <div
                                             key={item.user.id}
                                             className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
@@ -1137,137 +1318,134 @@ export function FindRoommatePage() {
                                         </div>
                                     ))}
                                 </div>
+                                {/* Pagination */}
+                                {filteredSuggestions.length > PAGE_SIZE && (() => {
+                                    const totalPages = Math.ceil(filteredSuggestions.length / PAGE_SIZE);
+                                    const getPages = () => {
+                                        if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+                                        if (suggestionPage <= 3) return [1, 2, 3, 4, 5];
+                                        if (suggestionPage >= totalPages - 2) return [totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+                                        return [suggestionPage - 2, suggestionPage - 1, suggestionPage, suggestionPage + 1, suggestionPage + 2];
+                                    };
+                                    return (
+                                        <div className="flex justify-center items-center gap-2 mt-8">
+                                            {/* Prev */}
+                                            <button
+                                                type="button"
+                                                onClick={() => { setSuggestionPage((p) => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                disabled={suggestionPage === 1}
+                                                className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                                            >
+                                                ‹
+                                            </button>
+                                            {/* Page numbers */}
+                                            {getPages().map((p) => (
+                                                <button
+                                                    key={p}
+                                                    type="button"
+                                                    onClick={() => { setSuggestionPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                    className={`w-10 h-10 rounded-xl border text-sm font-semibold transition-colors ${
+                                                        p === suggestionPage
+                                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                                            : 'border-border bg-card text-foreground hover:bg-muted'
+                                                    }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            ))}
+                                            {/* Next */}
+                                            <button
+                                                type="button"
+                                                onClick={() => { setSuggestionPage((p) => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                disabled={suggestionPage === totalPages}
+                                                className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                                            >
+                                                ›
+                                            </button>
+                                        </div>
+                                    );
+                                })()}
+                                </>
                             )
                         ) : null}
                     </section>
 
-                    {/* ── People You May Know ──
-                    {!loadingPymk && pymkList.length > 0 && (
-                        <section className="mt-2">
-                            <h2 className="font-heading text-xl font-semibold text-foreground mb-2 flex items-center gap-2">
-                                <Users className="w-5 h-5 text-primary" />
-                                Có thể bạn quan tâm
+                    {/* ── People You May Know ── */}
+                    {!loadingPymk && (pymkGrouped.length > 0 || (pymkIsRandom && pymkList.length > 0)) && (
+                        <section className="mt-2 mb-12">
+                            <h2 className="font-heading text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-primary" />
+                                Có thể bạn sẽ quan tâm
                             </h2>
                             <p className="text-sm text-muted-foreground mb-5">
-                                Gợi ý dựa trên bạn chung và khu vực tìm phòng
+                                {pymkIsRandom
+                                    ? 'Một số gợi ý dành cho bạn'
+                                    : 'Những người đang tìm phòng cùng khu vực với bạn'}
                             </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {pymkList.map((item) => (
-                                    <div
-                                        key={item.user.id}
-                                        className="rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col"
-                                    >
-                                        
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <ImageWithFallback
-                                                src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
-                                                alt={item.user.fullName}
-                                                className="w-11 h-11 rounded-full object-cover border-2 border-primary/20"
-                                            />
-                                            <div className="min-w-0">
-                                                <p className="font-semibold text-sm text-foreground truncate">
-                                                    {item.user.fullName}
-                                                </p>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    {item.user.gender && (
-                                                        <span className="text-xs text-muted-foreground">{item.user.gender}</span>
-                                                    )}
-                                                    {item.matchScore > 0 && (
-                                                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${item.matchScore >= 80 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                                                            {Math.round(item.matchScore)}% phù hợp
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        
-                                        <div className="flex flex-col gap-1.5 mb-4 flex-1">
-                                            {item.reasons.map((reason, idx) => (
-                                                <div key={idx}>
-                                                    {reason.type === 'mutual_friends' && (
-                                                        <div className="flex items-start gap-1.5 text-xs">
-                                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 font-medium shrink-0">
-                                                                🤝 {reason.count} bạn chung
-                                                            </span>
-                                                            {(reason.names?.length ?? 0) > 0 && (
-                                                                <span className="text-muted-foreground pt-1 leading-tight">
-                                                                    {reason.names!.join(', ')}{(reason.count ?? 0) > (reason.names?.length ?? 0) ? '...' : ''}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    {reason.type === 'common_area' && (
-                                                        <div className="flex items-start gap-1.5 text-xs">
-                                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium shrink-0">
-                                                                📍 Cùng khu vực
-                                                            </span>
-                                                            <span className="text-muted-foreground pt-1 leading-tight">
-                                                                {reason.districts?.join(', ')}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
+                            {/* Random mode: flat grid */}
+                            {pymkIsRandom && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {pymkList.map((item) => (
+                                        <PymkCard
+                                            key={item.user.id}
+                                            item={item}
+                                            sendingId={sendingId}
+                                            onViewProfile={(id) => setViewingProfile({ userId: id })}
+                                            onSendRequest={(id) => {
+                                                setSendingId(id);
+                                                sendRoommateRequestRequest(id)
+                                                    .then(() => {
+                                                        setPymkList((prev) => prev.map((p) => p.user.id === id ? { ...p, matchStatus: 'PENDING' as const } : p));
+                                                        loadMatches();
+                                                    })
+                                                    .catch((e) => setMessage(e instanceof Error ? e.message : 'Lỗi gửi lời mời'))
+                                                    .finally(() => setSendingId(null));
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            )}
 
-                                        
-                                        <div className="flex items-center gap-2 mt-auto pt-3 border-t border-border">
-                                            <button
-                                                type="button"
-                                                onClick={() => setViewingProfile({ userId: item.user.id })}
-                                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                            >
-                                                <Eye className="w-3.5 h-3.5" />
-                                                Xem hồ sơ
-                                            </button>
-                                            {item.matchStatus === 'ACCEPTED' ? (
-                                                <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                                                    <Check className="w-3.5 h-3.5" />
-                                                    Đã kết bạn
-                                                </span>
-                                            ) : item.matchStatus === 'PENDING' ? (
-                                                <span className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                                    <Loader2 className="w-3.5 h-3.5" />
-                                                    Đang chờ
-                                                </span>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    disabled={sendingId === item.user.id}
-                                                    onClick={() => {
-                                                        setSendingId(item.user.id);
-                                                        sendRoommateRequestRequest(item.user.id)
-                                                            .then(() => {
-                                                                setPymkList((prev) =>
-                                                                    prev.map((p) =>
-                                                                        p.user.id === item.user.id
-                                                                            ? { ...p, matchStatus: 'PENDING' }
-                                                                            : p
-                                                                    )
-                                                                );
-                                                                loadMatches();
-                                                            })
-                                                            .catch((e) => setMessage(e instanceof Error ? e.message : 'Lỗi gửi lời mời'))
-                                                            .finally(() => setSendingId(null));
-                                                    }}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-                                                >
-                                                    {sendingId === item.user.id ? (
-                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                    ) : (
-                                                        <UserPlus className="w-3.5 h-3.5" />
-                                                    )}
-                                                    Gửi lời mời
-                                                </button>
-                                            )}
-                                        </div>
+                            {/* Grouped by area */}
+                            {!pymkIsRandom && pymkGrouped.map((group) => (
+                                <div key={group.area} className="mb-8">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <MapPin className="w-4 h-4 text-primary" />
+                                        <h3 className="font-semibold text-foreground">
+                                            {group.area}
+                                        </h3>
+                                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                                            {group.users.length} người
+                                        </span>
                                     </div>
-                                ))}
-                            </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        {group.users.map((item) => (
+                                            <PymkCard
+                                                key={item.user.id}
+                                                item={item}
+                                                sendingId={sendingId}
+                                                onViewProfile={(id) => setViewingProfile({ userId: id })}
+                                                onSendRequest={(id) => {
+                                                    setSendingId(id);
+                                                    sendRoommateRequestRequest(id)
+                                                        .then(() => {
+                                                            setPymkGrouped((prev) => prev.map((g) => ({
+                                                                ...g,
+                                                                users: g.users.map((u) => u.user.id === id ? { ...u, matchStatus: 'PENDING' as const } : u),
+                                                            })));
+                                                            loadMatches();
+                                                        })
+                                                        .catch((e) => setMessage(e instanceof Error ? e.message : 'Lỗi gửi lời mời'))
+                                                        .finally(() => setSendingId(null));
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
                         </section>
-                    )} 
-                    */}
+                    )}
 
                     {/* My matches */}
                     <section>
@@ -1598,9 +1776,9 @@ export function FindRoommatePage() {
                                         {sendingInvite ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
                                         ) : (
-                                            <Send className="w-4 h-4" />
+                                            <Link2 className="w-4 h-4" />
                                         )}
-                                        Gửi lời mời ở ghép
+                                        Lấy nhanh link phòng đang thuê
                                     </button>
                                 </div>
                             )}
