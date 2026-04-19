@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Header } from '@/app/features/home/components';
 import {
     User, Heart, Sliders, Loader2, Save, Mail, Phone, Check,
-    Moon, Sparkles, MapPin, Banknote, Crown, X, Sun, Clock,
-    Briefcase, Users, Home, Calendar, Star, Shield, Languages,
-    Thermometer, Volume2, UtensilsCrossed, ChevronDown,
+    Moon, Sparkles, MapPin, Banknote, Crown, X,
+    Users, Home, Calendar, Star, Languages,
+    Volume2, ChevronDown,
     CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw,
     CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye,
 } from 'lucide-react';
@@ -59,21 +59,6 @@ const SLEEP_SCHEDULE_OPTIONS = [
     { value: 'Khuya (sau 0h)', label: '🦉 Khuya (sau 0h)' },
 ];
 
-const QUIET_HOURS_OPTIONS = [
-    { value: '', label: '— Không cần —' },
-    { value: '21h-6h', label: '21h – 6h' },
-    { value: '22h-7h', label: '22h – 7h' },
-    { value: '23h-8h', label: '23h – 8h' },
-];
-
-const TEMPERATURE_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Lạnh', label: '❄️ Lạnh' },
-    { value: 'Mát', label: '🌬️ Mát' },
-    { value: 'Bình thường', label: '🌡️ Bình thường' },
-    { value: 'Ấm', label: '☀️ Ấm' },
-];
-
 const PERSONALITY_OPTIONS = [
     { value: '', label: '— Chọn —' },
     { value: 'Hướng ngoại', label: '🗣️ Hướng ngoại' },
@@ -106,23 +91,6 @@ const NOISE_TOLERANCE_OPTIONS = [
     { value: 'Cao', label: '🔊 Chịu được ồn ào' },
 ];
 
-const OCCUPATION_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Sinh viên', label: '🎓 Sinh viên' },
-    { value: 'Văn phòng', label: '💼 Nhân viên văn phòng' },
-    { value: 'Freelancer', label: '💻 Freelancer' },
-    { value: 'Kinh doanh', label: '🏪 Kinh doanh' },
-    { value: 'Khác', label: 'Khác' },
-];
-
-const COOKING_FREQUENCY_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Không nấu', label: '🍱 Không nấu' },
-    { value: 'Ít', label: '🍳 Thỉnh thoảng' },
-    { value: 'Thường xuyên', label: '👨‍🍳 Thường xuyên' },
-    { value: 'Hàng ngày', label: '🔥 Hàng ngày' },
-];
-
 const GUEST_FREQUENCY_OPTIONS = [
     { value: '', label: '— Chọn —' },
     { value: 'Không bao giờ', label: '🚫 Không bao giờ' },
@@ -139,14 +107,6 @@ const ROOM_TYPE_OPTIONS = [
     { value: 'APARTMENT', label: 'Căn hộ' },
 ];
 
-const PREFERRED_GENDER_OPTIONS = [
-    { value: '', label: 'Không quan tâm' },
-    { value: 'Nam', label: 'Nam' },
-    { value: 'Nữ', label: 'Nữ' },
-    { value: 'Khác', label: 'Khác' },
-];
-
-const COMMON_AMENITIES = ['WiFi', 'Điều hòa', 'Máy giặt', 'Bếp', 'Ban công', 'Bảo vệ 24/7', 'Thang máy', 'Hồ bơi', 'Chỗ để xe', 'Tủ lạnh', 'Nóng lạnh'];
 const INTEREST_SUGGESTIONS = ['Đọc sách', 'Thể thao', 'Âm nhạc', 'Du lịch', 'Nấu ăn', 'Gaming', 'Phim ảnh', 'Yoga', 'Chạy bộ', 'Nhiếp ảnh'];
 const LANGUAGE_SUGGESTIONS = ['Tiếng Việt', 'English', '中文', '한국어', '日本語', 'Français'];
 
@@ -732,8 +692,8 @@ export function ProfilePage() {
                                                     onClick={() => setLifestyle((l) => ({
                                                         ...l,
                                                         interests: selected
-                                                            ? l.interests.filter((i) => i !== interest)
-                                                            : [...l.interests, interest],
+                                                            ? l.interests.split(', ').filter((i: string) => i !== interest).join(', ')
+                                                            : (l.interests ? l.interests + ', ' + interest : interest),
                                                     }))}
                                                     className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${selected
                                                         ? 'bg-primary text-primary-foreground border-primary'
