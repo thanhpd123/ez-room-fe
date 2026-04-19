@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getRentalByIdRequest, deleteRentalRequest, getRejectionInfoRequest } from '@/lib/api';
 import { getSupabasePublicUrl, filterOutDocuments } from '@/lib/supabase-urls';
-import { findOldAddress } from '@/app/constants/v1-v2-mapping';
 import { RENTAL_STATUS_OPTIONS } from '../shared/types';
 import { LandlordDocumentsViewer } from '../EditRental/components/LandlordDocumentsViewer';
 

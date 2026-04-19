@@ -182,7 +182,9 @@ export function FloatingChatBox() {
             .finally(() => setLoadingConvs(false));
     }, []);
     const loadConversationsRef = useRef(loadConversations);
-    loadConversationsRef.current = loadConversations;
+    useEffect(() => {
+        loadConversationsRef.current = loadConversations;
+    }, [loadConversations]);
 
     const loadThread = useCallback((peerId: string) => {
         if (peerId === user?.id) return;

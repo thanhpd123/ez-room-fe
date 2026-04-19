@@ -22,7 +22,6 @@ import {
     Banknote,
     Home,
     DoorOpen,
-    Send,
     Link2,
     Copy,
     ExternalLink,
@@ -43,7 +42,6 @@ import {
     type RoommateSuggestionItem,
     type RoommateMatchItem,
     type MyActiveRoomItem,
-    type RoommateSearchResultItem,
     type AreaSearcherItem,
     type PeopleYouMayKnowItem,
 } from '@/lib/api';
@@ -518,30 +516,6 @@ export function FindRoommatePage() {
             })
             .catch((e) => setMessage(e instanceof Error ? e.message : 'Có lỗi xảy ra'))
             .finally(() => setSendingInvite(false));
-    };
-
-    const handleAiSearch = async () => {
-        const q = aiQuery.trim();
-        if (!q || q.length < 3) return;
-        setAiSearching(true);
-        setAiError(null);
-        setAiActive(true);
-        try {
-            const r = await searchRoommatesRequest(q, 10);
-            setAiResults(r.data || []);
-        } catch (err) {
-            setAiError(err instanceof Error ? err.message : 'Lỗi tìm kiếm');
-            setAiResults([]);
-        } finally {
-            setAiSearching(false);
-        }
-    };
-
-    const clearAiSearch = () => {
-        setAiQuery('');
-        setAiResults([]);
-        setAiActive(false);
-        setAiError(null);
     };
 
     const sentPending = matches.filter((m) => m.isRequester && m.status === 'PENDING');
@@ -1341,8 +1315,8 @@ export function FindRoommatePage() {
                                                         type="button"
                                                         onClick={() => { setSuggestionPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                                                         className={`w-10 h-10 rounded-xl border text-sm font-semibold transition-colors ${p === suggestionPage
-                                                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                                                : 'border-border bg-card text-foreground hover:bg-muted'
+                                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                                            : 'border-border bg-card text-foreground hover:bg-muted'
                                                             }`}
                                                     >
                                                         {p}

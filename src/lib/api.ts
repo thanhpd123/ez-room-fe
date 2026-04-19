@@ -1509,7 +1509,7 @@ export async function updateRentalRequest(
     if (payload.deletedDocuments && payload.deletedDocuments.length > 0) {
         formData.append('deleted_documents', JSON.stringify(payload.deletedDocuments));
     }
-    
+
     if (payload.images && payload.images.length > 0) {
         formData.append('images', JSON.stringify(payload.images));
     }
@@ -2005,7 +2005,7 @@ export async function getTenantReviewByRentalPeriodRequest(rentalPeriodId: strin
  */
 export async function getTenantReviewsRequest(tenantId: string): Promise<{
     success: boolean;
-    data: any[];
+    data: unknown[];
     stats: {
         totalReviews: number;
         avgRating: number;
@@ -2025,7 +2025,7 @@ export async function getTenantReviewsRequest(tenantId: string): Promise<{
  */
 export async function replyToTenantReviewRequest(reviewId: string, content: string): Promise<{
     success: boolean;
-    data: any;
+    data: unknown;
 }> {
     const res = await authFetch(`/tenant-reviews/${encodeURIComponent(reviewId)}/reply`, {
         method: 'POST',
@@ -2041,7 +2041,7 @@ export async function replyToTenantReviewRequest(reviewId: string, content: stri
  */
 export async function getPendingTenantReviewsRequest(page = 1, limit = 10): Promise<{
     success: boolean;
-    data: any[];
+    data: unknown[];
     pagination: {
         page: number;
         limit: number;
@@ -2065,7 +2065,7 @@ export async function updateTenantReviewStatusRequest(
     notes?: string
 ): Promise<{
     success: boolean;
-    data: any;
+    data: unknown;
 }> {
     const res = await authFetch(
         `/tenant-reviews/${encodeURIComponent(reviewId)}/status/${action}`,
