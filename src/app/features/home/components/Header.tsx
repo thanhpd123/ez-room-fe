@@ -269,6 +269,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                             </Link>
                         )}
                         {user?.role === 'LANDLORD' && navLink('/rental-management', t('nav.rentalManagement'))}
+                        {user?.role === 'MODERATOR' && navLink('/moderator', 'Kiểm duyệt')}
                         {navLink('/blog', t('nav.blog'), <BookOutlined className="text-sm" />)}
                     </nav>
 

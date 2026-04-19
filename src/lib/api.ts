@@ -971,28 +971,48 @@ export async function getRoommateProfileRequest(userId: string): Promise<{
     return data;
 }
 
-/** "Có thể bạn biết" — People You May Know */
+/** "Có thể bạn quan tâm" — People You May Know (based on room interaction areas) */
 export interface PymkReason {
-    type: 'mutual_friends' | 'common_area';
-    count?: number;
-    names?: string[];
-    districts?: string[];
+    type: 'same_area_search' | 'random_suggestion';
+    area?: string;
+    activity?: {
+        views: number;
+        favorites: number;
+        preorders: number;
+        totalScore: number;
+    };
 }
 
 export interface PeopleYouMayKnowItem {
     user: { id: string; fullName: string; avatarUrl: string | null; gender: string | null };
+    lifestyle: {
+        smoking: boolean | null;
+        drinking: boolean | null;
+        pets_allowed: boolean | null;
+        sleep_schedule: string | null;
+        personalityType: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
+        interests: string[];
+        deal_breakers: string | null;
+    } | null;
     reasons: PymkReason[];
     matchStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED' | null;
     matchScore: number;
+    areaName: string | null;
 }
 
 export async function getPeopleYouMayKnowRequest(): Promise<{
     success: boolean;
     data: PeopleYouMayKnowItem[];
+    isRandom?: boolean;
+    topAreas?: string[];
+    groupedByArea?: { area: string; users: PeopleYouMayKnowItem[] }[];
 }> {
     const res = await authFetch('/roommate/people-you-may-know');
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message || 'Lỗi tải gợi ý "Có thể bạn biết"');
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải gợi ý "Có thể bạn quan tâm"');
     return data;
 }
 
@@ -1036,7 +1056,6 @@ export async function createRoommateRatingRequest(body: {
     targetId: string;
     rentalPeriodId: string;
     overallRating: number;
-    wouldLiveAgain: boolean;
     comment?: string;
 }): Promise<{ success: boolean; message: string; data: { id: string } }> {
     const res = await authFetch('/roommate/experiences', {
@@ -1131,6 +1150,7 @@ export interface AreaSearcherItem {
     } | null;
     matchScore: number;
     isSameGender: boolean;
+    matchStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED' | null;
     activityInArea: AreaSearcherActivity;
 }
 

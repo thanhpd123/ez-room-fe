@@ -193,7 +193,7 @@ export function ModerationQueuePage() {
     const [priorityFilter, setPriorityFilter] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('');
     const [myTasksOnly, setMyTasksOnly] = useState(false);
-    const [sortBy, setSortBy] = useState<'asc' | 'desc'>('asc');
+    const [sortBy, setSortBy] = useState<'asc' | 'desc'>('desc');
     const [actingId, setActingId] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
 
