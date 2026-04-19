@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Header } from '@/app/features/home/components';
 import {
     User, Heart, Sliders, Loader2, Save, Mail, Phone, Check,
-    Moon, Sparkles, MapPin, Banknote, Crown, X, Sun, Clock,
-    Briefcase, Users, Home, Calendar, Star, Shield, Languages,
-    Thermometer, Volume2, UtensilsCrossed, ChevronDown,
+    Moon, Sparkles, MapPin, Banknote, Crown, X,
+    Users, Home, Calendar, Star, Languages,
+    Volume2, ChevronDown,
     CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw,
-    CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye, ChevronRight,
+    CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye,
 } from 'lucide-react';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { ImageUpload } from '@/app/components/ImageUpload';
 import { useProvinces } from '@/app/hooks/useProvinces';
 import {
@@ -59,21 +59,6 @@ const SLEEP_SCHEDULE_OPTIONS = [
     { value: 'Khuya (sau 0h)', label: '🦉 Khuya (sau 0h)' },
 ];
 
-const QUIET_HOURS_OPTIONS = [
-    { value: '', label: '— Không cần —' },
-    { value: '21h-6h', label: '21h – 6h' },
-    { value: '22h-7h', label: '22h – 7h' },
-    { value: '23h-8h', label: '23h – 8h' },
-];
-
-const TEMPERATURE_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Lạnh', label: '❄️ Lạnh' },
-    { value: 'Mát', label: '🌬️ Mát' },
-    { value: 'Bình thường', label: '🌡️ Bình thường' },
-    { value: 'Ấm', label: '☀️ Ấm' },
-];
-
 const PERSONALITY_OPTIONS = [
     { value: '', label: '— Chọn —' },
     { value: 'Hướng ngoại', label: '🗣️ Hướng ngoại' },
@@ -106,23 +91,6 @@ const NOISE_TOLERANCE_OPTIONS = [
     { value: 'Cao', label: '🔊 Chịu được ồn ào' },
 ];
 
-const OCCUPATION_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Sinh viên', label: '🎓 Sinh viên' },
-    { value: 'Văn phòng', label: '💼 Nhân viên văn phòng' },
-    { value: 'Freelancer', label: '💻 Freelancer' },
-    { value: 'Kinh doanh', label: '🏪 Kinh doanh' },
-    { value: 'Khác', label: 'Khác' },
-];
-
-const COOKING_FREQUENCY_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Không nấu', label: '🍱 Không nấu' },
-    { value: 'Ít', label: '🍳 Thỉnh thoảng' },
-    { value: 'Thường xuyên', label: '👨‍🍳 Thường xuyên' },
-    { value: 'Hàng ngày', label: '🔥 Hàng ngày' },
-];
-
 const GUEST_FREQUENCY_OPTIONS = [
     { value: '', label: '— Chọn —' },
     { value: 'Không bao giờ', label: '🚫 Không bao giờ' },
@@ -139,14 +107,6 @@ const ROOM_TYPE_OPTIONS = [
     { value: 'APARTMENT', label: 'Căn hộ' },
 ];
 
-const PREFERRED_GENDER_OPTIONS = [
-    { value: '', label: 'Không quan tâm' },
-    { value: 'Nam', label: 'Nam' },
-    { value: 'Nữ', label: 'Nữ' },
-    { value: 'Khác', label: 'Khác' },
-];
-
-const COMMON_AMENITIES = ['WiFi', 'Điều hòa', 'Máy giặt', 'Bếp', 'Ban công', 'Bảo vệ 24/7', 'Thang máy', 'Hồ bơi', 'Chỗ để xe', 'Tủ lạnh', 'Nóng lạnh'];
 const INTEREST_SUGGESTIONS = ['Đọc sách', 'Thể thao', 'Âm nhạc', 'Du lịch', 'Nấu ăn', 'Gaming', 'Phim ảnh', 'Yoga', 'Chạy bộ', 'Nhiếp ảnh'];
 const LANGUAGE_SUGGESTIONS = ['Tiếng Việt', 'English', '中文', '한국어', '日本語', 'Français'];
 
@@ -226,7 +186,7 @@ function TagInput({ value, onChange, placeholder, suggestions }: {
 
     return (
         <div>
-            <div className="min-h-[48px] w-full px-3 py-2 bg-background border border-border rounded-xl focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all flex flex-wrap gap-1.5">
+            <div className="min-h-12 w-full px-3 py-2 bg-background border border-border rounded-xl focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
                     <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
                         {tag}
@@ -241,7 +201,7 @@ function TagInput({ value, onChange, placeholder, suggestions }: {
                     onKeyDown={handleKeyDown}
                     onBlur={() => { if (input.trim()) addTag(input); }}
                     placeholder={tags.length === 0 ? placeholder : 'Thêm...'}
-                    className="flex-1 min-w-[120px] bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground py-1"
+                    className="flex-1 min-w-30 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground py-1"
                 />
             </div>
             {suggestions && suggestions.length > 0 && (
@@ -539,7 +499,7 @@ export function ProfilePage() {
         if (tab === 'bookings') {
             loadBookings();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab]);
 
     const avatarUrl = profileForm.avatarUrl?.trim() || user?.avatarUrl;
@@ -732,20 +692,44 @@ export function ProfilePage() {
                                                     onClick={() => setLifestyle((l) => ({
                                                         ...l,
                                                         interests: selected
-                                                            ? l.interests.filter((i) => i !== interest)
-                                                            : [...l.interests, interest],
+                                                            ? l.interests.split(', ').filter((i: string) => i !== interest).join(', ')
+                                                            : (l.interests ? l.interests + ', ' + interest : interest),
                                                     }))}
-                                                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                                                        selected
-                                                            ? 'bg-primary text-primary-foreground border-primary'
-                                                            : 'bg-background text-foreground border-border hover:border-primary/50'
-                                                    }`}
+                                                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${selected
+                                                        ? 'bg-primary text-primary-foreground border-primary'
+                                                        : 'bg-background text-foreground border-border hover:border-primary/50'
+                                                        }`}
                                                 >
                                                     {interest}
                                                 </button>
                                             );
                                         })}
                                     </div>
+                                    <div>
+                                        <label className={labelClass}>{t('profile.languages')}</label>
+                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.languagesNote')}</p>
+                                        <TagInput value={lifestyle.languages} onChange={(v) => setLifestyle((l) => ({ ...l, languages: v }))} placeholder="VD: Tiếng Việt, English..." suggestions={LANGUAGE_SUGGESTIONS} />
+                                    </div>
+                                </SectionCard>
+
+                                {/* Move-in plans */}
+                                <SectionCard icon={<Calendar className="w-4 h-4 text-primary" />} title={t('profile.movePlan')} subtitle={t('profile.movePlanSub')}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={labelClass}>{t('profile.moveInDate')}</label>
+                                            <input type="date" value={lifestyle.move_in_date} onChange={(e) => setLifestyle((l) => ({ ...l, move_in_date: e.target.value }))} className={inputClass} />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>{t('profile.leaseMonths')}</label>
+                                            <input type="number" value={lifestyle.preferred_lease_months} onChange={(e) => setLifestyle((l) => ({ ...l, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 6" min={1} max={60} className={inputClass} />
+                                        </div>
+                                    </div>
+                                </SectionCard>
+
+                                {/* Deal breakers */}
+                                <SectionCard icon={<X className="w-4 h-4 text-primary" />} title={t('profile.dealBreakers')} subtitle={t('profile.dealBreakersSub')}>
+                                    <textarea value={lifestyle.deal_breakers} onChange={(e) => setLifestyle((l) => ({ ...l, deal_breakers: e.target.value }))} placeholder="VD: Hút thuốc trong phòng, Tiệc tùng thường xuyên, Không giữ vệ sinh..." className={`${inputClass} min-h-20 resize-y`} maxLength={500} rows={3} />
+                                    <p className="text-xs text-muted-foreground">{lifestyle.deal_breakers.length}/500</p>
                                 </SectionCard>
 
                                 <button type="submit" disabled={lifestyleSaving} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm">
@@ -985,16 +969,16 @@ export function ProfilePage() {
 type TFunc = (key: string, opts?: Record<string, unknown>) => string;
 
 const PREORDER_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
-    PENDING:   { label: 'Chờ xác nhận', icon: Clock3,         color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
-    CONFIRMED: { label: 'Đã xác nhận',  icon: CheckCircle2,   color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-    CANCELLED: { label: 'Đã hủy',       icon: XCircle,        color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
-    EXPIRED:   { label: 'Hết hạn',      icon: AlertCircle,    color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
+    PENDING: { label: 'Chờ xác nhận', icon: Clock3, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+    CONFIRMED: { label: 'Đã xác nhận', icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    CANCELLED: { label: 'Đã hủy', icon: XCircle, color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
+    EXPIRED: { label: 'Hết hạn', icon: AlertCircle, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' },
 };
 
 const PAYMENT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    UNPAID:   { label: 'Chưa thanh toán', color: 'text-amber-600' },
-    PAID:     { label: 'Đã thanh toán',   color: 'text-emerald-600' },
-    REFUNDED: { label: 'Đã hoàn tiền',    color: 'text-blue-600' },
+    UNPAID: { label: 'Chưa thanh toán', color: 'text-amber-600' },
+    PAID: { label: 'Đã thanh toán', color: 'text-emerald-600' },
+    REFUNDED: { label: 'Đã hoàn tiền', color: 'text-blue-600' },
 };
 
 function PreorderCard({
@@ -1173,15 +1157,15 @@ function PreorderCard({
 // ─── ProfileBookingCard (full-featured with Review, Report, Contact, Roommates) ──
 
 const BOOKING_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
-    active:    { label: 'Đang thuê',   icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-    completed: { label: 'Đã kết thúc', icon: Clock3,       color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
-    cancelled: { label: 'Đã hủy',      icon: XCircle,      color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+    active: { label: 'Đang thuê', icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    completed: { label: 'Đã kết thúc', icon: Clock3, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' },
+    cancelled: { label: 'Đã hủy', icon: XCircle, color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
 };
 
 const FEEDBACK_STATUS_CFG: Record<string, { bg: string; text: string; label: string }> = {
-    PENDING:  { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Đang chờ duyệt' },
+    PENDING: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Đang chờ duyệt' },
     APPROVED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã công khai' },
-    REJECTED: { bg: 'bg-red-100',   text: 'text-red-800',   label: 'Bị từ chối' },
+    REJECTED: { bg: 'bg-red-100', text: 'text-red-800', label: 'Bị từ chối' },
 };
 
 function ProfileBookingCard({ item, onWriteReview, onViewReview, onReport, onContactLandlord, onViewRoom }: {
@@ -1220,7 +1204,7 @@ function ProfileBookingCard({ item, onWriteReview, onViewReview, onReport, onCon
             const rated = new Set(results.filter(Boolean) as string[]);
             setRatedIds(rated);
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item.rentalPeriodId]);
 
     return (

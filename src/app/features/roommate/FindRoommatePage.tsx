@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/app/features/home/components';
-import { useAuth } from '@/app/context/AuthContext';
-import { useChatBox } from '@/app/context/ChatBoxContext';
+import { useAuth } from '@/app/context/useAuth';
+import { useChatBox } from '@/app/context/useChatBox';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import { RoommateProfileModal } from './RoommateProfileModal';
 import {
@@ -22,7 +22,6 @@ import {
     Banknote,
     Home,
     DoorOpen,
-    Send,
     Link2,
     Copy,
     ExternalLink,
@@ -35,7 +34,6 @@ import {
     updateRoommateMatchStatusRequest,
     getMyActiveRoomsRequest,
     inviteRoommateRequest,
-    searchRoommatesRequest,
     getTopSearchersByAreaRequest,
     getPreferenceRequest,
     fetchAuthMe,
@@ -43,7 +41,6 @@ import {
     type RoommateSuggestionItem,
     type RoommateMatchItem,
     type MyActiveRoomItem,
-    type RoommateSearchResultItem,
     type AreaSearcherItem,
     type PeopleYouMayKnowItem,
 } from '@/lib/api';
@@ -280,13 +277,6 @@ export function FindRoommatePage() {
     const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
     const [copiedLink, setCopiedLink] = useState(false);
 
-    // AI search state
-    const [aiQuery, setAiQuery] = useState('');
-    const [aiResults, setAiResults] = useState<RoommateSearchResultItem[]>([]);
-    const [aiSearching, setAiSearching] = useState(false);
-    const [aiError, setAiError] = useState<string | null>(null);
-    const [aiActive, setAiActive] = useState(false);
-
     // Area searcher state
     const [areaSearchResults, setAreaSearchResults] = useState<AreaSearcherItem[]>([]);
     const [areaSearching, setAreaSearching] = useState(false);
@@ -522,30 +512,6 @@ export function FindRoommatePage() {
             })
             .catch((e) => setMessage(e instanceof Error ? e.message : 'Có lỗi xảy ra'))
             .finally(() => setSendingInvite(false));
-    };
-
-    const handleAiSearch = async () => {
-        const q = aiQuery.trim();
-        if (!q || q.length < 3) return;
-        setAiSearching(true);
-        setAiError(null);
-        setAiActive(true);
-        try {
-            const r = await searchRoommatesRequest(q, 10);
-            setAiResults(r.data || []);
-        } catch (err) {
-            setAiError(err instanceof Error ? err.message : 'Lỗi tìm kiếm');
-            setAiResults([]);
-        } finally {
-            setAiSearching(false);
-        }
-    };
-
-    const clearAiSearch = () => {
-        setAiQuery('');
-        setAiResults([]);
-        setAiActive(false);
-        setAiError(null);
     };
 
     const sentPending = matches.filter((m) => m.isRequester && m.status === 'PENDING');
@@ -1236,135 +1202,134 @@ export function FindRoommatePage() {
                                 </div>
                             ) : (
                                 <>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                                    {filteredSuggestions.slice((suggestionPage - 1) * PAGE_SIZE, suggestionPage * PAGE_SIZE).map((item) => (
-                                        <div
-                                            key={item.user.id}
-                                            className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                                        >
-                                            <div className="p-5 flex gap-4">
-                                                <button
-                                                    type="button"
-                                                    className="shrink-0 group relative"
-                                                    onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
-                                                    title="Xem hồ sơ"
-                                                >
-                                                    <ImageWithFallback
-                                                        src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
-                                                        alt={item.user.fullName}
-                                                        className="w-16 h-16 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors"
-                                                    />
-                                                    <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Eye className="w-5 h-5 text-white" />
-                                                    </span>
-                                                </button>
-                                                <div className="min-w-0 flex-1">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                                        {filteredSuggestions.slice((suggestionPage - 1) * PAGE_SIZE, suggestionPage * PAGE_SIZE).map((item) => (
+                                            <div
+                                                key={item.user.id}
+                                                className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                                            >
+                                                <div className="p-5 flex gap-4">
                                                     <button
                                                         type="button"
-                                                        className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-left"
+                                                        className="shrink-0 group relative"
                                                         onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
                                                         title="Xem hồ sơ"
                                                     >
-                                                        {item.user.fullName}
-                                                    </button>
-                                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                                            {item.matchScore}% phù hợp
+                                                        <ImageWithFallback
+                                                            src={item.user.avatarUrl || AVATAR_PLACEHOLDER}
+                                                            alt={item.user.fullName}
+                                                            className="w-16 h-16 rounded-full object-cover border-2 border-border group-hover:border-primary transition-colors"
+                                                        />
+                                                        <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Eye className="w-5 h-5 text-white" />
                                                         </span>
-                                                        {item.experienceScore >= 8 && (
-                                                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                                                ⭐ Đánh giá tốt
+                                                    </button>
+                                                    <div className="min-w-0 flex-1">
+                                                        <button
+                                                            type="button"
+                                                            className="font-semibold text-foreground truncate block hover:text-primary transition-colors text-left"
+                                                            onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                            title="Xem hồ sơ"
+                                                        >
+                                                            {item.user.fullName}
+                                                        </button>
+                                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                                {item.matchScore}% phù hợp
                                                             </span>
-                                                        )}
+                                                            {item.experienceScore >= 8 && (
+                                                                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                                    ⭐ Đánh giá tốt
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <LifestyleTags item={item} />
                                                     </div>
-                                                    <LifestyleTags item={item} />
                                                 </div>
-                                            </div>
-                                            <div className="px-5 pb-5 flex gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
-                                                    className="flex-1 py-2.5 rounded-xl font-medium border border-border hover:bg-muted flex items-center justify-center gap-2 transition-colors"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                    Xem hồ sơ
-                                                </button>
-                                                {item.matchStatus === 'ACCEPTED' ? (
-                                                    <span className="flex-1 py-2.5 rounded-xl font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 flex items-center justify-center gap-2 text-sm">
-                                                        <Check className="w-4 h-4" />
-                                                        Đã kết bạn
-                                                    </span>
-                                                ) : item.matchStatus === 'PENDING' ? (
-                                                    <span className="flex-1 py-2.5 rounded-xl font-medium bg-muted text-muted-foreground flex items-center justify-center gap-2 text-sm">
-                                                        <Loader2 className="w-4 h-4" />
-                                                        Đang chờ
-                                                    </span>
-                                                ) : (
+                                                <div className="px-5 pb-5 flex gap-2">
                                                     <button
                                                         type="button"
-                                                        disabled={!!sendingId}
-                                                        onClick={() => handleSendRequest(item.user.id)}
-                                                        className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
+                                                        onClick={() => setViewingProfile({ userId: item.user.id, matchScore: item.matchScore })}
+                                                        className="flex-1 py-2.5 rounded-xl font-medium border border-border hover:bg-muted flex items-center justify-center gap-2 transition-colors"
                                                     >
-                                                        {sendingId === item.user.id ? (
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                        ) : (
-                                                            <UserPlus className="w-4 h-4" />
-                                                        )}
-                                                        Gửi lời mời
+                                                        <Eye className="w-4 h-4" />
+                                                        Xem hồ sơ
                                                     </button>
-                                                )}
+                                                    {item.matchStatus === 'ACCEPTED' ? (
+                                                        <span className="flex-1 py-2.5 rounded-xl font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 flex items-center justify-center gap-2 text-sm">
+                                                            <Check className="w-4 h-4" />
+                                                            Đã kết bạn
+                                                        </span>
+                                                    ) : item.matchStatus === 'PENDING' ? (
+                                                        <span className="flex-1 py-2.5 rounded-xl font-medium bg-muted text-muted-foreground flex items-center justify-center gap-2 text-sm">
+                                                            <Loader2 className="w-4 h-4" />
+                                                            Đang chờ
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            disabled={!!sendingId}
+                                                            onClick={() => handleSendRequest(item.user.id)}
+                                                            className="flex-1 py-2.5 rounded-xl font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2"
+                                                        >
+                                                            {sendingId === item.user.id ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <UserPlus className="w-4 h-4" />
+                                                            )}
+                                                            Gửi lời mời
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {/* Pagination */}
-                                {filteredSuggestions.length > PAGE_SIZE && (() => {
-                                    const totalPages = Math.ceil(filteredSuggestions.length / PAGE_SIZE);
-                                    const getPages = () => {
-                                        if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
-                                        if (suggestionPage <= 3) return [1, 2, 3, 4, 5];
-                                        if (suggestionPage >= totalPages - 2) return [totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-                                        return [suggestionPage - 2, suggestionPage - 1, suggestionPage, suggestionPage + 1, suggestionPage + 2];
-                                    };
-                                    return (
-                                        <div className="flex justify-center items-center gap-2 mt-8">
-                                            {/* Prev */}
-                                            <button
-                                                type="button"
-                                                onClick={() => { setSuggestionPage((p) => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                                                disabled={suggestionPage === 1}
-                                                className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                                            >
-                                                ‹
-                                            </button>
-                                            {/* Page numbers */}
-                                            {getPages().map((p) => (
+                                        ))}
+                                    </div>
+                                    {/* Pagination */}
+                                    {filteredSuggestions.length > PAGE_SIZE && (() => {
+                                        const totalPages = Math.ceil(filteredSuggestions.length / PAGE_SIZE);
+                                        const getPages = () => {
+                                            if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+                                            if (suggestionPage <= 3) return [1, 2, 3, 4, 5];
+                                            if (suggestionPage >= totalPages - 2) return [totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+                                            return [suggestionPage - 2, suggestionPage - 1, suggestionPage, suggestionPage + 1, suggestionPage + 2];
+                                        };
+                                        return (
+                                            <div className="flex justify-center items-center gap-2 mt-8">
+                                                {/* Prev */}
                                                 <button
-                                                    key={p}
                                                     type="button"
-                                                    onClick={() => { setSuggestionPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                                                    className={`w-10 h-10 rounded-xl border text-sm font-semibold transition-colors ${
-                                                        p === suggestionPage
+                                                    onClick={() => { setSuggestionPage((p) => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                    disabled={suggestionPage === 1}
+                                                    className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                                                >
+                                                    ‹
+                                                </button>
+                                                {/* Page numbers */}
+                                                {getPages().map((p) => (
+                                                    <button
+                                                        key={p}
+                                                        type="button"
+                                                        onClick={() => { setSuggestionPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                        className={`w-10 h-10 rounded-xl border text-sm font-semibold transition-colors ${p === suggestionPage
                                                             ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                                                             : 'border-border bg-card text-foreground hover:bg-muted'
-                                                    }`}
+                                                            }`}
+                                                    >
+                                                        {p}
+                                                    </button>
+                                                ))}
+                                                {/* Next */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setSuggestionPage((p) => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                    disabled={suggestionPage === totalPages}
+                                                    className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                                                 >
-                                                    {p}
+                                                    ›
                                                 </button>
-                                            ))}
-                                            {/* Next */}
-                                            <button
-                                                type="button"
-                                                onClick={() => { setSuggestionPage((p) => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                                                disabled={suggestionPage === totalPages}
-                                                className="w-10 h-10 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                                            >
-                                                ›
-                                            </button>
-                                        </div>
-                                    );
-                                })()}
+                                            </div>
+                                        );
+                                    })()}
                                 </>
                             )
                         ) : null}

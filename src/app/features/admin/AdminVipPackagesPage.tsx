@@ -131,8 +131,19 @@ export function AdminVipPackagesPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
-    const openCreatePackage = () => {
-        setEditingPackage(null);
+    useEffect(() => {
+        if (!packageModalOpen) return;
+        if (editingPackage) {
+            packageForm.setFieldsValue({
+                name: editingPackage.name,
+                durationDays: editingPackage.durationDays,
+                price: editingPackage.price,
+                description: editingPackage.description || '',
+                targetRole: editingPackage.targetRole,
+                isActive: editingPackage.isActive,
+            });
+            return;
+        }
         packageForm.setFieldsValue({
             name: '',
             durationDays: 30,
@@ -141,19 +152,25 @@ export function AdminVipPackagesPage() {
             targetRole: 'TENANT',
             isActive: true,
         });
+    }, [packageModalOpen, editingPackage, packageForm]);
+
+    useEffect(() => {
+        if (!refundModalOpen || !refundTarget) return;
+        refundForm.setFieldsValue({
+            amount: refundTarget.amount,
+            reasonCode: 'CUSTOMER_REQUEST',
+            reason: '',
+            revokeVip: false,
+        });
+    }, [refundModalOpen, refundTarget, refundForm]);
+
+    const openCreatePackage = () => {
+        setEditingPackage(null);
         setPackageModalOpen(true);
     };
 
     const openEditPackage = (pkg: AdminVipPackage) => {
         setEditingPackage(pkg);
-        packageForm.setFieldsValue({
-            name: pkg.name,
-            durationDays: pkg.durationDays,
-            price: pkg.price,
-            description: pkg.description || '',
-            targetRole: pkg.targetRole,
-            isActive: pkg.isActive,
-        });
         setPackageModalOpen(true);
     };
 
@@ -199,12 +216,6 @@ export function AdminVipPackagesPage() {
 
     const openRefundModal = (item: AdminVipPurchase) => {
         setRefundTarget(item);
-        refundForm.setFieldsValue({
-            amount: item.amount,
-            reasonCode: 'CUSTOMER_REQUEST',
-            reason: '',
-            revokeVip: false,
-        });
         setRefundModalOpen(true);
     };
 

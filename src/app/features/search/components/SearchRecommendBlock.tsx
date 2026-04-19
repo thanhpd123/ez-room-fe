@@ -40,25 +40,31 @@ export function SearchRecommendBlock() {
     const navigate = useNavigate();
     const { accessToken, authVerified } = useAuth();
     const [rooms, setRooms] = useState<Room[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!!accessToken);
     const [hint, setHint] = useState<string>('');
 
     useEffect(() => {
         if (!authVerified || !accessToken) {
-            setLoading(false);
-            setRooms([]);
             return;
         }
-        getRecommendRequest({ token: accessToken })
-            .then((res) => {
+
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await getRecommendRequest({ token: accessToken });
                 setRooms((res.data || []).map(recommendItemToRoom));
                 setHint(res.hint || '');
-            })
-            .catch(() => setRooms([]))
-            .finally(() => setLoading(false));
+            } catch {
+                setRooms([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void fetchData();
     }, [authVerified, accessToken]);
 
-    if (loading || rooms.length === 0) return null;
+    if (!accessToken || loading || rooms.length === 0) return null;
 
     return (
         <div className="mb-10">

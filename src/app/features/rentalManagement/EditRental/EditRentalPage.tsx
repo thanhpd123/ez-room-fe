@@ -61,7 +61,7 @@ export function EditRentalPage() {
         status: 'AVAILABLE',
     });
     const [documents, setDocuments] = useState<DocumentsState>(initialDocuments);
-    const [existingDocuments, setExistingDocuments] = useState<Record<string, Array<{id: string, name: string, url?: string}>>>({});
+    const [existingDocuments, setExistingDocuments] = useState<Record<string, Array<{ id: string, name: string, url?: string }>>>({});
     const [deletedDocuments, setDeletedDocuments] = useState<string[]>([]);
     const [errors, setErrors] = useState<FormErrors>({});
     const [isLoading, setIsLoading] = useState(true);
@@ -137,7 +137,7 @@ export function EditRentalPage() {
                 try {
                     const docsReq = await getLandlordRentalDocumentsRequest(rentalId);
                     if (active && docsReq.data?.documents) {
-                        const existingOpts: Record<string, Array<{id: string, name: string, url?: string}>> = {};
+                        const existingOpts: Record<string, Array<{ id: string, name: string, url?: string }>> = {};
                         docsReq.data.documents.forEach((doc) => {
                             let mappedKey = 'other';
                             let label = 'Giấy tờ khác';
@@ -180,7 +180,7 @@ export function EditRentalPage() {
         if (!form.title.trim()) nextErrors.title = 'Tiêu đề là bắt buộc.';
         if (!form.district.trim()) nextErrors.district = 'Phường/xã là bắt buộc.';
         if (!form.address.trim()) nextErrors.address = 'Địa chỉ là bắt buộc.';
-        
+
         const availableRoomNumber = Number(form.available_room);
         if (!Number.isFinite(availableRoomNumber) || availableRoomNumber < 0) {
             nextErrors.available_room = 'Số phòng phải là số nguyên dương.';
@@ -216,7 +216,7 @@ export function EditRentalPage() {
 
         setSubmitError(null);
         setIsSubmitting(true);
-        
+
         // Collect all document files kèm type tương ứng
         const allDocumentFiles: File[] = [];
         const allDocumentTypes: string[] = [];
@@ -331,8 +331,8 @@ export function EditRentalPage() {
                 {oldAddress && (
                     <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
                         <p className="text-sm text-blue-900">
-                            <strong> Cập nhật địa chỉ hành chính:</strong><br/>
-                            Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br/>
+                            <strong> Cập nhật địa chỉ hành chính:</strong><br />
+                            Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br />
                             Bây giờ: <strong>{form.district}, {form.city}</strong>
                         </p>
                     </div>
@@ -440,7 +440,7 @@ export function EditRentalPage() {
                             </p>
                             <div className="grid gap-4 md:grid-cols-2">
                                 {(Object.keys(DOCUMENT_LABELS) as Array<keyof DocumentsState>).map((key) => {
-                                    const { label, required, description, minImages, maxImages } = DOCUMENT_LABELS[key];
+                                    const { label, required, description, maxImages } = DOCUMENT_LABELS[key];
                                     const hasError = errors[key];
                                     return (
                                         <div key={key} className={`bg-white rounded-lg p-3 border ${hasError ? 'border-rose-300' : 'border-slate-200'}`}>
@@ -509,21 +509,20 @@ export function EditRentalPage() {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className={`rounded-xl px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70 ${
-                            isRejected
+                        className={`rounded-xl px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70 ${isRejected
                                 ? 'bg-rose-600 hover:bg-rose-700'
                                 : isEditApproved
-                                  ? 'bg-blue-600 hover:bg-blue-700'
-                                  : 'bg-slate-900 hover:bg-slate-800'
-                        }`}
+                                    ? 'bg-blue-600 hover:bg-blue-700'
+                                    : 'bg-slate-900 hover:bg-slate-800'
+                            }`}
                     >
                         {isSubmitting
                             ? 'Đang lưu...'
                             : isRejected
-                              ? '📤 Lưu & Gửi lại để duyệt'
-                              : isEditApproved
-                                ? '📤 Lưu & Gửi để duyệt lại'
-                                : 'Lưu thay đổi'}
+                                ? '📤 Lưu & Gửi lại để duyệt'
+                                : isEditApproved
+                                    ? '📤 Lưu & Gửi để duyệt lại'
+                                    : 'Lưu thay đổi'}
                     </button>
                 </div>
             </form>

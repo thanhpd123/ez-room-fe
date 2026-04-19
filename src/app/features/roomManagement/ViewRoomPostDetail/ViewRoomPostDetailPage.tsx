@@ -39,7 +39,7 @@ export function ViewRoomPostDetailPage() {
     const { rentalId = '', roomPostId = '' } = useParams();
     const [rentalTitle, setRentalTitle] = useState('');
     const [roomPost, setRoomPost] = useState<ManagedRoomPostItem | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(!!(rentalId && roomPostId));
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -71,8 +71,6 @@ export function ViewRoomPostDetailPage() {
         };
 
         if (!rentalId || !roomPostId) {
-            setIsLoading(false);
-            setRoomPost(null);
             return;
         }
 
@@ -205,7 +203,7 @@ export function ViewRoomPostDetailPage() {
                     <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6">
                         <h3 className="text-lg font-semibold text-slate-900">Xác nhận xóa phòng</h3>
                         <p className="mt-2 text-sm text-slate-600">
-                            Bạn có chắc muốn xóa phòng <strong>"{roomPost?.title}"</strong>? 
+                            Bạn có chắc muốn xóa phòng <strong>"{roomPost?.title}"</strong>?
                             Hành động này không thể hoàn tác.
                         </p>
                         <div className="mt-4 flex justify-end gap-2">
@@ -270,11 +268,10 @@ export function ViewRoomPostDetailPage() {
                                 <button
                                     key={index}
                                     onClick={() => setSelectedImageIndex(index)}
-                                    className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${
-                                        selectedImageIndex === index
+                                    className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${selectedImageIndex === index
                                             ? 'border-slate-900'
                                             : 'border-slate-300 hover:border-slate-400'
-                                    }`}
+                                        }`}
                                 >
                                     <img
                                         src={image}
@@ -317,21 +314,19 @@ export function ViewRoomPostDetailPage() {
                         <div className="flex gap-6">
                             <button
                                 onClick={() => setCurrentTab('details')}
-                                className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                    currentTab === 'details'
+                                className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${currentTab === 'details'
                                         ? 'border-slate-900 text-slate-900'
                                         : 'border-transparent text-slate-600 hover:text-slate-900'
-                                }`}
+                                    }`}
                             >
                                 Chi tiết phòng
                             </button>
                             <button
                                 onClick={() => setCurrentTab('tenants')}
-                                className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                    currentTab === 'tenants'
+                                className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${currentTab === 'tenants'
                                         ? 'border-slate-900 text-slate-900'
                                         : 'border-transparent text-slate-600 hover:text-slate-900'
-                                }`}
+                                    }`}
                             >
                                 Người thuê ({activeTenantCount})
                             </button>
@@ -426,11 +421,10 @@ export function ViewRoomPostDetailPage() {
                                                                 <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
                                                                     Giá: {formatCurrency(rental.actualPrice)}
                                                                 </span>
-                                                                <span className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                                                    rental.status === 'ACTIVE' 
-                                                                        ? 'bg-green-100 text-green-700' 
+                                                                <span className={`rounded-full px-2 py-1 text-xs font-medium ${rental.status === 'ACTIVE'
+                                                                        ? 'bg-green-100 text-green-700'
                                                                         : 'bg-slate-100 text-slate-700'
-                                                                }`}>
+                                                                    }`}>
                                                                     {rental.status === 'ACTIVE' ? 'Đang thuê' : 'Đã kết thúc'}
                                                                 </span>
                                                             </div>
@@ -456,11 +450,10 @@ export function ViewRoomPostDetailPage() {
                                                                 <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
                                                                     Cọc: {formatCurrency(preorder.depositAmount)}
                                                                 </span>
-                                                                <span className={`rounded-full px-2 py-1 text-xs font-medium ${
-                                                                    preorder.paymentStatus === 'PAID'
+                                                                <span className={`rounded-full px-2 py-1 text-xs font-medium ${preorder.paymentStatus === 'PAID'
                                                                         ? 'bg-green-100 text-green-700'
                                                                         : 'bg-yellow-100 text-yellow-700'
-                                                                }`}>
+                                                                    }`}>
                                                                     {preorder.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
                                                                 </span>
                                                             </div>

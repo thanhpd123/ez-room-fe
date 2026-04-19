@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header, Footer } from '@/app/features/home/components';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
@@ -7,22 +7,29 @@ import { getPublicBlogPostBySlugRequest, type BlogPostItem } from '@/lib/api';
 export function BlogDetailPage() {
     const navigate = useNavigate();
     const { slug } = useParams();
-    const [loading, setLoading] = useState(true);
     const [post, setPost] = useState<BlogPostItem | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+    const [lastFetchedSlug, setLastFetchedSlug] = useState<string>('');
+    const loading = !!slug && lastFetchedSlug !== slug;
+
+    const fetchPost = useCallback(async () => {
         if (!slug) return;
-        setLoading(true);
-        setError(null);
-        getPublicBlogPostBySlugRequest(slug)
-            .then((res) => setPost(res.data))
-            .catch((err) => {
-                setPost(null);
-                setError(err instanceof Error ? err.message : 'Không tải được bài viết');
-            })
-            .finally(() => setLoading(false));
+        try {
+            const res = await getPublicBlogPostBySlugRequest(slug);
+            setPost(res.data);
+            setError(null);
+        } catch (err) {
+            setPost(null);
+            setError(err instanceof Error ? err.message : 'Không tải được bài viết');
+        } finally {
+            setLastFetchedSlug(slug);
+        }
     }, [slug]);
+
+    useEffect(() => {
+        fetchPost();
+    }, [fetchPost]);
 
     const publishedAt = post?.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : '';
 

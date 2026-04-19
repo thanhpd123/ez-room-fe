@@ -2,18 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getRentalByIdRequest, deleteRentalRequest, getRejectionInfoRequest } from '@/lib/api';
 import { getSupabasePublicUrl, filterOutDocuments } from '@/lib/supabase-urls';
-import { findOldAddress, type OldAddressInfo } from '@/app/constants/v1-v2-mapping';
 import { RENTAL_STATUS_OPTIONS } from '../shared/types';
 import { LandlordDocumentsViewer } from '../EditRental/components/LandlordDocumentsViewer';
-
-const statusClassName: Record<string, string> = {
-    AVAILABLE: 'bg-emerald-100 text-emerald-700',
-    UNAVAILABLE: 'bg-slate-200 text-slate-600',
-    HIDDEN: 'bg-orange-100 text-orange-700',
-    VIOLATE: 'bg-rose-100 text-rose-700',
-    PENDING: 'bg-amber-100 text-amber-700',
-    SUSPEND: 'bg-red-100 text-red-700',
-};
 
 function formatDateTime(dateString: string) {
     return new Date(dateString).toLocaleString('vi-VN', {
@@ -28,9 +18,6 @@ function formatDateTime(dateString: string) {
 function getStatusLabel(status: string) {
     return RENTAL_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
-
-const DEFAULT_THUMB =
-    'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1400&q=80';
 
 interface RentalDetail {
     id: string;
@@ -57,8 +44,6 @@ export function ViewRentalDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [rental, setRental] = useState<RentalDetail | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [oldAddress, setOldAddress] = useState<OldAddressInfo | null>(null);
-    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [rejectionInfo, setRejectionInfo] = useState<RejectionInfo | null>(null);
@@ -105,23 +90,6 @@ export function ViewRentalDetailPage() {
         };
     }, [rentalId]);
 
-    // Auto-detect old address when location changes
-    useEffect(() => {
-        const district = rental?.location?.district;
-        const city = rental?.location?.city;
-        
-        if (!district || !city) {
-            setOldAddress(null);
-            return;
-        }
-        
-        const loadOldAddress = async () => {
-            const old = await findOldAddress(district, city);
-            setOldAddress(old);
-        };
-        loadOldAddress();
-    }, [rental?.location?.district, rental?.location?.city]);
-
     if (isLoading) {
         return (
             <section className="mx-auto w-full max-w-5xl rounded-2xl border border-slate-200 bg-white p-6">
@@ -163,10 +131,6 @@ export function ViewRentalDetailPage() {
             </section>
         );
     }
-
-    const fullAddress = rental.location
-        ? [rental.location.address, rental.location.district, rental.location.city].filter(Boolean).join(', ')
-        : '';
 
     return (
         <section className="mx-auto w-full max-w-5xl">
@@ -241,7 +205,7 @@ export function ViewRentalDetailPage() {
                     <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6">
                         <h3 className="text-lg font-semibold text-slate-900">Xác nhận xóa</h3>
                         <p className="mt-2 text-sm text-slate-600">
-                            Bạn có chắc muốn xóa bài đăng <strong>"{rental?.title}"</strong>? 
+                            Bạn có chắc muốn xóa bài đăng <strong>"{rental?.title}"</strong>?
                             Hành động này không thể hoàn tác.
                         </p>
                         <div className="mt-4 flex justify-end gap-2">
@@ -280,7 +244,7 @@ export function ViewRentalDetailPage() {
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                 <div className="p-6 md:p-8">
                     <h2 className="mb-6 text-xl font-semibold text-slate-900">Thông tin chi tiết nhà cho thuê</h2>
-                    
+
                     <div className="grid gap-x-6 gap-y-5 md:grid-cols-2">
                         {/* Tiêu đề */}
                         <div className="md:col-span-2">
@@ -303,7 +267,7 @@ export function ViewRentalDetailPage() {
                                 <option value="boarding_house">Boarding house</option>
                             </select>
                         </div>
-                        
+
                         <div>
                             <label className="mb-1.5 block text-sm font-medium text-slate-700">Trạng thái duyệt</label>
                             <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">

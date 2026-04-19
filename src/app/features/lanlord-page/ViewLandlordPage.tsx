@@ -13,30 +13,34 @@ export function ViewLandlordPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [data, setData] = useState<LandlordData | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!!id);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!id) {
-            setLoading(false);
             return;
         }
-        setError(null);
-        setLoading(true);
-        getLandlordProfileRequest(id)
-            .then((res) => {
+
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await getLandlordProfileRequest(id);
                 if (!res?.data) {
                     setError('Dữ liệu không hợp lệ');
                     return;
                 }
                 setData(res.data);
-            })
-            .catch((e) => {
+            } catch (e) {
                 const msg = e instanceof Error ? e.message : 'Không thể tải hồ sơ chủ nhà';
                 setError(msg);
                 console.error('[ViewLandlordPage]', id, e);
-            })
-            .finally(() => setLoading(false));
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void fetchData();
     }, [id]);
 
     const handleLogin = () => navigate('/login');

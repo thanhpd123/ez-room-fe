@@ -10,7 +10,7 @@ import {
     type WalletSummary,
     type WalletTransactionItem,
 } from '@/lib/api';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { trackEvent } from '@/lib/analytics';
 
 type ActionType = 'DEPOSIT' | 'WITHDRAW';

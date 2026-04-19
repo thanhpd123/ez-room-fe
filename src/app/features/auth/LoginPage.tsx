@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HomeOutlined } from '@ant-design/icons';
 import { Alert, Button, Card, Divider, Form, Input, Typography } from 'antd';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { getRedirectByRole } from '@/lib/auth/roleRedirect';
 
 const { Title, Paragraph } = Typography;

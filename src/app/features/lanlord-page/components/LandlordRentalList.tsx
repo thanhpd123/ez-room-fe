@@ -128,7 +128,11 @@ export function LandlordRentalList({ rentals, rooms, stats }: LandlordRentalList
         e.stopPropagation();
         setFavorites((prev) => {
             const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
             return next;
         });
     };
@@ -593,8 +597,8 @@ export function LandlordRentalList({ rentals, rooms, stats }: LandlordRentalList
                                 type="button"
                                 onClick={() => setCurrentPage(pg)}
                                 className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all ${currentPage === pg
-                                        ? 'bg-primary text-white shadow-sm'
-                                        : 'border border-border bg-card text-foreground hover:bg-muted hover:border-primary/30'
+                                    ? 'bg-primary text-white shadow-sm'
+                                    : 'border border-border bg-card text-foreground hover:bg-muted hover:border-primary/30'
                                     }`}
                             >
                                 {pg}

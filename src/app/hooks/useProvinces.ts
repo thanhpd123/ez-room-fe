@@ -15,8 +15,7 @@ export function useProvinces() {
 
     useEffect(() => {
         let cancelled = false;
-        setLoading(true);
-        setError(null);
+        // Không cần set đồng bộ ở đây vì đã khởi tạo mặc định trong useState(true) và useState(null)
         Promise.all([getProvincesV2(), getProvincesWithWardsV2()])
             .then(([v2List, v2WithWards]) => {
                 if (cancelled) return;

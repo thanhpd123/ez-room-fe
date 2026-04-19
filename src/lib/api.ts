@@ -1509,7 +1509,7 @@ export async function updateRentalRequest(
     if (payload.deletedDocuments && payload.deletedDocuments.length > 0) {
         formData.append('deleted_documents', JSON.stringify(payload.deletedDocuments));
     }
-    
+
     if (payload.images && payload.images.length > 0) {
         formData.append('images', JSON.stringify(payload.images));
     }
@@ -1559,6 +1559,28 @@ export interface PublicRental {
 
 export type PublicRentalsSort = 'createdAt_desc' | 'createdAt_asc' | 'title_asc' | 'title_desc';
 
+export interface PublicHomeBannerConfig {
+    enabled: boolean;
+    title: string;
+    subtitle: string;
+    imageUrl: string;
+    ctaText: string;
+    ctaLink: string;
+}
+
+export interface PublicHomeLayoutConfig {
+    sections: Array<{
+        key: 'hero' | 'aiFeature' | 'featuredRooms' | 'recommendedRooms' | 'popularAreas' | 'whyEzRoom';
+        enabled: boolean;
+    }>;
+}
+
+export interface PublicSiteConfig {
+    homeBanner: PublicHomeBannerConfig;
+    homeLayout: PublicHomeLayoutConfig;
+    updatedAt: string | null;
+}
+
 /**
  * GET /public/room-types – distinct room types from available rentals. No auth.
  */
@@ -1569,6 +1591,16 @@ export async function getPublicRoomTypesRequest(): Promise<{
     const res = await fetch(getApiUrl('/public/room-types'), { cache: 'default' });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tải loại phòng');
+    return json;
+}
+
+export async function getPublicSiteConfigRequest(): Promise<{
+    success: boolean;
+    data: PublicSiteConfig;
+}> {
+    const res = await fetch(getApiUrl('/public/site-config'), { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Loi tai cau hinh website');
     return json;
 }
 
@@ -1973,7 +2005,7 @@ export async function getTenantReviewByRentalPeriodRequest(rentalPeriodId: strin
  */
 export async function getTenantReviewsRequest(tenantId: string): Promise<{
     success: boolean;
-    data: any[];
+    data: unknown[];
     stats: {
         totalReviews: number;
         avgRating: number;
@@ -1993,7 +2025,7 @@ export async function getTenantReviewsRequest(tenantId: string): Promise<{
  */
 export async function replyToTenantReviewRequest(reviewId: string, content: string): Promise<{
     success: boolean;
-    data: any;
+    data: unknown;
 }> {
     const res = await authFetch(`/tenant-reviews/${encodeURIComponent(reviewId)}/reply`, {
         method: 'POST',
@@ -2009,7 +2041,7 @@ export async function replyToTenantReviewRequest(reviewId: string, content: stri
  */
 export async function getPendingTenantReviewsRequest(page = 1, limit = 10): Promise<{
     success: boolean;
-    data: any[];
+    data: unknown[];
     pagination: {
         page: number;
         limit: number;
@@ -2033,7 +2065,7 @@ export async function updateTenantReviewStatusRequest(
     notes?: string
 ): Promise<{
     success: boolean;
-    data: any;
+    data: unknown;
 }> {
     const res = await authFetch(
         `/tenant-reviews/${encodeURIComponent(reviewId)}/status/${action}`,
