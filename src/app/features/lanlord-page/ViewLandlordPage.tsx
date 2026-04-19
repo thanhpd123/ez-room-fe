@@ -13,12 +13,11 @@ export function ViewLandlordPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [data, setData] = useState<LandlordData | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!!id);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!id) {
-            setLoading(false);
             return;
         }
         setError(null);

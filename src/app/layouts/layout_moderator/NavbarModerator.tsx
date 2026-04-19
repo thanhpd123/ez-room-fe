@@ -28,7 +28,6 @@ function useDesktop(breakpoint = 768) {
         if (typeof window === 'undefined') return;
         const media = window.matchMedia(`(min-width: ${breakpoint}px)`);
         const listener = (event: MediaQueryListEvent) => setIsDesktop(event.matches);
-        setIsDesktop(media.matches);
         media.addEventListener('change', listener);
         return () => media.removeEventListener('change', listener);
     }, [breakpoint]);

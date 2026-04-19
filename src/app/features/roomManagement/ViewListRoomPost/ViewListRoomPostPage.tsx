@@ -38,7 +38,7 @@ export function ViewListRoomPostPage() {
     const { rentalId = '' } = useParams();
     const [rentalTitle, setRentalTitle] = useState('');
     const [roomPosts, setRoomPosts] = useState<ManagedRoomPostItem[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(!!rentalId);
     const [keyword, setKeyword] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | RoomStatus>('all');
     const [openedWishersRoomId, setOpenedWishersRoomId] = useState<string | null>(null);
@@ -63,9 +63,6 @@ export function ViewListRoomPostPage() {
         };
 
         if (!rentalId) {
-            setIsLoading(false);
-            setRoomPosts([]);
-            setRentalTitle('');
             return;
         }
 

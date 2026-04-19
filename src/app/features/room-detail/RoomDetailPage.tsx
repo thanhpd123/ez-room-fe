@@ -40,7 +40,7 @@ function mapApiToRoomDetailData(api: Record<string, unknown>): RoomDetailData {
   return {
     id: String(api.id ?? ''),
     title: String(api.roomName ?? api.title ?? 'Phòng'),
-    
+
     description: String(api.description ?? ''),
     price: Number(api.price ?? 0),
     area: Number(api.sizeM2 ?? api.area ?? 0),
@@ -67,12 +67,11 @@ export function RoomDetailPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [room, setRoom] = useState<RoomDetailData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!id);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) {
-      setLoading(false);
       return;
     }
     getRoomByIdForSearchRoomateRequest(id)
