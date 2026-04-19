@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw, Navigation, Loader2 } from 'lucide-react';
@@ -47,11 +47,43 @@ const initialFormState: FormState = {
     selectedAmenities: [],
 };
 
+const syncStateFromParams = (params: URLSearchParams, currentForm: FormState): FormState => {
+    const city = params.get('city') || '';
+    const district = params.get('district') || '';
+    const address = params.get('address') || '';
+    const amenitiesParam = params.get('amenities');
+    const minAreaParam = params.get('minArea');
+    const maxAreaParam = params.get('maxArea');
+
+    // Chỉ cập nhật nếu có tham số liên quan
+    if (!city && !district && !address && !amenitiesParam && !minAreaParam && !maxAreaParam) {
+        return currentForm;
+    }
+
+    const next = { ...currentForm, city, district, address };
+    if (amenitiesParam) next.selectedAmenities = amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean);
+    if (minAreaParam) next.minArea = minAreaParam;
+    if (maxAreaParam) next.maxArea = maxAreaParam;
+    return next;
+};
+
 export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoiceResult, onUseMyLocationChange }: SearchByTextProps) {
     const { t } = useTranslation();
     const { accessToken } = useAuth();
     const [searchParams] = useSearchParams();
-    const [formState, setFormState] = useState<FormState>(initialFormState);
+
+    // State cho URL synchronization thay vì useEffect
+    const currentParamsStr = searchParams.toString();
+    const [prevParamsStr, setPrevParamsStr] = useState(currentParamsStr);
+
+    const [formState, setFormState] = useState<FormState>(() => syncStateFromParams(searchParams, initialFormState));
+
+    // Derived state update - an toàn trong React 16.3+ để tránh useEffect
+    if (currentParamsStr !== prevParamsStr) {
+        setPrevParamsStr(currentParamsStr);
+        setFormState((prev) => syncStateFromParams(searchParams, prev));
+    }
+
     const [error, setError] = useState('');
     const [useMyLocation, setUseMyLocation] = useState(false);
     const geo = useGeolocation();
@@ -65,25 +97,6 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
         { value: 'apartment', label: t('search.roomType') },
     ];
     const wardOptions = formState.city ? getWardsFor(formState.city) : [];
-
-    // Sync form with URL when landing on /search?city=...&district=...&address=...&amenities=...&minArea=...&maxArea=...
-    useEffect(() => {
-        const city = searchParams.get('city') || '';
-        const district = searchParams.get('district') || '';
-        const address = searchParams.get('address') || '';
-        const amenitiesParam = searchParams.get('amenities');
-        const minAreaParam = searchParams.get('minArea');
-        const maxAreaParam = searchParams.get('maxArea');
-        if (city || district || address || amenitiesParam || minAreaParam || maxAreaParam) {
-            setFormState((prev) => {
-                const next = { ...prev, city, district, address };
-                if (amenitiesParam) next.selectedAmenities = amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean);
-                if (minAreaParam) next.minArea = minAreaParam;
-                if (maxAreaParam) next.maxArea = maxAreaParam;
-                return next;
-            });
-        }
-    }, [searchParams.toString()]);
 
     const handleInputChange = (key: keyof FormState, value: string) => {
         setFormState((prev) => {
@@ -412,11 +425,10 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
                             {amenitiesList.map((amenity) => (
                                 <label
                                     key={amenity.id}
-                                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
-                                        formState.selectedAmenities.includes(amenity.id)
-                                            ? 'border-primary bg-primary/5'
-                                            : 'border-border hover:border-primary/50'
-                                    } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formState.selectedAmenities.includes(amenity.id)
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-border hover:border-primary/50'
+                                        } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     <input
                                         type="checkbox"

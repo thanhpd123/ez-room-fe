@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapPin, Filter, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
@@ -20,7 +20,6 @@ export function BrowsePage() {
     ], [t]);
     const [searchParams, setSearchParams] = useSearchParams();
     const [rentals, setRentals] = useState<PublicRental[]>([]);
-    const [loading, setLoading] = useState(true);
     const { provinces, getWardsFor } = useProvinces();
     const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 });
 
@@ -29,39 +28,38 @@ export function BrowsePage() {
     const pageFromUrl = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const sortFromUrl = (searchParams.get('sort') as PublicRentalsSort) || 'createdAt_desc';
 
-    const [districtFilter, setDistrictFilter] = useState(districtFromUrl);
-    const [cityFilter, setCityFilter] = useState(cityFromUrl);
-    const [sort, setSort] = useState<PublicRentalsSort>(sortFromUrl);
     const [showFilters, setShowFilters] = useState(false);
 
-    useEffect(() => {
-        setDistrictFilter(districtFromUrl);
-        setCityFilter(cityFromUrl);
-        setSort(sortFromUrl);
-    }, [districtFromUrl, cityFromUrl, sortFromUrl]);
+    // Generate a unique string to represent the current query state
+    const currentParamsStr = `${pageFromUrl}|${districtFromUrl}|${cityFromUrl}|${sortFromUrl}`;
+    const [lastFetchedParams, setLastFetchedParams] = useState<string>('');
+    const loading = lastFetchedParams !== currentParamsStr;
+
+    const fetchRentals = useCallback(async () => {
+        try {
+            const res = await getPublicRentalsRequest({
+                page: pageFromUrl,
+                limit: PAGE_SIZE,
+                district: districtFromUrl || undefined,
+                city: cityFromUrl || undefined,
+                sort: sortFromUrl,
+            });
+            setRentals(res.data || []);
+            setPagination(res.pagination || { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 });
+        } catch {
+            setRentals([]);
+            setPagination((p) => ({ ...p, total: 0, totalPages: 0 }));
+        } finally {
+            setLastFetchedParams(currentParamsStr);
+        }
+    }, [currentParamsStr, pageFromUrl, districtFromUrl, cityFromUrl, sortFromUrl]);
 
     useEffect(() => {
-        setLoading(true);
-        getPublicRentalsRequest({
-            page: pageFromUrl,
-            limit: PAGE_SIZE,
-            district: districtFromUrl || undefined,
-            city: cityFromUrl || undefined,
-            sort: sortFromUrl,
-        })
-            .then((res) => {
-                setRentals(res.data || []);
-                setPagination(res.pagination || { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 });
-            })
-            .catch(() => {
-                setRentals([]);
-                setPagination((p) => ({ ...p, total: 0, totalPages: 0 }));
-            })
-            .finally(() => setLoading(false));
-    }, [pageFromUrl, districtFromUrl, cityFromUrl, sortFromUrl]);
+        fetchRentals();
+    }, [fetchRentals]);
 
     const cityOptions = useMemo(() => provinces.map((p) => p.name), [provinces]);
-    const wardOptions = useMemo(() => getWardsFor(cityFilter).map((w) => w.name), [getWardsFor, cityFilter]);
+    const wardOptions = useMemo(() => getWardsFor(cityFromUrl).map((w) => w.name), [getWardsFor, cityFromUrl]);
 
     const handleLogin = () => navigate('/login');
     const handleRegister = () => navigate('/register');
@@ -69,32 +67,41 @@ export function BrowsePage() {
 
     const updateParams = (updates: { district?: string; city?: string; page?: number; sort?: string }) => {
         const p = new URLSearchParams(searchParams);
-        if (updates.district !== undefined) (updates.district ? p.set('district', updates.district) : p.delete('district'));
-        if (updates.city !== undefined) (updates.city ? p.set('city', updates.city) : p.delete('city'));
-        if (updates.page !== undefined) (updates.page > 1 ? p.set('page', String(updates.page)) : p.delete('page'));
-        if (updates.sort !== undefined) (updates.sort ? p.set('sort', updates.sort) : p.delete('sort'));
+        if (updates.district !== undefined) {
+            if (updates.district) p.set('district', updates.district);
+            else p.delete('district');
+        }
+        if (updates.city !== undefined) {
+            if (updates.city) p.set('city', updates.city);
+            else p.delete('city');
+        }
+        if (updates.page !== undefined) {
+            if (updates.page > 1) p.set('page', String(updates.page));
+            else p.delete('page');
+        }
+        if (updates.sort !== undefined) {
+            if (updates.sort) p.set('sort', updates.sort);
+            else p.delete('sort');
+        }
         setSearchParams(p);
     };
 
     const applyFilters = (district: string, city: string) => {
-        setCityFilter(city);
-        setDistrictFilter(district);
         updateParams({ district, city, page: 1 });
     };
 
     const handleCityChange = (newCity: string) => {
         const wardsInNewCity = new Set(getWardsFor(newCity).map((w) => w.name));
         const validWard =
-            newCity && districtFilter && wardsInNewCity.has(districtFilter) ? districtFilter : '';
+            newCity && districtFromUrl && wardsInNewCity.has(districtFromUrl) ? districtFromUrl : '';
         applyFilters(validWard, newCity);
     };
 
     const handleDistrictChange = (newDistrict: string) => {
-        applyFilters(newDistrict, cityFilter);
+        applyFilters(newDistrict, cityFromUrl);
     };
 
     const handleSortChange = (value: PublicRentalsSort) => {
-        setSort(value);
         updateParams({ sort: value, page: 1 });
     };
 
@@ -128,7 +135,7 @@ export function BrowsePage() {
                     <div className="flex items-center gap-2">
                         <ArrowUpDown className="w-4 h-4 text-muted-foreground shrink-0" />
                         <select
-                            value={sort}
+                            value={sortFromUrl}
                             onChange={(e) => handleSortChange(e.target.value as PublicRentalsSort)}
                             className="px-3 py-2.5 sm:px-4 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 min-h-[44px] text-sm sm:text-base touch-manipulation"
                         >
@@ -150,7 +157,7 @@ export function BrowsePage() {
                                     {t('browse.city')}
                                 </label>
                                 <select
-                                    value={cityFilter}
+                                    value={cityFromUrl}
                                     onChange={(e) => handleCityChange(e.target.value)}
                                     className="w-full px-3 py-2.5 sm:px-4 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 min-h-[44px] touch-manipulation"
                                 >
@@ -168,8 +175,8 @@ export function BrowsePage() {
                                 </label>
                                 <select
                                     value={
-                                        districtFilter && wardOptions.includes(districtFilter)
-                                            ? districtFilter
+                                        districtFromUrl && wardOptions.includes(districtFromUrl)
+                                            ? districtFromUrl
                                             : ''
                                     }
                                     onChange={(e) => handleDistrictChange(e.target.value)}
