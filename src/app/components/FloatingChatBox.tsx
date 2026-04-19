@@ -182,9 +182,9 @@ export function FloatingChatBox() {
             .finally(() => setLoadingConvs(false));
     }, []);
     const loadConversationsRef = useRef(loadConversations);
-    useEffect(() => {
-        loadConversationsRef.current = loadConversations;
-    }, [loadConversations]);
+
+    // eslint-disable-next-line react-hooks/immutability
+    loadConversationsRef.current = loadConversations;
 
     const loadThread = useCallback((peerId: string) => {
         if (peerId === user?.id) return;
@@ -289,6 +289,9 @@ export function FloatingChatBox() {
         const next = messages[index + 1];
         return !next || next.isFromMe || next.senderId !== m.senderId;
     };
+
+    // eslint-disable-next-line react-hooks/immutability
+    loadConversationsRef.current = loadConversations;
 
     if (!user || !chatBox) return null;
 

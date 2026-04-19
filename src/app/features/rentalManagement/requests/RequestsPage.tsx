@@ -142,6 +142,7 @@ export function RequestsPage() {
                 />
                 <select
                     value={statusFilter}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onChange={(e) => setStatusFilter(e.target.value as any)}
                     className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
                 >

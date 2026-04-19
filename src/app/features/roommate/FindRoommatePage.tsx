@@ -34,7 +34,6 @@ import {
     updateRoommateMatchStatusRequest,
     getMyActiveRoomsRequest,
     inviteRoommateRequest,
-    searchRoommatesRequest,
     getTopSearchersByAreaRequest,
     getPreferenceRequest,
     fetchAuthMe,
@@ -277,9 +276,6 @@ export function FindRoommatePage() {
     const [sendingInvite, setSendingInvite] = useState(false);
     const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
     const [copiedLink, setCopiedLink] = useState(false);
-
-    // AI search state
-    const [aiQuery, setAiQuery] = useState('');
 
     // Area searcher state
     const [areaSearchResults, setAreaSearchResults] = useState<AreaSearcherItem[]>([]);
