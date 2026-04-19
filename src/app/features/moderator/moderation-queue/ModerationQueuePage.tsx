@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import {
     assignQueueItem,
     listModerationQueue,

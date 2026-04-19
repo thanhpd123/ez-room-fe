@@ -6,7 +6,7 @@ import type { Room, SortOption } from '../types';
 import { SORT_OPTIONS } from '../constants';
 import { sortRooms } from '../utils';
 import { SearchResultCard } from './SearchResultCard';
-import { useFavorites } from '@/app/context/FavoritesContext';
+import { useFavorites } from '@/app/context/useFavorites';
 
 interface SearchResultsProps {
     results: Room[];

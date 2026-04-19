@@ -19,9 +19,9 @@ import {
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useFavorites } from '@/app/context/FavoritesContext';
-import { useAuth } from '@/app/context/AuthContext';
-import { useChatBox } from '@/app/context/ChatBoxContext';
+import { useFavorites } from '@/app/context/useFavorites';
+import { useAuth } from '@/app/context/useAuth';
+import { useChatBox } from '@/app/context/useChatBox';
 import { RoomReviews } from './RoomReviews';
 import { createPreorderDepositPaymentRequest } from '@/lib/api';
 import { T } from '@/app/components/T';

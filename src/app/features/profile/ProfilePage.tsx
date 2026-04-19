@@ -10,7 +10,7 @@ import {
     CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw,
     CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye,
 } from 'lucide-react';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { ImageUpload } from '@/app/components/ImageUpload';
 import { useProvinces } from '@/app/hooks/useProvinces';
 import {

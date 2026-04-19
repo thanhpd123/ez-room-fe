@@ -9,7 +9,7 @@ import {
     Settings,
     UserCircle2,
 } from 'lucide-react';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 
 type NavbarModeratorProps = {
     onToggleDrawer: () => void;

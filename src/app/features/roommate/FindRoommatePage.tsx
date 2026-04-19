@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/app/features/home/components';
-import { useAuth } from '@/app/context/AuthContext';
-import { useChatBox } from '@/app/context/ChatBoxContext';
+import { useAuth } from '@/app/context/useAuth';
+import { useChatBox } from '@/app/context/useChatBox';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import { RoommateProfileModal } from './RoommateProfileModal';
 import {

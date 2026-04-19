@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { checkQueueStatus, handleViolationReport, listViolationReports, type QueueLockStatus } from '../shared/moderator-storage';
 import type { ReportAction, ReportStatus, ViolationReport } from '../shared/types';
 

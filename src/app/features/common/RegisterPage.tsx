@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, User, Mail, Phone, Lock, Eye, EyeOff, Loader2, Sparkles, Check, Circle } from 'lucide-react';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { suggestPasswordRequest, registerRequest } from '@/lib/api';
 
 function passwordRequirements(pwd: string) {

@@ -12,7 +12,7 @@ import {
     UserCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 
 type RentalManagementNavbarProps = {
     onToggleDrawer: () => void;

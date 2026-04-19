@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useChatBox } from '@/app/context/ChatBoxContext';
-import { useAuth } from '@/app/context/AuthContext';
+import { useChatBox } from '@/app/context/useChatBox';
+import { useAuth } from '@/app/context/useAuth';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import {
     getConversationsRequest,

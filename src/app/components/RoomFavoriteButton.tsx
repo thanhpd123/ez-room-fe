@@ -1,7 +1,7 @@
 import { HeartFilled, HeartOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { useFavorites } from '@/app/context/FavoritesContext';
+import { useFavorites } from '@/app/context/useFavorites';
 import type { FavoriteRoom } from '@/app/context/favorites-context';
 
 type Props = {

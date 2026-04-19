@@ -19,7 +19,7 @@ import {
     LockOutlined,
     BookOutlined,
 } from '@ant-design/icons';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { useTranslation } from 'react-i18next';
 
 const { Header, Sider, Content } = Layout;
