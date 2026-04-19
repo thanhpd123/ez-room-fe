@@ -489,7 +489,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                         <span className="text-muted-foreground">{roomPreview.address}</span>
                                     </div>
                                 )}
-                                        <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4">
                                     <div className="flex items-center gap-1.5 text-sm">
                                         <DollarOutlined className="text-primary" />
                                         <span className="font-semibold text-foreground">
@@ -610,7 +610,14 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                     size="large"
                                     icon={<MessageOutlined />}
                                     className="rounded-xl min-h-12"
-                                    onClick={() => { setMobileMenuOpen(false); chatBox ? chatBox.openChat() : navigate('/chat'); }}
+                                    onClick={() => {
+                                        setMobileMenuOpen(false);
+                                        if (chatBox) {
+                                            chatBox.openChat();
+                                        } else {
+                                            navigate('/chat');
+                                        }
+                                    }}
                                 >
                                     {t('nav.chat')}
                                 </Button>

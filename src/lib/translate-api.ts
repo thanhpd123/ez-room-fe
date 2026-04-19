@@ -68,7 +68,7 @@ export function setCached(text: string, from: string, to: string, translation: s
 
 export function clearTranslationCache() {
     memCache.clear();
-    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
 }
 
 /**

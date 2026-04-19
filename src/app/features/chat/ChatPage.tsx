@@ -78,7 +78,7 @@ function Bubble({
                 <div className={`relative px-4 py-2.5 shadow-sm ${isFromMe
                     ? 'bg-primary text-primary-foreground rounded-[18px_18px_4px_18px]'
                     : 'bg-card text-foreground rounded-[18px_18px_18px_4px] border border-border'
-                }`}>
+                    }`}>
                     <p className="text-[15px] leading-snug whitespace-pre-wrap wrap-break-word">{message.content}</p>
                 </div>
                 <div className={`flex items-center gap-1 mt-0.5 px-1 ${isFromMe ? 'flex-row-reverse' : ''}`}>
@@ -130,7 +130,11 @@ export function ChatPage() {
         socket.on('presence', ({ userId, online }: { userId: string; online: boolean }) => {
             setOnlineUsers((prev) => {
                 const next = new Set(prev);
-                online ? next.add(userId) : next.delete(userId);
+                if (online) {
+                    next.add(userId);
+                } else {
+                    next.delete(userId);
+                }
                 return next;
             });
         });
@@ -278,7 +282,7 @@ export function ChatPage() {
             setPeer(null);
             if (paramUserId) navigate('/chat', { replace: true });
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedPeerId]);
 
     useEffect(() => {

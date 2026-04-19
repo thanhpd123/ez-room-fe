@@ -18,7 +18,6 @@ export function SearchPage() {
     const isLoggedIn = !authLoading && !isGuest;
     const [useMyLocation, setUseMyLocation] = useState(false);
     const basicOnly = !authLoading && isGuest;
-    const guestUrlBasicOnly = authVerified && basicOnly;
 
     const {
         results,
