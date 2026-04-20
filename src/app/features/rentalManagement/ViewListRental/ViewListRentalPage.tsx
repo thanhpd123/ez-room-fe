@@ -15,6 +15,7 @@ const statusClassName: Record<string, string> = {
 };
 
 const ITEMS_PER_PAGE = 5;
+const RENTAL_LIST_CACHE_KEY = 'ezroom:rental-list-cache:v1';
 
 function formatDateTime(dateString: string) {
     return new Date(dateString).toLocaleString('vi-VN', {
@@ -41,6 +42,7 @@ interface RentalListItem {
     createdAt: string;
     location: { id: string; address: string; district: string | null; city: string | null } | null;
     images: string[];
+    imageCount: number;
 }
 
 export function ViewListRentalPage() {
@@ -55,19 +57,44 @@ export function ViewListRentalPage() {
 
     useEffect(() => {
         let active = true;
+        let hasCache = false;
+
+        try {
+            const cachedRaw = sessionStorage.getItem(RENTAL_LIST_CACHE_KEY);
+            if (cachedRaw) {
+                const cached = JSON.parse(cachedRaw) as { rentals?: RentalListItem[] };
+                if (Array.isArray(cached?.rentals)) {
+                    setRentals(cached.rentals);
+                    setIsLoading(false);
+                    hasCache = true;
+                }
+            }
+        } catch {
+            // Ignore cache parsing errors and continue with network fetch.
+        }
+
         const load = async () => {
-            setIsLoading(true);
-            setLoadError(null);
+            if (!hasCache) {
+                setIsLoading(true);
+                setLoadError(null);
+            }
             try {
                 const result = await getMyRentalsRequest({ limit: 100 });
                 if (!active) return;
                 setRentals(result.data);
                 setCurrentPage(1);
+                setPageInput('1');
+                sessionStorage.setItem(
+                    RENTAL_LIST_CACHE_KEY,
+                    JSON.stringify({ rentals: result.data, updatedAt: Date.now() })
+                );
             } catch (err) {
                 if (!active) return;
-                setLoadError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
+                if (!hasCache) {
+                    setLoadError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
+                }
             } finally {
-                if (active) setIsLoading(false);
+                if (active && !hasCache) setIsLoading(false);
             }
         };
         void load();
@@ -242,7 +269,7 @@ export function ViewListRentalPage() {
                                             </div>
                                             <div className="rounded-xl bg-muted/50 px-3 py-2">
                                                 <dt className="text-xs text-muted-foreground">Số ảnh</dt>
-                                                <dd className="font-medium text-foreground">{item.images?.length ?? 0}</dd>
+                                                <dd className="font-medium text-foreground">{item.imageCount ?? item.images?.length ?? 0}</dd>
                                             </div>
                                             <div className="rounded-xl bg-muted/50 px-3 py-2">
                                                 <dt className="text-xs text-muted-foreground">Ngày tạo</dt>

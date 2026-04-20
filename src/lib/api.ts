@@ -1336,6 +1336,7 @@ export async function getMyRentalsRequest(query?: {
         owner: { id: string; fullName: string; avatarUrl: string | null } | null;
         location: { id: string; address: string; district: string | null; city: string | null } | null;
         images: string[];
+        imageCount: number;
     }>;
     pagination: { page: number; limit: number; total: number; totalPages: number };
 }> {

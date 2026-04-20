@@ -2,12 +2,6 @@ import type { CreateManagedRentalInput, ManagedRentalItem } from './types';
 
 const STORAGE_KEY = 'ezroom:rental-management:rentals';
 
-function wait(ms = 150) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-}
-
 function createRentalId() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         return `rental-${crypto.randomUUID()}`;
@@ -40,19 +34,15 @@ function writeStorage(rentals: ManagedRentalItem[]) {
 }
 
 export async function listManagedRentals() {
-    await wait();
     return readStorage();
 }
 
 export async function getManagedRentalById(rentalId: string) {
-    await wait();
     const rentals = readStorage();
     return rentals.find((item) => item.rental_id === rentalId) ?? null;
 }
 
 export async function createManagedRental(payload: CreateManagedRentalInput) {
-    await wait();
-
     const rental: ManagedRentalItem = {
         rental_id: createRentalId(),
         user_id: payload.user_id,
@@ -79,7 +69,6 @@ export async function updateManagedRentalStatus(
     rentalId: string,
     status: ManagedRentalItem['status']
 ) {
-    await wait();
     const current = readStorage();
     const next = current.map((rental) =>
         rental.rental_id === rentalId
