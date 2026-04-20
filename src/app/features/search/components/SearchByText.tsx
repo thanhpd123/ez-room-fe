@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, MapPin, DollarSign, Maximize, Home, AlertCircle, RotateCcw, Navigation, Loader2 } from 'lucide-react';
@@ -47,11 +47,58 @@ const initialFormState: FormState = {
     selectedAmenities: [],
 };
 
+function normalizeAdminPrefix(value: string): string {
+    if (!value) return '';
+    return value
+        .trim()
+        .replace(/^(thành\s*phố|tp\.?|tỉnh)\s+/i, '');
+}
+
+function formStateFromSearchParams(searchParams: URLSearchParams): FormState {
+    const q = searchParams.get('q') || '';
+    const city = normalizeAdminPrefix(searchParams.get('city') || '');
+    const district = normalizeAdminPrefix(searchParams.get('district') || '');
+    const address = searchParams.get('address') || '';
+    const roomType = searchParams.get('roomType') || '';
+    const price = searchParams.get('price') || '';
+    const minPriceParam = searchParams.get('minPrice') || '';
+    const maxPriceParam = searchParams.get('maxPrice') || '';
+    const amenitiesParam = searchParams.get('amenities');
+    const minAreaParam = searchParams.get('minArea');
+    const maxAreaParam = searchParams.get('maxArea');
+
+    const [rawMinPrice, rawMaxPrice] = price
+        .split('-')
+        .map((s) => s.trim())
+        .slice(0, 2);
+    const parsedMin = rawMinPrice && !Number.isNaN(Number(rawMinPrice)) ? rawMinPrice : '';
+    const parsedMax = rawMaxPrice && !Number.isNaN(Number(rawMaxPrice)) ? rawMaxPrice : '';
+    const minPrice = minPriceParam && !Number.isNaN(Number(minPriceParam)) ? minPriceParam : parsedMin;
+    const maxPrice = maxPriceParam && !Number.isNaN(Number(maxPriceParam)) ? maxPriceParam : parsedMax;
+    const selectedAmenities = amenitiesParam
+        ? amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+
+    return {
+        ...initialFormState,
+        q,
+        city,
+        district,
+        address,
+        minPrice,
+        maxPrice,
+        minArea: minAreaParam && !Number.isNaN(Number(minAreaParam)) ? minAreaParam : '',
+        maxArea: maxAreaParam && !Number.isNaN(Number(maxAreaParam)) ? maxAreaParam : '',
+        roomType: (roomType as RoomType | '') || '',
+        selectedAmenities,
+    };
+}
+
 export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoiceResult, onUseMyLocationChange }: SearchByTextProps) {
     const { t } = useTranslation();
     const { accessToken } = useAuth();
     const [searchParams] = useSearchParams();
-    const [formState, setFormState] = useState<FormState>(initialFormState);
+    const [formState, setFormState] = useState<FormState>(() => formStateFromSearchParams(searchParams));
     const [error, setError] = useState('');
     const [useMyLocation, setUseMyLocation] = useState(false);
     const geo = useGeolocation();
@@ -65,25 +112,6 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
         { value: 'apartment', label: t('search.roomType') },
     ];
     const wardOptions = formState.city ? getWardsFor(formState.city) : [];
-
-    // Sync form with URL when landing on /search?city=...&district=...&address=...&amenities=...&minArea=...&maxArea=...
-    useEffect(() => {
-        const city = searchParams.get('city') || '';
-        const district = searchParams.get('district') || '';
-        const address = searchParams.get('address') || '';
-        const amenitiesParam = searchParams.get('amenities');
-        const minAreaParam = searchParams.get('minArea');
-        const maxAreaParam = searchParams.get('maxArea');
-        if (city || district || address || amenitiesParam || minAreaParam || maxAreaParam) {
-            setFormState((prev) => {
-                const next = { ...prev, city, district, address };
-                if (amenitiesParam) next.selectedAmenities = amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean);
-                if (minAreaParam) next.minArea = minAreaParam;
-                if (maxAreaParam) next.maxArea = maxAreaParam;
-                return next;
-            });
-        }
-    }, [searchParams.toString()]);
 
     const handleInputChange = (key: keyof FormState, value: string) => {
         setFormState((prev) => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Crown } from 'lucide-react';
+import { Header, Footer } from '@/app/features/home/components';
 import {
     depositWalletRequest,
     getMyWalletRequest,
@@ -46,6 +47,8 @@ function txTypeLabel(type: WalletTransactionItem['type']): string {
 
 export function WalletPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const embeddedInRentalMgmt = location.pathname.startsWith('/rental-management');
     const { user } = useAuth();
     const [wallet, setWallet] = useState<WalletSummary | null>(null);
     const [transactions, setTransactions] = useState<WalletTransactionItem[]>([]);
@@ -199,7 +202,7 @@ export function WalletPage() {
         }
     };
 
-    return (
+    const content = (
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-foreground">Ví tiền</h1>
@@ -353,6 +356,20 @@ export function WalletPage() {
                         </div>
                     )}
                 </div>
+        </div>
+    );
+
+    if (embeddedInRentalMgmt) {
+        return content;
+    }
+
+    return (
+        <div className="min-h-screen bg-background flex flex-col">
+            <Header onLogin={() => navigate('/login')} onRegister={() => navigate('/register')} />
+            <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
+                {content}
+            </main>
+            <Footer />
         </div>
     );
 }

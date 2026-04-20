@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
     SearchTabs,
@@ -13,6 +14,7 @@ import { Header } from '@/app/features/home/components';
 
 export function SearchPage() {
     const navigate = useNavigate();
+    const [urlSearchParams] = useSearchParams();
     const { t } = useTranslation();
     const { isGuest, isTenant, isVip, loading: authLoading, authVerified } = useAuthLevel();
     const isLoggedIn = !authLoading && !isGuest;
@@ -78,6 +80,7 @@ export function SearchPage() {
                             <>
                                 {activeTab === 'text' ? (
                                     <SearchByText
+                                        key={`search-text-${urlSearchParams.toString()}`}
                                         onSearch={searchByText}
                                         isSearching={isSearching}
                                         basicOnly={basicOnly}
