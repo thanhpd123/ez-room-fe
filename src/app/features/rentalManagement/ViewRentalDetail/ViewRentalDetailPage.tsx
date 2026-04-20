@@ -5,6 +5,8 @@ import { getSupabasePublicUrl, filterOutDocuments } from '@/lib/supabase-urls';
 import { RENTAL_STATUS_OPTIONS } from '../shared/types';
 import { LandlordDocumentsViewer } from '../EditRental/components/LandlordDocumentsViewer';
 
+const RENTAL_DETAIL_CACHE_PREFIX = 'ezroom:rental-detail:v1:';
+
 function formatDateTime(dateString: string) {
     return new Date(dateString).toLocaleString('vi-VN', {
         day: '2-digit',
@@ -47,34 +49,57 @@ export function ViewRentalDetailPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [rejectionInfo, setRejectionInfo] = useState<RejectionInfo | null>(null);
+    const detailCacheKey = `${RENTAL_DETAIL_CACHE_PREFIX}${rentalId}`;
 
     useEffect(() => {
         let active = true;
+        let hasCache = false;
+
+        try {
+            const cachedRaw = sessionStorage.getItem(detailCacheKey);
+            if (cachedRaw) {
+                const cached = JSON.parse(cachedRaw) as { rental?: RentalDetail };
+                if (cached?.rental) {
+                    setRental(cached.rental);
+                    setIsLoading(false);
+                    hasCache = true;
+                }
+            }
+        } catch {
+            // Ignore cache parse errors and continue with network fetch.
+        }
 
         const load = async () => {
-            setIsLoading(true);
-            setLoadError(null);
+            if (!hasCache) {
+                setIsLoading(true);
+                setLoadError(null);
+            }
             try {
                 const result = await getRentalByIdRequest(rentalId);
                 if (!active) return;
                 setRental(result.data);
+                setRejectionInfo(null);
+                sessionStorage.setItem(detailCacheKey, JSON.stringify({ rental: result.data, updatedAt: Date.now() }));
 
                 // Nếu bài đăng bị từ chối (HIDDEN), lấy thông tin từ chối
                 if (result.data.status === 'HIDDEN') {
-                    try {
-                        const rejInfo = await getRejectionInfoRequest('RENTAL', rentalId);
-                        if (active && rejInfo.data?.hasRejection) {
-                            setRejectionInfo(rejInfo.data);
-                        }
-                    } catch {
-                        // Không bắt buộc — nếu fail thì không hiển thị lý do
-                    }
+                    void getRejectionInfoRequest('RENTAL', rentalId)
+                        .then((rejInfo) => {
+                            if (active && rejInfo.data?.hasRejection) {
+                                setRejectionInfo(rejInfo.data);
+                            }
+                        })
+                        .catch(() => {
+                            // Không bắt buộc — nếu fail thì không hiển thị lý do.
+                        });
                 }
             } catch (err) {
                 if (!active) return;
-                setLoadError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
+                if (!hasCache) {
+                    setLoadError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
+                }
             } finally {
-                if (active) setIsLoading(false);
+                if (active && !hasCache) setIsLoading(false);
             }
         };
 
@@ -88,7 +113,7 @@ export function ViewRentalDetailPage() {
         return () => {
             active = false;
         };
-    }, [rentalId]);
+    }, [detailCacheKey, rentalId]);
 
     if (isLoading) {
         return (

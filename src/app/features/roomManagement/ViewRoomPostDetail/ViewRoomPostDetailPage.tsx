@@ -16,6 +16,12 @@ const roomStatusClassName: Record<RoomStatus, string> = {
     MAINTENANCE: 'bg-orange-100 text-orange-700',
 };
 
+const EMPTY_TENANT_DATA: { rentals: RoomTenant[]; preorders: RoomPreorder[] } = {
+    rentals: [],
+    preorders: [],
+};
+const ROOM_POST_DETAIL_CACHE_PREFIX = 'ezroom:room-post-detail:v1:';
+
 function formatCurrency(value: number) {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 }
@@ -45,29 +51,76 @@ export function ViewRoomPostDetailPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [currentTab, setCurrentTab] = useState<'details' | 'tenants'>('details');
     const [showCreateContract, setShowCreateContract] = useState(false);
-    const [tenantData, setTenantData] = useState<{ rentals: RoomTenant[]; preorders: RoomPreorder[] }>({
-        rentals: [],
-        preorders: [],
-    });
+    const [tenantData, setTenantData] = useState<{ rentals: RoomTenant[]; preorders: RoomPreorder[] }>(EMPTY_TENANT_DATA);
     const [isLoadingTenants, setIsLoadingTenants] = useState(false);
     const [hasLoadedTenants, setHasLoadedTenants] = useState(false);
+    const detailCacheKey = `${ROOM_POST_DETAIL_CACHE_PREFIX}${roomPostId}`;
+
+    const loadTenants = useCallback(async () => {
+        if (!roomPostId) return null;
+        if (hasLoadedTenants || isLoadingTenants) return tenantData;
+
+        setIsLoadingTenants(true);
+        try {
+            const data = await getRoomTenants(roomPostId);
+            setTenantData(data);
+            setHasLoadedTenants(true);
+            return data;
+        } finally {
+            setIsLoadingTenants(false);
+        }
+    }, [hasLoadedTenants, isLoadingTenants, roomPostId, tenantData]);
 
     useEffect(() => {
         let active = true;
+        let hasCache = false;
+
+        try {
+            const cachedRaw = sessionStorage.getItem(detailCacheKey);
+            if (cachedRaw) {
+                const cached = JSON.parse(cachedRaw) as { roomPost?: ManagedRoomPostItem; rentalTitle?: string };
+                if (cached?.roomPost) {
+                    setRoomPost(cached.roomPost);
+                    setRentalTitle(cached.rentalTitle ?? '');
+                    setIsLoading(false);
+                    hasCache = true;
+                }
+            }
+        } catch {
+            // Ignore cache parse errors and continue with network fetch.
+        }
 
         const load = async () => {
-            setIsLoading(true);
-            const [rental, post, tenants] = await Promise.all([
-                getManagedRentalById(rentalId),
-                getRoomPostById(rentalId, roomPostId),
-                getRoomTenants(roomPostId),
-            ]);
-            if (!active) return;
-            setRentalTitle(rental?.title ?? '');
-            setRoomPost(post);
-            setTenantData(tenants);
-            setHasLoadedTenants(true);
-            setIsLoading(false);
+            if (!hasCache) {
+                setIsLoading(true);
+                setRentalTitle('');
+            }
+            setTenantData(EMPTY_TENANT_DATA);
+            setHasLoadedTenants(false);
+
+            try {
+                const post = await getRoomPostById(rentalId, roomPostId);
+                if (!active) return;
+                setRoomPost(post);
+                sessionStorage.setItem(
+                    detailCacheKey,
+                    JSON.stringify({ roomPost: post, rentalTitle: hasCache ? rentalTitle : '', updatedAt: Date.now() })
+                );
+            } finally {
+                if (active && !hasCache) {
+                    setIsLoading(false);
+                }
+            }
+
+            void getManagedRentalById(rentalId)
+                .then((rental) => {
+                    if (!active) return;
+                    const title = rental?.title ?? '';
+                    setRentalTitle(title);
+                })
+                .catch(() => {
+                    // Ignore title lookup failures because room detail data is already available.
+                });
         };
 
         if (!rentalId || !roomPostId) {
@@ -78,21 +131,14 @@ export function ViewRoomPostDetailPage() {
         return () => {
             active = false;
         };
-    }, [rentalId, roomPostId]);
+    }, [detailCacheKey, rentalId, roomPostId]);
 
     // Load tenants when tab changes to 'tenants'
     useEffect(() => {
         if (currentTab === 'tenants' && roomPostId && !hasLoadedTenants) {
-            const loadTenants = async () => {
-                setIsLoadingTenants(true);
-                const data = await getRoomTenants(roomPostId);
-                setTenantData(data);
-                setHasLoadedTenants(true);
-                setIsLoadingTenants(false);
-            };
             void loadTenants();
         }
-    }, [currentTab, roomPostId, hasLoadedTenants]);
+    }, [currentTab, roomPostId, hasLoadedTenants, loadTenants]);
 
     const rentalLabel = useMemo(() => rentalTitle || rentalId, [rentalId, rentalTitle]);
     const activeTenantCount = tenantData.rentals.length;
@@ -101,15 +147,21 @@ export function ViewRoomPostDetailPage() {
 
     const refetchRoomAndTenants = useCallback(async () => {
         if (!rentalId || !roomPostId) return;
-        const [rental, post, tenants] = await Promise.all([
-            getManagedRentalById(rentalId),
+        const [post, tenants] = await Promise.all([
             getRoomPostById(rentalId, roomPostId),
             getRoomTenants(roomPostId),
         ]);
-        setRentalTitle(rental?.title ?? '');
         setRoomPost(post);
         setTenantData(tenants);
         setHasLoadedTenants(true);
+
+        void getManagedRentalById(rentalId)
+            .then((rental) => {
+                setRentalTitle(rental?.title ?? '');
+            })
+            .catch(() => {
+                // Ignore title lookup failures because room detail data is already available.
+            });
     }, [rentalId, roomPostId]);
 
     const getImageArray = () => {
@@ -163,20 +215,30 @@ export function ViewRoomPostDetailPage() {
                     {(roomPost.status === 'AVAILABLE' || roomPost.status === 'RENTED') && (
                         <button
                             type="button"
-                            onClick={() => {
-                                if (!isRoomAtCapacity) setShowCreateContract(true);
+                            onClick={async () => {
+                                let latestTenantCount = activeTenantCount;
+                                if (!hasLoadedTenants) {
+                                    const latestData = await loadTenants();
+                                    latestTenantCount = latestData?.rentals.length ?? 0;
+                                }
+
+                                if (latestTenantCount < maxOccupants) {
+                                    setShowCreateContract(true);
+                                }
                             }}
-                            disabled={isRoomAtCapacity}
+                            disabled={isLoadingTenants || isRoomAtCapacity}
                             className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                         >
-                            {isRoomAtCapacity
-                                ? `🚫 Đã đủ người (${activeTenantCount}/${maxOccupants})`
-                                : '📄 Tạo hợp đồng thuê'}
+                            {isLoadingTenants
+                                ? ' Đang kiểm tra chỗ trống...'
+                                : isRoomAtCapacity
+                                ? ` Đã đủ người (${activeTenantCount}/${maxOccupants})`
+                                : ' Thêm người ở'}
                         </button>
                     )}
                     {roomPost.status === 'PENDING' ? (
                         <span className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 cursor-not-allowed">
-                            ⏳ Đang chờ duyệt
+                             Đang chờ duyệt
                         </span>
                     ) : (
                         <button
@@ -184,7 +246,7 @@ export function ViewRoomPostDetailPage() {
                             onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts/${roomPostId}/edit`)}
                             className="rounded-xl border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
                         >
-                            ✏️ Sửa
+                             Sửa
                         </button>
                     )}
                     <button
@@ -192,7 +254,7 @@ export function ViewRoomPostDetailPage() {
                         onClick={() => setShowDeleteConfirm(true)}
                         className="rounded-xl border border-rose-500 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
                     >
-                        🗑️ Xóa
+                         Xóa
                     </button>
                 </div>
             </div>
