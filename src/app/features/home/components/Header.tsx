@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { HomeOutlined, BookOutlined, LoginOutlined, HeartOutlined, LogoutOutlined, UserOutlined, GlobalOutlined, MenuOutlined, MessageOutlined, WalletOutlined, BellOutlined, EnvironmentOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons';
 import { Button, Avatar, Badge, Dropdown, Drawer, Modal, Spin } from 'antd';
 import type { MenuProps } from 'antd';
-import { useFavorites } from '@/app/context/FavoritesContext';
-import { useAuth } from '@/app/context/AuthContext';
-import { useChatBox } from '@/app/context/ChatBoxContext';
+import { useFavorites } from '@/app/context/useFavorites';
+import { useAuth } from '@/app/context/useAuth';
+import { useChatBox } from '@/app/context/useChatBox';
 import { supportedLngs, type SupportedLng } from '@/i18n';
 import { trackEvent } from '@/lib/analytics';
 import { useAppLanguage, type AppLanguage } from '@/app/context/useAppLanguage';
@@ -269,6 +269,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                             </Link>
                         )}
                         {user?.role === 'LANDLORD' && navLink('/rental-management', t('nav.rentalManagement'))}
+                        {user?.role === 'MODERATOR' && navLink('/moderator', 'Kiểm duyệt')}
                         {navLink('/blog', t('nav.blog'), <BookOutlined className="text-sm" />)}
                     </nav>
 
@@ -488,7 +489,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                         <span className="text-muted-foreground">{roomPreview.address}</span>
                                     </div>
                                 )}
-                                        <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4">
                                     <div className="flex items-center gap-1.5 text-sm">
                                         <DollarOutlined className="text-primary" />
                                         <span className="font-semibold text-foreground">
@@ -609,7 +610,14 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                     size="large"
                                     icon={<MessageOutlined />}
                                     className="rounded-xl min-h-12"
-                                    onClick={() => { setMobileMenuOpen(false); chatBox ? chatBox.openChat() : navigate('/chat'); }}
+                                    onClick={() => {
+                                        setMobileMenuOpen(false);
+                                        if (chatBox) {
+                                            chatBox.openChat();
+                                        } else {
+                                            navigate('/chat');
+                                        }
+                                    }}
                                 >
                                     {t('nav.chat')}
                                 </Button>

@@ -12,7 +12,7 @@ import {
     UserCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 
 type RentalManagementNavbarProps = {
     onToggleDrawer: () => void;
@@ -35,7 +35,6 @@ function useDesktop(breakpoint = 768) {
         if (typeof window === 'undefined') return;
         const media = window.matchMedia(`(min-width: ${breakpoint}px)`);
         const listener = (event: MediaQueryListEvent) => setIsDesktop(event.matches);
-        setIsDesktop(media.matches);
         media.addEventListener('change', listener);
         return () => media.removeEventListener('change', listener);
     }, [breakpoint]);

@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Header } from '@/app/features/home/components';
 import {
     User, Heart, Sliders, Loader2, Save, Mail, Phone, Check,
-    Moon, Sparkles, MapPin, Banknote, Crown, X, Sun, Clock,
-    Briefcase, Users, Home, Calendar, Star, Shield, Languages,
-    Thermometer, Volume2, UtensilsCrossed, ChevronDown,
+    Moon, Sparkles, MapPin, Banknote, Crown, X,
+    Users, Home, Calendar, Star, Languages,
+    Volume2, ChevronDown,
     CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw,
-    CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye, ChevronRight,
+    CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye,
 } from 'lucide-react';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { ImageUpload } from '@/app/components/ImageUpload';
 import { useProvinces } from '@/app/hooks/useProvinces';
 import {
@@ -59,21 +59,6 @@ const SLEEP_SCHEDULE_OPTIONS = [
     { value: 'Khuya (sau 0h)', label: '🦉 Khuya (sau 0h)' },
 ];
 
-const QUIET_HOURS_OPTIONS = [
-    { value: '', label: '— Không cần —' },
-    { value: '21h-6h', label: '21h – 6h' },
-    { value: '22h-7h', label: '22h – 7h' },
-    { value: '23h-8h', label: '23h – 8h' },
-];
-
-const TEMPERATURE_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Lạnh', label: '❄️ Lạnh' },
-    { value: 'Mát', label: '🌬️ Mát' },
-    { value: 'Bình thường', label: '🌡️ Bình thường' },
-    { value: 'Ấm', label: '☀️ Ấm' },
-];
-
 const PERSONALITY_OPTIONS = [
     { value: '', label: '— Chọn —' },
     { value: 'Hướng ngoại', label: '🗣️ Hướng ngoại' },
@@ -106,23 +91,6 @@ const NOISE_TOLERANCE_OPTIONS = [
     { value: 'Cao', label: '🔊 Chịu được ồn ào' },
 ];
 
-const OCCUPATION_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Sinh viên', label: '🎓 Sinh viên' },
-    { value: 'Văn phòng', label: '💼 Nhân viên văn phòng' },
-    { value: 'Freelancer', label: '💻 Freelancer' },
-    { value: 'Kinh doanh', label: '🏪 Kinh doanh' },
-    { value: 'Khác', label: 'Khác' },
-];
-
-const COOKING_FREQUENCY_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Không nấu', label: '🍱 Không nấu' },
-    { value: 'Ít', label: '🍳 Thỉnh thoảng' },
-    { value: 'Thường xuyên', label: '👨‍🍳 Thường xuyên' },
-    { value: 'Hàng ngày', label: '🔥 Hàng ngày' },
-];
-
 const GUEST_FREQUENCY_OPTIONS = [
     { value: '', label: '— Chọn —' },
     { value: 'Không bao giờ', label: '🚫 Không bao giờ' },
@@ -139,14 +107,6 @@ const ROOM_TYPE_OPTIONS = [
     { value: 'APARTMENT', label: 'Căn hộ' },
 ];
 
-const PREFERRED_GENDER_OPTIONS = [
-    { value: '', label: 'Không quan tâm' },
-    { value: 'Nam', label: 'Nam' },
-    { value: 'Nữ', label: 'Nữ' },
-    { value: 'Khác', label: 'Khác' },
-];
-
-const COMMON_AMENITIES = ['WiFi', 'Điều hòa', 'Máy giặt', 'Bếp', 'Ban công', 'Bảo vệ 24/7', 'Thang máy', 'Hồ bơi', 'Chỗ để xe', 'Tủ lạnh', 'Nóng lạnh'];
 const INTEREST_SUGGESTIONS = ['Đọc sách', 'Thể thao', 'Âm nhạc', 'Du lịch', 'Nấu ăn', 'Gaming', 'Phim ảnh', 'Yoga', 'Chạy bộ', 'Nhiếp ảnh'];
 const LANGUAGE_SUGGESTIONS = ['Tiếng Việt', 'English', '中文', '한국어', '日本語', 'Français'];
 
@@ -226,7 +186,7 @@ function TagInput({ value, onChange, placeholder, suggestions }: {
 
     return (
         <div>
-            <div className="min-h-[48px] w-full px-3 py-2 bg-background border border-border rounded-xl focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all flex flex-wrap gap-1.5">
+            <div className="min-h-12 w-full px-3 py-2 bg-background border border-border rounded-xl focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
                     <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
                         {tag}
@@ -241,7 +201,7 @@ function TagInput({ value, onChange, placeholder, suggestions }: {
                     onKeyDown={handleKeyDown}
                     onBlur={() => { if (input.trim()) addTag(input); }}
                     placeholder={tags.length === 0 ? placeholder : 'Thêm...'}
-                    className="flex-1 min-w-[120px] bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground py-1"
+                    className="flex-1 min-w-30 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground py-1"
                 />
             </div>
             {suggestions && suggestions.length > 0 && (
@@ -355,6 +315,7 @@ function toPreferenceForm(p: UserPreferenceResponse | null) {
     const defaults = {
         budget_min: '' as number | '', budget_max: '' as number | '',
         preferredLocation: '', preferred_districts: '',
+        preferred_city: '', preferred_ward: '',
         room_type: '', preferred_amenities: '', must_have_amenities: '',
         preferred_lease_months: '' as number | '', move_in_date_min: '', move_in_date_max: '',
         max_distance_km: '' as number | '', transport_nearby: null as boolean | null, pet_friendly: null as boolean | null,
@@ -363,10 +324,14 @@ function toPreferenceForm(p: UserPreferenceResponse | null) {
         lifestyle_match_weight: '' as number | '', safety_priority: '' as number | '',
     };
     if (!p) return defaults;
+    // Parse city/ward from preferred_districts if available
+    const districts = p.preferred_districts ?? [];
     return {
         budget_min: p.budget_min ?? ('' as number | ''), budget_max: p.budget_max ?? ('' as number | ''),
         preferredLocation: p.preferredLocation ?? '',
-        preferred_districts: (p.preferred_districts ?? []).join(', '),
+        preferred_districts: districts.join(', '),
+        preferred_city: '',
+        preferred_ward: districts[0] ?? '',
         room_type: p.room_type ?? '', preferred_amenities: (p.preferred_amenities ?? []).join(', '),
         must_have_amenities: (p.must_have_amenities ?? []).join(', '),
         preferred_lease_months: (p.preferred_lease_months ?? '') as number | '',
@@ -534,7 +499,7 @@ export function ProfilePage() {
         if (tab === 'bookings') {
             loadBookings();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab]);
 
     const avatarUrl = profileForm.avatarUrl?.trim() || user?.avatarUrl;
@@ -677,33 +642,9 @@ export function ProfilePage() {
                                             {SLEEP_SCHEDULE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
                                         </select>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={labelClass}><Sun className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.wakeTime')}</label>
-                                            <input type="text" value={lifestyle.wake_time} onChange={(e) => setLifestyle((l) => ({ ...l, wake_time: e.target.value }))} placeholder="VD: 06:00" className={inputClass} />
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}><Moon className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.bedtime')}</label>
-                                            <input type="text" value={lifestyle.bedtime} onChange={(e) => setLifestyle((l) => ({ ...l, bedtime: e.target.value }))} placeholder="VD: 23:00" className={inputClass} />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={labelClass}><Clock className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.quietHours')}</label>
-                                            <select value={lifestyle.quiet_hours_preference} onChange={(e) => setLifestyle((l) => ({ ...l, quiet_hours_preference: e.target.value }))} className={inputClass}>
-                                                {QUIET_HOURS_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}><Thermometer className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.temperature')}</label>
-                                            <select value={lifestyle.temperature_preference} onChange={(e) => setLifestyle((l) => ({ ...l, temperature_preference: e.target.value }))} className={inputClass}>
-                                                {TEMPERATURE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
                                 </SectionCard>
 
-                                {/* Personality */}
+                                {/* Personality & Daily Life */}
                                 <SectionCard icon={<Users className="w-4 h-4 text-primary" />} title={t('profile.personality')} subtitle={t('profile.personalitySub')}>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
@@ -730,24 +671,6 @@ export function ProfilePage() {
                                                 {CLEANLINESS_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
                                             </select>
                                         </div>
-                                    </div>
-                                </SectionCard>
-
-                                {/* Work & Activities */}
-                                <SectionCard icon={<Briefcase className="w-4 h-4 text-primary" />} title={t('profile.workActivities')} subtitle={t('profile.workActivitiesSub')}>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        <div>
-                                            <label className={labelClass}>{t('profile.occupation')}</label>
-                                            <select value={lifestyle.occupation_type} onChange={(e) => setLifestyle((l) => ({ ...l, occupation_type: e.target.value }))} className={inputClass}>
-                                                {OCCUPATION_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}><UtensilsCrossed className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.cookingFreq')}</label>
-                                            <select value={lifestyle.cooking_frequency} onChange={(e) => setLifestyle((l) => ({ ...l, cooking_frequency: e.target.value }))} className={inputClass}>
-                                                {COOKING_FREQUENCY_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
-                                            </select>
-                                        </div>
                                         <div>
                                             <label className={labelClass}>{t('profile.guestFreq')}</label>
                                             <select value={lifestyle.guest_frequency} onChange={(e) => setLifestyle((l) => ({ ...l, guest_frequency: e.target.value }))} className={inputClass}>
@@ -757,12 +680,30 @@ export function ProfilePage() {
                                     </div>
                                 </SectionCard>
 
-                                {/* Interests & Languages */}
-                                <SectionCard icon={<Languages className="w-4 h-4 text-primary" />} title={t('profile.interestsLang')} subtitle={t('profile.interestsLangSub')}>
-                                    <div>
-                                        <label className={labelClass}>{t('profile.interests')}</label>
-                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.tagHint')}</p>
-                                        <TagInput value={lifestyle.interests} onChange={(v) => setLifestyle((l) => ({ ...l, interests: v }))} placeholder="VD: Đọc sách, Thể thao..." suggestions={INTEREST_SUGGESTIONS} />
+                                {/* Interests */}
+                                <SectionCard icon={<Languages className="w-4 h-4 text-primary" />} title={t('profile.interests')} subtitle={t('profile.interestsLangSub')}>
+                                    <div className="flex flex-wrap gap-2">
+                                        {INTEREST_SUGGESTIONS.map((interest) => {
+                                            const selected = lifestyle.interests.includes(interest);
+                                            return (
+                                                <button
+                                                    key={interest}
+                                                    type="button"
+                                                    onClick={() => setLifestyle((l) => ({
+                                                        ...l,
+                                                        interests: selected
+                                                            ? l.interests.split(', ').filter((i: string) => i !== interest).join(', ')
+                                                            : (l.interests ? l.interests + ', ' + interest : interest),
+                                                    }))}
+                                                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${selected
+                                                        ? 'bg-primary text-primary-foreground border-primary'
+                                                        : 'bg-background text-foreground border-border hover:border-primary/50'
+                                                        }`}
+                                                >
+                                                    {interest}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                     <div>
                                         <label className={labelClass}>{t('profile.languages')}</label>
@@ -787,7 +728,7 @@ export function ProfilePage() {
 
                                 {/* Deal breakers */}
                                 <SectionCard icon={<X className="w-4 h-4 text-primary" />} title={t('profile.dealBreakers')} subtitle={t('profile.dealBreakersSub')}>
-                                    <textarea value={lifestyle.deal_breakers} onChange={(e) => setLifestyle((l) => ({ ...l, deal_breakers: e.target.value }))} placeholder="VD: Hút thuốc trong phòng, Tiệc tùng thường xuyên, Không giữ vệ sinh..." className={`${inputClass} min-h-[80px] resize-y`} maxLength={500} rows={3} />
+                                    <textarea value={lifestyle.deal_breakers} onChange={(e) => setLifestyle((l) => ({ ...l, deal_breakers: e.target.value }))} placeholder="VD: Hút thuốc trong phòng, Tiệc tùng thường xuyên, Không giữ vệ sinh..." className={`${inputClass} min-h-20 resize-y`} maxLength={500} rows={3} />
                                     <p className="text-xs text-muted-foreground">{lifestyle.deal_breakers.length}/500</p>
                                 </SectionCard>
 
@@ -830,22 +771,9 @@ export function ProfilePage() {
                                 {/* Location */}
                                 <SectionCard icon={<MapPin className="w-4 h-4 text-primary" />} title={t('profile.location')} subtitle={t('profile.locationSub')}>
                                     <div>
-                                        <label className={labelClass}>{t('profile.preferredLocation')}</label>
-                                        <input value={preference.preferredLocation} onChange={(e) => setPreference((p) => ({ ...p, preferredLocation: e.target.value }))} placeholder="VD: Gần Đại học Bách Khoa, quận 10..." className={inputClass} />
-                                    </div>
-                                    <div>
                                         <label className={labelClass}>{t('profile.preferredWard')}</label>
                                         <p className="text-xs text-muted-foreground mb-2">{t('profile.preferredWardNote')}</p>
                                         <PreferredDistrictsField preference={preference} setPreference={setPreference} />
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={labelClass}>{t('profile.maxRadius')}</label>
-                                            <input type="number" value={preference.max_distance_km} onChange={(e) => setPreference((p) => ({ ...p, max_distance_km: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 5" min={0} max={50} step={0.5} className={inputClass} />
-                                        </div>
-                                        <div className="flex items-end pb-1">
-                                            <ToggleSwitch checked={preference.transport_nearby === true} onChange={(v) => setPreference((p) => ({ ...p, transport_nearby: v ? true : null }))} label={t('profile.nearTransport')} description={t('profile.nearTransportDesc')} />
-                                        </div>
                                     </div>
                                 </SectionCard>
 
@@ -862,74 +790,9 @@ export function ProfilePage() {
                                             <ToggleSwitch checked={preference.pet_friendly === true} onChange={(v) => setPreference((p) => ({ ...p, pet_friendly: v ? true : null }))} label={t('profile.petFriendly')} description={t('profile.petFriendlyDesc')} />
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className={labelClass}>{t('profile.preferredAmenities')}</label>
-                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.preferredAmenitiesNote')}</p>
-                                        <TagInput value={preference.preferred_amenities} onChange={(v) => setPreference((p) => ({ ...p, preferred_amenities: v }))} placeholder="VD: WiFi, Điều hòa..." suggestions={COMMON_AMENITIES} />
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}>
-                                            {t('profile.mustHaveAmenities')}
-                                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-normal">{t('profile.mustHaveNote')}</span>
-                                        </label>
-                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.mustHaveDesc')}</p>
-                                        <TagInput value={preference.must_have_amenities} onChange={(v) => setPreference((p) => ({ ...p, must_have_amenities: v }))} placeholder="VD: Điều hòa, Máy giặt..." suggestions={COMMON_AMENITIES} />
-                                    </div>
                                 </SectionCard>
 
-                                {/* Timeline */}
-                                <SectionCard icon={<Calendar className="w-4 h-4 text-primary" />} title={t('profile.timeline')} subtitle={t('profile.timelineSub')}>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={labelClass}>{t('profile.moveInMin')}</label>
-                                            <input type="date" value={preference.move_in_date_min} onChange={(e) => setPreference((p) => ({ ...p, move_in_date_min: e.target.value }))} className={inputClass} />
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}>{t('profile.moveInMax')}</label>
-                                            <input type="date" value={preference.move_in_date_max} onChange={(e) => setPreference((p) => ({ ...p, move_in_date_max: e.target.value }))} className={inputClass} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className={labelClass}>{t('profile.preferredLease')}</label>
-                                        <input type="number" value={preference.preferred_lease_months} onChange={(e) => setPreference((p) => ({ ...p, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 6" min={1} max={60} className={inputClass} />
-                                    </div>
-                                </SectionCard>
 
-                                {/* Roommate */}
-                                <SectionCard icon={<Users className="w-4 h-4 text-primary" />} title={t('profile.roommate')} subtitle={t('profile.roommateSub')}>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        <div>
-                                            <label className={labelClass}>{t('profile.roommateGender')}</label>
-                                            <select value={preference.preferred_gender} onChange={(e) => setPreference((p) => ({ ...p, preferred_gender: e.target.value }))} className={inputClass}>
-                                                {PREFERRED_GENDER_OPTIONS.map((o) => <option key={o.value || 'any'} value={o.value}>{o.label}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}>{t('profile.ageMin')}</label>
-                                            <input type="number" value={preference.preferred_roommate_age_min} onChange={(e) => setPreference((p) => ({ ...p, preferred_roommate_age_min: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="18" min={16} max={99} className={inputClass} />
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}>{t('profile.ageMax')}</label>
-                                            <input type="number" value={preference.preferred_roommate_age_max} onChange={(e) => setPreference((p) => ({ ...p, preferred_roommate_age_max: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="35" min={16} max={99} className={inputClass} />
-                                        </div>
-                                    </div>
-                                </SectionCard>
-
-                                {/* AI matching weights */}
-                                <SectionCard icon={<Star className="w-4 h-4 text-primary" />} title={t('profile.aiMatching')} subtitle={t('profile.aiMatchingSub')}>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className={labelClass}><Sparkles className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.lifestyleWeight')}</label>
-                                            <input type="number" value={preference.lifestyle_match_weight} onChange={(e) => setPreference((p) => ({ ...p, lifestyle_match_weight: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 0.7" min={0} max={1} step={0.05} className={inputClass} />
-                                            <p className="text-xs text-muted-foreground mt-1">{t('profile.weightNote')}</p>
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}><Shield className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.safetyPriority')}</label>
-                                            <input type="number" value={preference.safety_priority} onChange={(e) => setPreference((p) => ({ ...p, safety_priority: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 7" min={0} max={10} className={inputClass} />
-                                            <p className="text-xs text-muted-foreground mt-1">{t('profile.safetyNote')}</p>
-                                        </div>
-                                    </div>
-                                </SectionCard>
 
                                 <button type="submit" disabled={preferenceSaving} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm">
                                     {preferenceSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t('profile.savePreference')}
@@ -1106,16 +969,16 @@ export function ProfilePage() {
 type TFunc = (key: string, opts?: Record<string, unknown>) => string;
 
 const PREORDER_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
-    PENDING:   { label: 'Chờ xác nhận', icon: Clock3,         color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
-    CONFIRMED: { label: 'Đã xác nhận',  icon: CheckCircle2,   color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-    CANCELLED: { label: 'Đã hủy',       icon: XCircle,        color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
-    EXPIRED:   { label: 'Hết hạn',      icon: AlertCircle,    color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
+    PENDING: { label: 'Chờ xác nhận', icon: Clock3, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+    CONFIRMED: { label: 'Đã xác nhận', icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    CANCELLED: { label: 'Đã hủy', icon: XCircle, color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
+    EXPIRED: { label: 'Hết hạn', icon: AlertCircle, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' },
 };
 
 const PAYMENT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    UNPAID:   { label: 'Chưa thanh toán', color: 'text-amber-600' },
-    PAID:     { label: 'Đã thanh toán',   color: 'text-emerald-600' },
-    REFUNDED: { label: 'Đã hoàn tiền',    color: 'text-blue-600' },
+    UNPAID: { label: 'Chưa thanh toán', color: 'text-amber-600' },
+    PAID: { label: 'Đã thanh toán', color: 'text-emerald-600' },
+    REFUNDED: { label: 'Đã hoàn tiền', color: 'text-blue-600' },
 };
 
 function PreorderCard({
@@ -1294,15 +1157,15 @@ function PreorderCard({
 // ─── ProfileBookingCard (full-featured with Review, Report, Contact, Roommates) ──
 
 const BOOKING_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
-    active:    { label: 'Đang thuê',   icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-    completed: { label: 'Đã kết thúc', icon: Clock3,       color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200' },
-    cancelled: { label: 'Đã hủy',      icon: XCircle,      color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
+    active: { label: 'Đang thuê', icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    completed: { label: 'Đã kết thúc', icon: Clock3, color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' },
+    cancelled: { label: 'Đã hủy', icon: XCircle, color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
 };
 
 const FEEDBACK_STATUS_CFG: Record<string, { bg: string; text: string; label: string }> = {
-    PENDING:  { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Đang chờ duyệt' },
+    PENDING: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Đang chờ duyệt' },
     APPROVED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Đã công khai' },
-    REJECTED: { bg: 'bg-red-100',   text: 'text-red-800',   label: 'Bị từ chối' },
+    REJECTED: { bg: 'bg-red-100', text: 'text-red-800', label: 'Bị từ chối' },
 };
 
 function ProfileBookingCard({ item, onWriteReview, onViewReview, onReport, onContactLandlord, onViewRoom }: {
@@ -1341,7 +1204,7 @@ function ProfileBookingCard({ item, onWriteReview, onViewReview, onReport, onCon
             const rated = new Set(results.filter(Boolean) as string[]);
             setRatedIds(rated);
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item.rentalPeriodId]);
 
     return (

@@ -79,9 +79,6 @@ export function RoomsPage() {
     const [rooms, setRooms] = useState<PublicRoomItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, pages: 0 });
-    const [draftMinPrice, setDraftMinPrice] = useState('');
-    const [draftMaxPrice, setDraftMaxPrice] = useState('');
-    const [priceApplyError, setPriceApplyError] = useState('');
 
     const roomTypeFromUrl = searchParams.get('roomType') || '';
     const pageFromUrl = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
@@ -89,19 +86,19 @@ export function RoomsPage() {
     const minPriceFromUrl = parsePriceQuery(searchParams.get('minPrice'));
     const maxPriceFromUrl = parsePriceQuery(searchParams.get('maxPrice'));
 
-    const [activeType, setActiveType] = useState(roomTypeFromUrl);
-    const [activeSort, setActiveSort] = useState<PublicRoomsSort>(sortFromUrl);
+    const [draftMinPrice, setDraftMinPrice] = useState(minPriceFromUrl != null ? String(minPriceFromUrl) : '');
+    const [draftMaxPrice, setDraftMaxPrice] = useState(maxPriceFromUrl != null ? String(maxPriceFromUrl) : '');
+    const [priceApplyError, setPriceApplyError] = useState('');
+    const [prevMinPrice, setPrevMinPrice] = useState(minPriceFromUrl);
+    const [prevMaxPrice, setPrevMaxPrice] = useState(maxPriceFromUrl);
 
-    useEffect(() => {
-        setActiveType(roomTypeFromUrl);
-        setActiveSort(sortFromUrl);
-    }, [roomTypeFromUrl, sortFromUrl]);
-
-    useEffect(() => {
+    if (minPriceFromUrl !== prevMinPrice || maxPriceFromUrl !== prevMaxPrice) {
+        setPrevMinPrice(minPriceFromUrl);
+        setPrevMaxPrice(maxPriceFromUrl);
         setDraftMinPrice(minPriceFromUrl != null ? String(minPriceFromUrl) : '');
         setDraftMaxPrice(maxPriceFromUrl != null ? String(maxPriceFromUrl) : '');
         setPriceApplyError('');
-    }, [minPriceFromUrl, maxPriceFromUrl]);
+    }
 
     const typeTabs = useMemo(() => {
         const fallback = [
@@ -115,6 +112,8 @@ export function RoomsPage() {
     }, [roomTypeOptions, t]);
 
     useEffect(() => {
+        // Phải set loading để show UI skeleton mỗi khi URL params thay đổi
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoading(true);
         getPublicRoomsRequest({
             page: pageFromUrl,
@@ -137,23 +136,25 @@ export function RoomsPage() {
 
     const updateParams = useCallback(
         (updates: Record<string, string | undefined>) => {
-            const p = new URLSearchParams(searchParams);
-            for (const [key, val] of Object.entries(updates)) {
-                if (val) p.set(key, val);
-                else p.delete(key);
-            }
-            setSearchParams(p);
+            setSearchParams((prev) => {
+                const p = new URLSearchParams(prev);
+                for (const [key, val] of Object.entries(updates)) {
+                    if (val) p.set(key, val);
+                    else p.delete(key);
+                }
+                return p;
+            });
         },
-        [searchParams, setSearchParams]
+        [setSearchParams]
     );
 
     const handleTypeChange = (type: string) => {
-        setActiveType(type);
+
         updateParams({ roomType: type || undefined, page: undefined });
     };
 
     const handleSortChange = (sort: PublicRoomsSort) => {
-        setActiveSort(sort);
+
         updateParams({
             sort: sort === 'newest' ? undefined : sort,
             page: undefined,
@@ -246,7 +247,7 @@ export function RoomsPage() {
                             <button
                                 key={tab.value || 'all'}
                                 type="button"
-                                className={`rooms-cat-btn ${activeType === tab.value ? 'active' : ''}`}
+                                className={`rooms-cat-btn ${roomTypeFromUrl === tab.value ? 'active' : ''}`}
                                 onClick={() => handleTypeChange(tab.value)}
                             >
                                 {tab.label}
@@ -266,7 +267,7 @@ export function RoomsPage() {
                         <button
                             key={opt.value}
                             type="button"
-                            className={`rooms-sort-tab ${activeSort === opt.value ? 'active' : ''}`}
+                            className={`rooms-sort-tab ${sortFromUrl === opt.value ? 'active' : ''}`}
                             onClick={() => handleSortChange(opt.value)}
                         >
                             {t(opt.labelKey)}
@@ -281,8 +282,8 @@ export function RoomsPage() {
                             {activePreset
                                 ? t(activePreset.labelKey)
                                 : hasCustomPrice
-                                  ? t('rooms.customPrice')
-                                  : t('rooms.priceAny')}
+                                    ? t('rooms.customPrice')
+                                    : t('rooms.priceAny')}
                         </span>
                     </summary>
                     <div className="rooms-price-chips">
@@ -290,15 +291,14 @@ export function RoomsPage() {
                             <button
                                 key={preset.id}
                                 type="button"
-                                className={`rooms-price-chip ${
-                                    preset.id === 'any'
-                                        ? minPriceFromUrl == null && maxPriceFromUrl == null
-                                            ? 'active'
-                                            : ''
-                                        : activePreset?.id === preset.id
-                                          ? 'active'
-                                          : ''
-                                }`}
+                                className={`rooms-price-chip ${preset.id === 'any'
+                                    ? minPriceFromUrl == null && maxPriceFromUrl == null
+                                        ? 'active'
+                                        : ''
+                                    : activePreset?.id === preset.id
+                                        ? 'active'
+                                        : ''
+                                    }`}
                                 onClick={() => handlePricePreset(preset)}
                             >
                                 {t(preset.labelKey)}
@@ -358,11 +358,11 @@ export function RoomsPage() {
                         {loading
                             ? '...'
                             : roomTypeFromUrl
-                              ? t('rooms.showingFiltered', {
+                                ? t('rooms.showingFiltered', {
                                     total: pagination.total,
                                     type: activeTypeLabel,
                                 })
-                              : t('rooms.showing', { total: pagination.total })}
+                                : t('rooms.showing', { total: pagination.total })}
                     </span>
                     <span>{t('rooms.page', { page: pagination.page, total: pagination.pages || 1 })}</span>
                 </div>

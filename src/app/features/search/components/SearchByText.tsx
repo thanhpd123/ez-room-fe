@@ -94,11 +94,39 @@ function formStateFromSearchParams(searchParams: URLSearchParams): FormState {
     };
 }
 
+const syncStateFromParams = (params: URLSearchParams, currentForm: FormState): FormState => {
+    const city = normalizeAdminPrefix(params.get('city') || '');
+    const district = normalizeAdminPrefix(params.get('district') || '');
+    const address = params.get('address') || '';
+    const amenitiesParam = params.get('amenities');
+    const minAreaParam = params.get('minArea');
+    const maxAreaParam = params.get('maxArea');
+
+    if (!city && !district && !address && !amenitiesParam && !minAreaParam && !maxAreaParam) {
+        return currentForm;
+    }
+
+    const next = { ...currentForm, city, district, address };
+    if (amenitiesParam) next.selectedAmenities = amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean);
+    if (minAreaParam) next.minArea = minAreaParam;
+    if (maxAreaParam) next.maxArea = maxAreaParam;
+    return next;
+};
+
 export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoiceResult, onUseMyLocationChange }: SearchByTextProps) {
     const { t } = useTranslation();
     const { accessToken } = useAuth();
     const [searchParams] = useSearchParams();
+
+    const currentParamsStr = searchParams.toString();
+    const [prevParamsStr, setPrevParamsStr] = useState(currentParamsStr);
+
     const [formState, setFormState] = useState<FormState>(() => formStateFromSearchParams(searchParams));
+
+    if (currentParamsStr !== prevParamsStr) {
+        setPrevParamsStr(currentParamsStr);
+        setFormState((prev) => syncStateFromParams(searchParams, prev));
+    }
     const [error, setError] = useState('');
     const [useMyLocation, setUseMyLocation] = useState(false);
     const geo = useGeolocation();
@@ -440,11 +468,10 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
                             {amenitiesList.map((amenity) => (
                                 <label
                                     key={amenity.id}
-                                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
-                                        formState.selectedAmenities.includes(amenity.id)
-                                            ? 'border-primary bg-primary/5'
-                                            : 'border-border hover:border-primary/50'
-                                    } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${formState.selectedAmenities.includes(amenity.id)
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-border hover:border-primary/50'
+                                        } ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     <input
                                         type="checkbox"

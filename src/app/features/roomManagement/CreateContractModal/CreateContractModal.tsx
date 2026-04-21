@@ -15,10 +15,6 @@ interface CreateContractModalProps {
     onSuccess: () => void;
 }
 
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-}
-
 export function CreateContractModal({
     isOpen,
     onClose,
@@ -36,8 +32,6 @@ export function CreateContractModal({
 
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [actualPrice, setActualPrice] = useState(String(listedPrice));
-    const [deposit, setDeposit] = useState('');
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,8 +68,6 @@ export function CreateContractModal({
     const validateStep2 = (): boolean => {
         const errs: Record<string, string> = {};
         if (!startDate) errs.startDate = 'Chọn ngày bắt đầu thuê';
-        const price = parseFloat(actualPrice);
-        if (isNaN(price) || price <= 0) errs.actualPrice = 'Giá thuê không hợp lệ';
         setFormErrors(errs);
         return Object.keys(errs).length === 0;
     };
@@ -92,15 +84,15 @@ export function CreateContractModal({
                 tenantId: selectedTenant!.id,
                 startDate,
                 endDate: endDate || undefined,
-                actualPrice: parseFloat(actualPrice),
-                deposit: deposit ? parseFloat(deposit) : 0,
+                actualPrice: listedPrice,
+                deposit: 0,
             };
             await createRentalContract(roomId, input);
             onSuccess();
             onClose();
             resetForm();
         } catch (e: unknown) {
-            setSubmitError((e as Error)?.message || 'Tạo hợp đồng thất bại');
+            setSubmitError((e as Error)?.message || 'Thêm người ở thất bại');
         } finally {
             setIsSubmitting(false);
         }
@@ -113,8 +105,6 @@ export function CreateContractModal({
         setSelectedTenant(null);
         setStartDate('');
         setEndDate('');
-        setActualPrice(String(listedPrice));
-        setDeposit('');
         setFormErrors({});
         setSearchError(null);
         setSubmitError(null);
@@ -131,7 +121,7 @@ export function CreateContractModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="mx-4 w-full max-w-lg rounded-2xl bg-white shadow-xl">
                 <div className="border-b border-slate-200 px-6 py-4">
-                    <h3 className="text-lg font-semibold text-slate-900">Tạo hợp đồng thuê phòng</h3>
+                    <h3 className="text-lg font-semibold text-slate-900">Thêm người ở</h3>
                     <p className="mt-0.5 text-sm text-slate-600">{roomTitle}</p>
                 </div>
 
@@ -141,9 +131,8 @@ export function CreateContractModal({
                         {[1, 2, 3].map((s) => (
                             <span
                                 key={s}
-                                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                                    step >= s ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'
-                                }`}
+                                className={`rounded-full px-3 py-1 text-xs font-medium ${step >= s ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'
+                                    }`}
                             >
                                 Bước {s}
                             </span>
@@ -217,7 +206,7 @@ export function CreateContractModal({
                         </div>
                     )}
 
-                    {/* Step 2: Contract details */}
+                    {/* Step 2: Occupancy details */}
                     {step === 2 && (
                         <div className="space-y-4">
                             {selectedTenant && (
@@ -248,11 +237,10 @@ export function CreateContractModal({
                                     type="date"
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
-                                    className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-1 ${
-                                        formErrors.startDate
+                                    className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-1 ${formErrors.startDate
                                             ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500'
                                             : 'border-slate-300 focus:border-slate-900 focus:ring-slate-900'
-                                    }`}
+                                        }`}
                                 />
                                 {formErrors.startDate && (
                                     <p className="mt-1 text-sm text-rose-600">{formErrors.startDate}</p>
@@ -270,53 +258,13 @@ export function CreateContractModal({
                                     className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                                 />
                             </div>
-
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-slate-700">
-                                    Giá thuê thực tế (VNĐ) *
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="100000"
-                                    value={actualPrice}
-                                    onChange={(e) => setActualPrice(e.target.value)}
-                                    placeholder={String(listedPrice)}
-                                    className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-1 ${
-                                        formErrors.actualPrice
-                                            ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500'
-                                            : 'border-slate-300 focus:border-slate-900 focus:ring-slate-900'
-                                    }`}
-                                />
-                                <p className="mt-0.5 text-xs text-slate-500">
-                                    Giá niêm yết: {formatCurrency(listedPrice)}
-                                </p>
-                                {formErrors.actualPrice && (
-                                    <p className="mt-1 text-sm text-rose-600">{formErrors.actualPrice}</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-slate-700">
-                                    Tiền cọc (VNĐ)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="100000"
-                                    value={deposit}
-                                    onChange={(e) => setDeposit(e.target.value)}
-                                    placeholder="0"
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                                />
-                            </div>
                         </div>
                     )}
 
                     {/* Step 3: Confirm */}
                     {step === 3 && (
                         <div className="space-y-4">
-                            <p className="text-sm text-slate-600">Xác nhận thông tin trước khi tạo hợp đồng:</p>
+                            <p className="text-sm text-slate-600">Xác nhận thông tin trước khi thêm người ở:</p>
                             <dl className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
                                 <div>
                                     <dt className="text-slate-500">Người thuê</dt>
@@ -339,16 +287,6 @@ export function CreateContractModal({
                                         <dd className="font-medium text-slate-900">
                                             {new Date(endDate).toLocaleDateString('vi-VN')}
                                         </dd>
-                                    </div>
-                                )}
-                                <div>
-                                    <dt className="text-slate-500">Giá thuê</dt>
-                                    <dd className="font-medium text-slate-900">{formatCurrency(parseFloat(actualPrice))}</dd>
-                                </div>
-                                {deposit && parseFloat(deposit) > 0 && (
-                                    <div>
-                                        <dt className="text-slate-500">Tiền cọc</dt>
-                                        <dd className="font-medium text-slate-900">{formatCurrency(parseFloat(deposit))}</dd>
                                     </div>
                                 )}
                             </dl>
@@ -381,7 +319,7 @@ export function CreateContractModal({
                         </button>
                         {step === 1 && (
                             <span className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-500">
-                                Chọn người thuê trước
+                                Chọn người ở trước
                             </span>
                         )}
                         {step === 2 && (
@@ -400,7 +338,7 @@ export function CreateContractModal({
                                 disabled={isSubmitting}
                                 className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                             >
-                                {isSubmitting ? 'Đang tạo...' : 'Tạo hợp đồng'}
+                                {isSubmitting ? 'Đang thêm...' : 'Thêm người ở'}
                             </button>
                         )}
                     </div>

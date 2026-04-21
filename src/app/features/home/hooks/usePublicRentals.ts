@@ -88,11 +88,10 @@ export function usePublicRentals(options?: { district?: string; city?: string; l
 
 export function useUserInHanoi(): { inHanoi: boolean; loading: boolean } {
     const [inHanoi, setInHanoi] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => typeof navigator !== 'undefined' && !!navigator.geolocation);
 
     useEffect(() => {
         if (!navigator.geolocation) {
-            setLoading(false);
             return;
         }
         navigator.geolocation.getCurrentPosition(

@@ -859,6 +859,11 @@ export interface RoommateSuggestionItem {
     } | null;
     preference: { preferred_districts: string[]; room_type: string | null; budget_min: number | null; budget_max: number | null; preferredLocation: string | null } | null;
     matchScore: number;
+    cfScore: number;
+    experienceScore: number;
+    wouldLiveAgainRate: number | null;
+    isSameGender: boolean;
+    matchStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED' | null;
 }
 
 export async function getRoommateSuggestionsRequest(limit?: number): Promise<{
@@ -963,6 +968,51 @@ export async function getRoommateProfileRequest(userId: string): Promise<{
     const res = await authFetch(`/roommate/profile/${encodeURIComponent(userId)}`);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải hồ sơ');
+    return data;
+}
+
+/** "Có thể bạn quan tâm" — People You May Know (based on room interaction areas) */
+export interface PymkReason {
+    type: 'same_area_search' | 'random_suggestion';
+    area?: string;
+    activity?: {
+        views: number;
+        favorites: number;
+        preorders: number;
+        totalScore: number;
+    };
+}
+
+export interface PeopleYouMayKnowItem {
+    user: { id: string; fullName: string; avatarUrl: string | null; gender: string | null };
+    lifestyle: {
+        smoking: boolean | null;
+        drinking: boolean | null;
+        pets_allowed: boolean | null;
+        sleep_schedule: string | null;
+        personalityType: string | null;
+        cleanliness: string | null;
+        noise_tolerance: string | null;
+        guest_frequency: string | null;
+        interests: string[];
+        deal_breakers: string | null;
+    } | null;
+    reasons: PymkReason[];
+    matchStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED' | null;
+    matchScore: number;
+    areaName: string | null;
+}
+
+export async function getPeopleYouMayKnowRequest(): Promise<{
+    success: boolean;
+    data: PeopleYouMayKnowItem[];
+    isRandom?: boolean;
+    topAreas?: string[];
+    groupedByArea?: { area: string; users: PeopleYouMayKnowItem[] }[];
+}> {
+    const res = await authFetch('/roommate/people-you-may-know');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Lỗi tải gợi ý "Có thể bạn quan tâm"');
     return data;
 }
 
@@ -1100,6 +1150,7 @@ export interface AreaSearcherItem {
     } | null;
     matchScore: number;
     isSameGender: boolean;
+    matchStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED' | null;
     activityInArea: AreaSearcherActivity;
 }
 
@@ -1231,6 +1282,7 @@ export async function createRentalRequest(body: {
     address: string;
     imageUrls?: string[];     // URLs từ MultiImageUpload
     documentFiles?: File[];    // Files để upload Supabase
+    documentTypes?: string[];  // Tương ứng 1-1 với documentFiles
 }): Promise<{ success: boolean; data: Record<string, unknown>; message: string }> {
     const token = await getAccessToken();
     if (!token) throw new Error('Cần đăng nhập để tạo bài đăng');
@@ -1248,10 +1300,11 @@ export async function createRentalRequest(body: {
         formData.append('images', JSON.stringify(body.imageUrls));
     }
 
-    // Add document files
+    // Add document files kèm document_type tương ứng
     if (body.documentFiles && body.documentFiles.length > 0) {
-        for (const file of body.documentFiles) {
-            formData.append('file', file);
+        for (let i = 0; i < body.documentFiles.length; i++) {
+            formData.append('file', body.documentFiles[i]);
+            formData.append('document_type', body.documentTypes?.[i] ?? 'OTHER');
         }
     }
 
@@ -1283,6 +1336,7 @@ export async function getMyRentalsRequest(query?: {
         owner: { id: string; fullName: string; avatarUrl: string | null } | null;
         location: { id: string; address: string; district: string | null; city: string | null } | null;
         images: string[];
+        imageCount: number;
     }>;
     pagination: { page: number; limit: number; total: number; totalPages: number };
 }> {
@@ -1320,6 +1374,29 @@ export async function getRentalByIdRequest(rentalId: string): Promise<{
     if (!res.ok) throw new Error(data?.message || 'Lấy chi tiết thất bại');
     return data;
 }
+
+/**
+ * GET /rentals/:rentalId/landlord-documents – fetch landlord's own specific documents.
+ */
+export async function getLandlordRentalDocumentsRequest(rentalId: string): Promise<{
+    success: boolean;
+    data: {
+        id: string;
+        documents: Array<{
+            id: string;
+            documentType: string;
+            status: string;
+            signedUrl: string | null;
+            uploadedAt: string;
+        }>;
+    };
+}> {
+    const res = await authFetch(`/rentals/${rentalId}/landlord-documents`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Lấy giấy tờ thất bại');
+    return data;
+}
+
 
 /**
  * GET /rentals/moderation – moderator fetches all rentals for review.
@@ -1417,11 +1494,37 @@ export async function updateRentalRequest(
         images?: string[];
         status?: 'AVAILABLE' | 'UNAVAILABLE' | 'HIDDEN';
         resubmit?: boolean;
+        documentFiles?: File[];
+        documentTypes?: string[];
+        deletedDocuments?: string[];
     }
 ): Promise<{ success: boolean; message: string; data: Record<string, unknown> }> {
+    const formData = new FormData();
+    if (payload.title !== undefined) formData.append('title', payload.title);
+    if (payload.description !== undefined) formData.append('description', payload.description);
+    if (payload.address !== undefined) formData.append('address', payload.address);
+    if (payload.district !== undefined) formData.append('district', payload.district);
+    if (payload.city !== undefined) formData.append('city', payload.city);
+    if (payload.status !== undefined) formData.append('status', payload.status);
+    if (payload.resubmit !== undefined) formData.append('resubmit', String(payload.resubmit));
+    if (payload.deletedDocuments && payload.deletedDocuments.length > 0) {
+        formData.append('deleted_documents', JSON.stringify(payload.deletedDocuments));
+    }
+
+    if (payload.images && payload.images.length > 0) {
+        formData.append('images', JSON.stringify(payload.images));
+    }
+
+    if (payload.documentFiles && payload.documentFiles.length > 0) {
+        for (let i = 0; i < payload.documentFiles.length; i++) {
+            formData.append('file', payload.documentFiles[i]);
+            formData.append('document_type', payload.documentTypes?.[i] ?? 'OTHER');
+        }
+    }
+
     const res = await authFetch(`/rentals/${rentalId}`, {
         method: 'PUT',
-        body: JSON.stringify(payload),
+        body: formData,
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Cập nhật bài đăng thất bại');
@@ -1457,6 +1560,28 @@ export interface PublicRental {
 
 export type PublicRentalsSort = 'createdAt_desc' | 'createdAt_asc' | 'title_asc' | 'title_desc';
 
+export interface PublicHomeBannerConfig {
+    enabled: boolean;
+    title: string;
+    subtitle: string;
+    imageUrl: string;
+    ctaText: string;
+    ctaLink: string;
+}
+
+export interface PublicHomeLayoutConfig {
+    sections: Array<{
+        key: 'hero' | 'aiFeature' | 'featuredRooms' | 'recommendedRooms' | 'popularAreas' | 'whyEzRoom';
+        enabled: boolean;
+    }>;
+}
+
+export interface PublicSiteConfig {
+    homeBanner: PublicHomeBannerConfig;
+    homeLayout: PublicHomeLayoutConfig;
+    updatedAt: string | null;
+}
+
 /**
  * GET /public/room-types – distinct room types from available rentals. No auth.
  */
@@ -1467,6 +1592,16 @@ export async function getPublicRoomTypesRequest(): Promise<{
     const res = await fetch(getApiUrl('/public/room-types'), { cache: 'default' });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.message || json?.error || 'Lỗi tải loại phòng');
+    return json;
+}
+
+export async function getPublicSiteConfigRequest(): Promise<{
+    success: boolean;
+    data: PublicSiteConfig;
+}> {
+    const res = await fetch(getApiUrl('/public/site-config'), { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.message || json?.error || 'Loi tai cau hinh website');
     return json;
 }
 
@@ -1871,7 +2006,7 @@ export async function getTenantReviewByRentalPeriodRequest(rentalPeriodId: strin
  */
 export async function getTenantReviewsRequest(tenantId: string): Promise<{
     success: boolean;
-    data: any[];
+    data: unknown[];
     stats: {
         totalReviews: number;
         avgRating: number;
@@ -1891,7 +2026,7 @@ export async function getTenantReviewsRequest(tenantId: string): Promise<{
  */
 export async function replyToTenantReviewRequest(reviewId: string, content: string): Promise<{
     success: boolean;
-    data: any;
+    data: unknown;
 }> {
     const res = await authFetch(`/tenant-reviews/${encodeURIComponent(reviewId)}/reply`, {
         method: 'POST',
@@ -1907,7 +2042,7 @@ export async function replyToTenantReviewRequest(reviewId: string, content: stri
  */
 export async function getPendingTenantReviewsRequest(page = 1, limit = 10): Promise<{
     success: boolean;
-    data: any[];
+    data: unknown[];
     pagination: {
         page: number;
         limit: number;
@@ -1931,7 +2066,7 @@ export async function updateTenantReviewStatusRequest(
     notes?: string
 ): Promise<{
     success: boolean;
-    data: any;
+    data: unknown;
 }> {
     const res = await authFetch(
         `/tenant-reviews/${encodeURIComponent(reviewId)}/status/${action}`,
@@ -2010,8 +2145,6 @@ export interface SmartSearchRoomItem {
     otherRoomsInRental: Array<{ id: string; roomName: string | null; price: number; area: number | null; roomType: string; image: string }>;
     /** DB room status (e.g. AVAILABLE). */
     roomStatus?: string;
-    /** True when the room can be preordered (matches backend). */
-    available?: boolean;
 }
 
 export interface ApiErrorWithCode extends Error {
@@ -2591,22 +2724,28 @@ export interface LandlordPerformanceMetrics {
     };
 }
 
-export async function getLandlordDashboardStatsRequest(): Promise<{
+export async function getLandlordDashboardStatsRequest(month?: string): Promise<{
     success: boolean;
     data: LandlordDashboardStats;
 }> {
-    const res = await authFetch('/rentals/dashboard');
+    const search = new URLSearchParams();
+    if (month) search.set('month', month);
+    const qs = search.toString();
+    const res = await authFetch(`/rentals/dashboard${qs ? `?${qs}` : ''}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải dashboard');
     return data;
 }
 
 
-export async function getLandlordPerformanceMetricsRequest(): Promise<{
+export async function getLandlordPerformanceMetricsRequest(month?: string): Promise<{
     success: boolean;
     data: LandlordPerformanceMetrics;
 }> {
-    const res = await authFetch('/rentals/performance');
+    const search = new URLSearchParams();
+    if (month) search.set('month', month);
+    const qs = search.toString();
+    const res = await authFetch(`/rentals/performance${qs ? `?${qs}` : ''}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải chỉ số hiệu suất');
     return data;

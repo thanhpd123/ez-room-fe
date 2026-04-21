@@ -73,7 +73,7 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
     if (!isVip) {
         return (
             <div className="bg-card rounded-2xl shadow-lg overflow-hidden max-w-4xl mx-auto border border-border">
-                <div className="relative bg-gradient-to-r from-violet-600/90 via-purple-600/90 to-indigo-600/90 px-6 py-6 text-center">
+                <div className="relative bg-linear-to-r from-violet-600/90 via-purple-600/90 to-indigo-600/90 px-6 py-6 text-center">
                     <Lock className="w-10 h-10 text-white/90 mx-auto mb-3" aria-hidden />
                     <h3 className="text-white font-heading font-semibold text-lg">{t('search.image.vipGateTitle')}</h3>
                     <p className="text-white/80 text-sm mt-2 max-w-md mx-auto">{t('search.image.vipGateDesc')}</p>
@@ -91,7 +91,7 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
     return (
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden max-w-4xl mx-auto">
             {/* AI header */}
-            <div className="relative bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 px-6 py-4 overflow-hidden">
+            <div className="relative bg-linear-to-r from-violet-600 via-purple-600 to-indigo-600 px-6 py-4 overflow-hidden">
                 <div className="absolute inset-0 opacity-10"
                     style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '48px 48px' }}
                 />
@@ -118,11 +118,10 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
                 {/* Error */}
                 {(error || imageSearchError) && (
                     <div
-                        className={`p-4 rounded-xl flex flex-col gap-3 ${
-                            imageSearchError === VIP_IMAGE_SEARCH_ERROR
+                        className={`p-4 rounded-xl flex flex-col gap-3 ${imageSearchError === VIP_IMAGE_SEARCH_ERROR
                                 ? 'bg-violet-500/10 border border-violet-500/25'
                                 : 'bg-destructive/10 border border-destructive/20'
-                        }`}
+                            }`}
                     >
                         {imageSearchError === VIP_IMAGE_SEARCH_ERROR ? (
                             <>
@@ -149,9 +148,8 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
                 {/* Upload zone */}
                 {!previewUrl ? (
                     <div
-                        className={`border-2 border-dashed rounded-xl p-8 sm:p-10 text-center transition-all cursor-pointer ${
-                            isDragging ? 'border-violet-500 bg-violet-500/5' : 'border-border hover:border-violet-400/60 hover:bg-muted/30'
-                        }`}
+                        className={`border-2 border-dashed rounded-xl p-8 sm:p-10 text-center transition-all cursor-pointer ${isDragging ? 'border-violet-500 bg-violet-500/5' : 'border-border hover:border-violet-400/60 hover:bg-muted/30'
+                            }`}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
@@ -242,7 +240,7 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
                     <button
                         type="submit"
                         disabled={isSearching || !selectedFile}
-                        className="w-full px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full px-6 py-3 bg-linear-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isSearching ? (
                             <>

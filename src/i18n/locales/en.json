@@ -329,7 +329,8 @@
       "locations": "Locations",
       "amenities": "Amenities",
       "vipPackages": "VIP Packages",
-      "systemSettings": "System Settings"
+      "systemSettings": "System Settings",
+      "homeConfig": "Home Configuration"
     },
     "userMenu": {
       "profile": "Profile Settings",
@@ -406,6 +407,37 @@
       },
       "required": "Required",
       "save": "Save changes"
+    },
+    "homeConfig": {
+      "title": "Home Configuration",
+      "subtitle": "Manage the main banner and home page section visibility.",
+      "notice": "Changes are applied to the public website immediately after save.",
+      "bannerSection": "Main Banner",
+      "layoutSection": "Home Layout",
+      "fields": {
+        "enabled": "Show banner",
+        "title": "Title",
+        "subtitle": "Subtitle",
+        "imageUrl": "Banner background image",
+        "uploadPlaceholder": "Choose banner image",
+        "ctaText": "Call-to-action text",
+        "ctaLink": "Call-to-action link"
+      },
+      "sections": {
+        "hero": "Hero banner",
+        "aiFeature": "AI feature section",
+        "featuredRooms": "Featured rooms section",
+        "recommendedRooms": "Recommended rooms section",
+        "popularAreas": "Popular areas section",
+        "whyEzRoom": "Why EzRoom section"
+      },
+      "validation": {
+        "titleMax": "Title must be at most 120 characters",
+        "subtitleMax": "Subtitle must be at most 220 characters",
+        "ctaTextMax": "CTA text must be at most 40 characters",
+        "ctaLinkUrl": "CTA link must be a valid URL"
+      },
+      "save": "Save configuration"
     },
     "wallets": {
       "title": "Wallet Management",

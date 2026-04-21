@@ -426,7 +426,7 @@ export async function handleViolationReport(input: HandleReportInput) {
     }
 }
 
-export type FeedbackStatusEnum = 'PENDING' | 'APPROVED' | 'REJECTED' | 'HIDDEN';
+export type FeedbackStatusEnum = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface ModeratorReviewFilters {
     status?: FeedbackStatusEnum;
@@ -558,7 +558,7 @@ export async function getReviewDetail(
 
 export async function moderateReviewStatus(
     reviewId: string,
-    status: 'APPROVED' | 'REJECTED' | 'HIDDEN',
+    status: 'APPROVED' | 'REJECTED',
     moderatorNote?: string
 ): Promise<void> {
     const res = await authFetch(`/moderator/reviews/${encodeURIComponent(reviewId)}`, {
@@ -574,9 +574,8 @@ export async function moderateReviewStatus(
 
 /** @deprecated Use moderateReviewStatus for new flow */
 export async function moderateReview(input: ModerateReviewInput) {
-    let status: 'APPROVED' | 'REJECTED' | 'HIDDEN';
+    let status: 'APPROVED' | 'REJECTED';
     if (input.action === 'approve') status = 'APPROVED';
-    else if (input.action === 'hide' || input.action === 'warn_user') status = 'HIDDEN';
     else status = 'REJECTED';
     await moderateReviewStatus(input.review_id, status, input.note);
 }
@@ -889,4 +888,41 @@ export async function getModeratorOverview() {
         approvedReviewCount: 0,
         rejectedReviewCount: 0,
     };
+}
+
+export interface ModeratorKpiItem {
+    moderatorId: string;
+    moderatorName: string;
+    totalActions: number;
+    approvals: number;
+    rejections: number;
+    reportHandled: number;
+    reviewHandled: number;
+    avgPerDay: number;
+    approvalRate: number | null;
+}
+
+export interface ModeratorKpiData {
+    period: { days: number; since: string };
+    moderators: ModeratorKpiItem[];
+    trend: Array<{ date: string; count: number }>;
+    actionBreakdown: Record<string, number>;
+    totals: {
+        totalActions: number;
+        totalApprovals: number;
+        totalRejections: number;
+        totalReportsHandled: number;
+        totalReviewsHandled: number;
+    };
+}
+
+export async function getModeratorKpi(days = 30): Promise<ModeratorKpiData | null> {
+    try {
+        const res = await authFetch(`/moderator/kpi?days=${days}`);
+        const json = await res.json();
+        if (res.ok && json.data) return json.data as ModeratorKpiData;
+    } catch (err) {
+        console.error('Failed to fetch moderator KPI:', err);
+    }
+    return null;
 }

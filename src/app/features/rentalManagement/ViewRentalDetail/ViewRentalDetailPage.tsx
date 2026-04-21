@@ -2,17 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getRentalByIdRequest, deleteRentalRequest, getRejectionInfoRequest } from '@/lib/api';
 import { getSupabasePublicUrl, filterOutDocuments } from '@/lib/supabase-urls';
-import { findOldAddress, type OldAddressInfo } from '@/app/constants/v1-v2-mapping';
 import { RENTAL_STATUS_OPTIONS } from '../shared/types';
+import { LandlordDocumentsViewer } from '../EditRental/components/LandlordDocumentsViewer';
 
-const statusClassName: Record<string, string> = {
-    AVAILABLE: 'bg-emerald-100 text-emerald-700',
-    UNAVAILABLE: 'bg-slate-200 text-slate-600',
-    HIDDEN: 'bg-orange-100 text-orange-700',
-    VIOLATE: 'bg-rose-100 text-rose-700',
-    PENDING: 'bg-amber-100 text-amber-700',
-    SUSPEND: 'bg-red-100 text-red-700',
-};
+const RENTAL_DETAIL_CACHE_PREFIX = 'ezroom:rental-detail:v1:';
 
 function formatDateTime(dateString: string) {
     return new Date(dateString).toLocaleString('vi-VN', {
@@ -27,9 +20,6 @@ function formatDateTime(dateString: string) {
 function getStatusLabel(status: string) {
     return RENTAL_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
-
-const DEFAULT_THUMB =
-    'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1400&q=80';
 
 interface RentalDetail {
     id: string;
@@ -56,39 +46,60 @@ export function ViewRentalDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [rental, setRental] = useState<RentalDetail | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [oldAddress, setOldAddress] = useState<OldAddressInfo | null>(null);
-    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [rejectionInfo, setRejectionInfo] = useState<RejectionInfo | null>(null);
+    const detailCacheKey = `${RENTAL_DETAIL_CACHE_PREFIX}${rentalId}`;
 
     useEffect(() => {
         let active = true;
+        let hasCache = false;
+
+        try {
+            const cachedRaw = sessionStorage.getItem(detailCacheKey);
+            if (cachedRaw) {
+                const cached = JSON.parse(cachedRaw) as { rental?: RentalDetail };
+                if (cached?.rental) {
+                    setRental(cached.rental);
+                    setIsLoading(false);
+                    hasCache = true;
+                }
+            }
+        } catch {
+            // Ignore cache parse errors and continue with network fetch.
+        }
 
         const load = async () => {
-            setIsLoading(true);
-            setLoadError(null);
+            if (!hasCache) {
+                setIsLoading(true);
+                setLoadError(null);
+            }
             try {
                 const result = await getRentalByIdRequest(rentalId);
                 if (!active) return;
                 setRental(result.data);
+                setRejectionInfo(null);
+                sessionStorage.setItem(detailCacheKey, JSON.stringify({ rental: result.data, updatedAt: Date.now() }));
 
                 // Nếu bài đăng bị từ chối (HIDDEN), lấy thông tin từ chối
                 if (result.data.status === 'HIDDEN') {
-                    try {
-                        const rejInfo = await getRejectionInfoRequest('RENTAL', rentalId);
-                        if (active && rejInfo.data?.hasRejection) {
-                            setRejectionInfo(rejInfo.data);
-                        }
-                    } catch {
-                        // Không bắt buộc — nếu fail thì không hiển thị lý do
-                    }
+                    void getRejectionInfoRequest('RENTAL', rentalId)
+                        .then((rejInfo) => {
+                            if (active && rejInfo.data?.hasRejection) {
+                                setRejectionInfo(rejInfo.data);
+                            }
+                        })
+                        .catch(() => {
+                            // Không bắt buộc — nếu fail thì không hiển thị lý do.
+                        });
                 }
             } catch (err) {
                 if (!active) return;
-                setLoadError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
+                if (!hasCache) {
+                    setLoadError(err instanceof Error ? err.message : 'Lỗi khi tải dữ liệu');
+                }
             } finally {
-                if (active) setIsLoading(false);
+                if (active && !hasCache) setIsLoading(false);
             }
         };
 
@@ -102,24 +113,7 @@ export function ViewRentalDetailPage() {
         return () => {
             active = false;
         };
-    }, [rentalId]);
-
-    // Auto-detect old address when location changes
-    useEffect(() => {
-        const district = rental?.location?.district;
-        const city = rental?.location?.city;
-        
-        if (!district || !city) {
-            setOldAddress(null);
-            return;
-        }
-        
-        const loadOldAddress = async () => {
-            const old = await findOldAddress(district, city);
-            setOldAddress(old);
-        };
-        loadOldAddress();
-    }, [rental?.location?.district, rental?.location?.city]);
+    }, [detailCacheKey, rentalId]);
 
     if (isLoading) {
         return (
@@ -162,10 +156,6 @@ export function ViewRentalDetailPage() {
             </section>
         );
     }
-
-    const fullAddress = rental.location
-        ? [rental.location.address, rental.location.district, rental.location.city].filter(Boolean).join(', ')
-        : '';
 
     return (
         <section className="mx-auto w-full max-w-5xl">
@@ -240,7 +230,7 @@ export function ViewRentalDetailPage() {
                     <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6">
                         <h3 className="text-lg font-semibold text-slate-900">Xác nhận xóa</h3>
                         <p className="mt-2 text-sm text-slate-600">
-                            Bạn có chắc muốn xóa bài đăng <strong>"{rental?.title}"</strong>? 
+                            Bạn có chắc muốn xóa bài đăng <strong>"{rental?.title}"</strong>?
                             Hành động này không thể hoàn tác.
                         </p>
                         <div className="mt-4 flex justify-end gap-2">
@@ -277,141 +267,144 @@ export function ViewRentalDetailPage() {
             )}
 
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                            {/* Hero image or gallery */}
-                {rental.images && rental.images.length > 0 ? (
-                    <div>
-                        {/* Filter out documents before rendering */}
-                        {(() => {
-                            const filteredImages = filterOutDocuments(rental.images);
-                            if (filteredImages.length === 0) {
-                                return <img
-                                    src={DEFAULT_THUMB}
-                                    alt={rental.title}
-                                    className="h-64 w-full object-cover sm:h-80"
-                                />;
-                            }
-                            return (
-                                <>
-                                    <img
-                                        src={getSupabasePublicUrl(filteredImages[selectedImageIndex])}
-                                        alt={rental.title}
-                                        className="h-64 w-full object-cover sm:h-80"
-                                    />
-                                    {filteredImages.length > 1 && (
-                                        <div className="flex gap-2 overflow-x-auto p-3 bg-slate-50">
-                                            {filteredImages.map((url, i) => (
-                                                <button
-                                                    key={url}
-                                                    type="button"
-                                                    onClick={() => setSelectedImageIndex(i)}
-                                                    className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${
-                                                        selectedImageIndex === i
-                                                            ? 'border-slate-900'
-                                                            : 'border-slate-200 hover:border-slate-400'
-                                                    }`}
-                                                >
-                                                    <img
-                                                        src={getSupabasePublicUrl(url)}
-                                                        alt={`Ảnh ${i + 1}`}
-                                                        className="h-full w-full object-cover"
-                                                    />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {filteredImages.length > 1 && (
-                                        <p className="text-center text-xs text-slate-500 pb-2">
-                                            {selectedImageIndex + 1} / {filteredImages.length}
-                                        </p>
-                                    )}
-                                </>
-                            );
-                        })()}
-                    </div>
-                ) : (
-                    <img
-                        src={DEFAULT_THUMB}
-                        alt={rental.title}
-                        className="h-64 w-full object-cover sm:h-80"
-                    />
-                )}
+                <div className="p-6 md:p-8">
+                    <h2 className="mb-6 text-xl font-semibold text-slate-900">Thông tin chi tiết nhà cho thuê</h2>
 
-                <div className="space-y-5 p-5 sm:p-6">
-                    <header className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="text-2xl font-semibold text-slate-900">{rental.title}</h2>
-                            <span
-                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClassName[rental.status] ?? 'bg-slate-100 text-slate-600'}`}
-                            >
-                                {getStatusLabel(rental.status)}
-                            </span>
+                    <div className="grid gap-x-6 gap-y-5 md:grid-cols-2">
+                        {/* Tiêu đề */}
+                        <div className="md:col-span-2">
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Tiêu đề *</label>
+                            <input
+                                value={rental.title || ''}
+                                disabled
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 pointer-events-none"
+                            />
                         </div>
-                        {oldAddress && (
-                            <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
-                                <p className="text-xs text-blue-900">
-                                    <strong> Cập nhật địa chỉ hành chính:</strong><br/>
-                                    Trước đó: <strong>{oldAddress.v1District}, {oldAddress.v1Province}</strong><br/>
-                                    Bây giờ: <strong>{fullAddress}</strong>
-                                </p>
-                            </div>
-                        )}
-                        {fullAddress && <p className="text-sm text-slate-600">{fullAddress}</p>}
-                    </header>
 
-                    {rental.description ? (
-                        <section>
-                            <h3 className="mb-1 text-sm font-semibold text-slate-900">Mô tả</h3>
-                            <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">
-                                {rental.description}
-                            </p>
-                        </section>
-                    ) : null}
+                        {/* Phân loại & Trạng thái */}
+                        <div>
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Loại bất động sản</label>
+                            <select
+                                value="boarding_house"
+                                disabled
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 pointer-events-none"
+                            >
+                                <option value="boarding_house">Boarding house</option>
+                            </select>
+                        </div>
 
-                    <section>
-                        <h3 className="mb-2 text-sm font-semibold text-slate-900">Thông tin bài đăng</h3>
-                        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Mã bài đăng</dt>
-                                <dd className="font-medium text-slate-900 break-all">{rental.id}</dd>
+                        <div>
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Trạng thái duyệt</label>
+                            <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
+                                <span className={`mr-2 h-2 w-2 rounded-full ${rental.status === 'AVAILABLE' ? 'bg-emerald-500' : rental.status === 'PENDING' ? 'bg-amber-500' : 'bg-rose-500'}`}></span>
+                                {getStatusLabel(rental.status)}
                             </div>
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Trạng thái</dt>
-                                <dd className="font-medium text-slate-900">{getStatusLabel(rental.status)}</dd>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Số ảnh</dt>
-                                <dd className="font-medium text-slate-900">{rental.images?.length ?? 0}</dd>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                <dt className="text-xs text-slate-500">Ngày tạo</dt>
-                                <dd className="font-medium text-slate-900">
-                                    {formatDateTime(rental.createdAt)}
-                                </dd>
-                            </div>
-                        </dl>
-                    </section>
+                        </div>
 
-                    {rental.owner && (
-                        <section>
-                            <h3 className="mb-2 text-sm font-semibold text-slate-900">Thông tin chủ trọ</h3>
-                            <dl className="grid gap-2 text-sm sm:grid-cols-2">
-                                <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                    <dt className="text-xs text-slate-500">Họ tên</dt>
-                                    <dd className="font-medium text-slate-900">{rental.owner.fullName}</dd>
-                                </div>
-                                <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                    <dt className="text-xs text-slate-500">Email</dt>
-                                    <dd className="font-medium text-slate-900">{rental.owner.email}</dd>
-                                </div>
-                                {rental.owner.phone && (
-                                    <div className="rounded-xl bg-slate-50 px-4 py-3">
-                                        <dt className="text-xs text-slate-500">Số điện thoại</dt>
-                                        <dd className="font-medium text-slate-900">{rental.owner.phone}</dd>
-                                    </div>
-                                )}
-                            </dl>
-                        </section>
-                    )}
+                        {/* Vị trí */}
+                        <div>
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Tỉnh / Thành phố *</label>
+                            <input
+                                value={rental.location?.city || 'Thành phố Hà Nội'}
+                                disabled
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 pointer-events-none"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Phường / Xã *</label>
+                            <input
+                                value={rental.location?.district || ''}
+                                disabled
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 pointer-events-none"
+                            />
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Địa chỉ chi tiết (đường, số nhà) *</label>
+                            <input
+                                value={rental.location?.address || ''}
+                                disabled
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 pointer-events-none"
+                            />
+                        </div>
+
+                        {/* Thông tin phòng */}
+                        <div>
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Số phòng trống *</label>
+                            <input
+                                value={rental.rooms?.length?.toString() || '1'}
+                                disabled
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 pointer-events-none"
+                            />
+                        </div>
+
+                        {/* Thông tin metadata cho View Only */}
+                        <div>
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Mã bài đăng hệ thống</label>
+                            <input
+                                value={rental.id}
+                                disabled
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 font-mono pointer-events-none"
+                            />
+                        </div>
+
+                        {/* Ảnh bài đăng */}
+                        <div className="md:col-span-2 mt-2">
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Ảnh bài đăng</label>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                {(() => {
+                                    const filteredImages = filterOutDocuments(rental.images || []);
+                                    if (filteredImages.length === 0) {
+                                        return (
+                                            <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white">
+                                                <span className="text-sm text-slate-400">Không có ảnh tải lên</span>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div className="flex flex-wrap gap-3">
+                                            {filteredImages.map((url, idx) => (
+                                                <a key={idx} href={getSupabasePublicUrl(url)} target="_blank" rel="noreferrer" className="block relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200 hover:border-slate-400 group">
+                                                    <img src={getSupabasePublicUrl(url)} alt="room" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                                                </a>
+                                            ))}
+                                            <div className="flex h-24 w-24 flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-white">
+                                                <span className="text-xs text-slate-400">{filteredImages.length}/10 ảnh</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+
+                        {/* Phần Giấy tờ */}
+                        <div className="md:col-span-2 mt-2">
+                            <LandlordDocumentsViewer rentalId={rental.id} />
+                        </div>
+
+                        {/* Mô tả */}
+                        <div className="md:col-span-2 mt-2">
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Tóm tắt</label>
+                            <textarea
+                                value=""
+                                disabled
+                                placeholder="Chưa có tóm tắt ngắn..."
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 pointer-events-none resize-none h-20"
+                            />
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="mb-1.5 block text-sm font-medium text-slate-700">Mô tả chi tiết</label>
+                            <textarea
+                                value={rental.description || ''}
+                                disabled
+                                placeholder="Chưa có mô tả chi tiết..."
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 pointer-events-none resize-none h-40"
+                            />
+                        </div>
+
+                    </div>
                 </div>
             </article>
         </section>

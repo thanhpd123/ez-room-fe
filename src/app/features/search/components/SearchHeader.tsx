@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Home as HomeIcon, Heart } from 'lucide-react';
-import { useFavorites } from '@/app/context/FavoritesContext';
+import { useFavorites } from '@/app/context/useFavorites';
 
 interface SearchHeaderProps {
     title?: string;

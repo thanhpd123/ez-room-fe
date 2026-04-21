@@ -10,3 +10,4 @@ export { AdminSettingsPage } from './AdminSettingsPage';
 export { AdminModeratorsPage } from './AdminModeratorsPage';
 export { AdminBlogPostsPage } from './AdminBlogPostsPage';
 export { AdminVipPackagesPage } from './AdminVipPackagesPage';
+export { AdminHomeConfigPage } from './AdminHomeConfigPage';

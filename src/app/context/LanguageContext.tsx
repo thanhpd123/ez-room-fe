@@ -55,7 +55,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
                 }
             }, 150);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, []);
 
     const unregisterText = useCallback((text: string) => {

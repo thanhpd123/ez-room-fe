@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useChatBox } from '@/app/context/ChatBoxContext';
-import { useAuth } from '@/app/context/AuthContext';
+import { useState, useEffect, useRef, useCallback } from 'react'; // 
+import { useChatBox } from '@/app/context/useChatBox';
+import { useAuth } from '@/app/context/useAuth';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import {
     getConversationsRequest,
@@ -64,7 +64,7 @@ function Bubble({ message, isFromMe, peerAvatar, showAvatar }: {
                 <div className={`px-3 py-1.5 text-sm ${isFromMe
                     ? 'bg-primary text-primary-foreground rounded-[12px_12px_2px_12px]'
                     : 'bg-card text-foreground rounded-[12px_12px_12px_2px] border border-border'
-                }`}>
+                    }`}>
                     <p className="whitespace-pre-wrap break-words leading-snug">{message.content}</p>
                 </div>
                 <div className={`flex items-center gap-0.5 mt-0.5 ${isFromMe ? 'flex-row-reverse' : ''}`}>
@@ -110,7 +110,11 @@ export function FloatingChatBox() {
         socket.on('presence', ({ userId, online }: { userId: string; online: boolean }) => {
             setOnlineUsers((prev) => {
                 const next = new Set(prev);
-                online ? next.add(userId) : next.delete(userId);
+                if (online) {
+                    next.add(userId);
+                } else {
+                    next.delete(userId);
+                }
                 return next;
             });
         });
@@ -178,6 +182,8 @@ export function FloatingChatBox() {
             .finally(() => setLoadingConvs(false));
     }, []);
     const loadConversationsRef = useRef(loadConversations);
+
+    // eslint-disable-next-line react-hooks/immutability
     loadConversationsRef.current = loadConversations;
 
     const loadThread = useCallback((peerId: string) => {
@@ -283,6 +289,9 @@ export function FloatingChatBox() {
         const next = messages[index + 1];
         return !next || next.isFromMe || next.senderId !== m.senderId;
     };
+
+    // eslint-disable-next-line react-hooks/immutability
+    loadConversationsRef.current = loadConversations;
 
     if (!user || !chatBox) return null;
 

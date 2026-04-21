@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { createTenantReviewRequest, authFetch } from '@/lib/api';
 import { CreateTenantReviewModal, type CreateTenantReviewData } from './CreateTenantReviewModal';
 import { TenantReviewsManagement } from './TenantReviewsManagement';

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { RentalDetail } from './components/RentalDetail';
@@ -35,10 +35,10 @@ function mapApiToRentalDetailData(
     ? [location.address, location.district, location.city].filter(Boolean).join(', ')
     : '';
   const rooms = api.rooms || [];
-  
+
   // Convert image paths to full URLs and filter out documents
   const imageUrls = filterOutDocuments(api.images || []).map(img => getSupabasePublicUrl(img));
-  
+
   return {
     id: api.id,
     title: api.title || t('rentalDetail.defaultRentalTitle'),
@@ -63,7 +63,7 @@ function mapApiToRentalDetailData(
       price: typeof r.price === 'number' ? r.price : 0,
       area: r.size_m2 != null ? Number(r.size_m2) : 0,
       status: 'available' as const,
-      images: Array.isArray(r.images) && r.images.length > 0 
+      images: Array.isArray(r.images) && r.images.length > 0
         ? filterOutDocuments(r.images).map(img => getSupabasePublicUrl(img))
         : undefined,
       amenities: Array.isArray(r.amenities) ? r.amenities : [],
@@ -76,31 +76,36 @@ export function RentalDetailPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [rental, setRental] = useState<RentalDetailData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!id) {
-      setLoading(false);
-      return;
+  const [lastFetchedId, setLastFetchedId] = useState<string>('');
+  const loading = !!id && lastFetchedId !== id;
+
+  const fetchRental = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await getPublicRentalByIdRequest(id);
+      const raw = res?.data;
+      if (!raw || typeof raw !== 'object') {
+        setError(t('rentalDetail.invalidData'));
+        setRental(null);
+        return;
+      }
+      setRental(mapApiToRentalDetailData(raw, t));
+      setError(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t('rentalDetail.loadError');
+      setError(msg);
+      setRental(null);
+      console.error('[RentalDetailPage]', id, e);
+    } finally {
+      setLastFetchedId(id);
     }
-    setError(null);
-    getPublicRentalByIdRequest(id)
-      .then((res) => {
-        const raw = res?.data;
-        if (!raw || typeof raw !== 'object') {
-          setError(t('rentalDetail.invalidData'));
-          return;
-        }
-        setRental(mapApiToRentalDetailData(raw, t));
-      })
-      .catch((e) => {
-        const msg = e instanceof Error ? e.message : t('rentalDetail.loadError');
-        setError(msg);
-        console.error('[RentalDetailPage]', id, e);
-      })
-      .finally(() => setLoading(false));
   }, [id, t]);
+
+  useEffect(() => {
+    fetchRental();
+  }, [fetchRental]);
 
   const handleLogin = () => navigate('/login');
   const handleRegister = () => navigate('/register');

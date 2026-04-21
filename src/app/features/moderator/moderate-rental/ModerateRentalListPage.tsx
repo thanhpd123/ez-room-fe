@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { checkQueueStatus, listRentalModerationItems, moderateRental, type QueueLockStatus } from '../shared/moderator-storage';
 import type { ModerationDecision, RentalDocument, RentalModerationItem } from '../shared/types';
 

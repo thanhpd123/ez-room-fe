@@ -2,7 +2,7 @@ import { EnvironmentOutlined, StarFilled, HeartOutlined, HeartFilled } from '@an
 import { Button, Card, Tag, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
-import { useFavorites } from '@/app/context/FavoritesContext';
+import { useFavorites } from '@/app/context/useFavorites';
 
 const { Title, Text } = Typography;
 

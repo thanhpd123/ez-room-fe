@@ -17,7 +17,7 @@ import {
     AlertCircle,
 } from 'lucide-react';
 import { getMyVipStatusRequest, getVipPackagesRequest, createVipPurchaseRequest, type VipStatusData, type VipPurchaseHistory, type VipPackageItem } from '@/lib/api';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/context/useAuth';
 import { Header } from '@/app/features/home/components';
 
 function formatDate(dateStr: string | null | undefined): string {

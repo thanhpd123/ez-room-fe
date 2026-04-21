@@ -20,7 +20,6 @@ export function SearchPage() {
     const isLoggedIn = !authLoading && !isGuest;
     const [useMyLocation, setUseMyLocation] = useState(false);
     const basicOnly = !authLoading && isGuest;
-    const guestUrlBasicOnly = authVerified && basicOnly;
 
     const {
         results,
@@ -34,7 +33,7 @@ export function SearchPage() {
         searchError,
         searchMode,
         translatedQuery,
-    } = useSearch(isLoggedIn, authVerified, guestUrlBasicOnly);
+    } = useSearch(isLoggedIn);
 
     // Image tab: logged-in tenants/landlord/staff see the tab; non-VIP see locked upgrade UI inside the panel.
     const showImageTab = authVerified ? (isTenant || isVip) : false;

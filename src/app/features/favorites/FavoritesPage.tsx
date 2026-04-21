@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Heart, Trash2, MapPin, Maximize } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useFavorites } from '@/app/context/FavoritesContext';
+import { useFavorites } from '@/app/context/useFavorites';
 import { Header, Footer } from '@/app/features/home/components';
 
 export function FavoritesPage() {
