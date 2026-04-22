@@ -18,7 +18,7 @@ import {
     Check, CheckCheck, Circle, ChevronUp,
 } from 'lucide-react';
 
-const AVATAR_PLACEHOLDER = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200';
+const AVATAR_PLACEHOLDER = '/avatar-facebook-mac-dinh.jpg';
 const TYPING_CLEAR_MS = 3000;
 
 function formatTime(iso: string) {

@@ -522,9 +522,7 @@ export function ProfilePage() {
                             {avatarUrl ? (
                                 <img src={avatarUrl} alt="" className="w-24 h-24 rounded-2xl object-cover ring-2 ring-border" />
                             ) : (
-                                <div className="w-24 h-24 rounded-2xl bg-primary/10 flex items-center justify-center">
-                                    <User className="w-12 h-12 text-primary" strokeWidth={1.5} />
-                                </div>
+                                <img src="/avatar-facebook-mac-dinh.jpg" alt="Default Avatar" className="w-24 h-24 rounded-2xl object-cover ring-2 ring-border" />
                             )}
                         </div>
                         <div className="text-center sm:text-left flex-1 min-w-0">
@@ -1298,9 +1296,8 @@ function ProfileBookingCard({ item, onWriteReview, onViewReview, onReport, onCon
                                         <img key={rm.id} src={rm.avatarUrl} alt={rm.fullName}
                                             className="w-6 h-6 rounded-full border-2 border-card object-cover" title={rm.fullName} />
                                     ) : (
-                                        <div key={rm.id} className="w-6 h-6 rounded-full border-2 border-card bg-primary/10 flex items-center justify-center" title={rm.fullName}>
-                                            <User className="w-3 h-3 text-primary" />
-                                        </div>
+                                        <img key={rm.id} src="/avatar-facebook-mac-dinh.jpg" alt={rm.fullName}
+                                            className="w-6 h-6 rounded-full border-2 border-card object-cover" title={rm.fullName} />
                                     )
                                 ))}
                                 {roommates.length > 4 && (
@@ -1319,9 +1316,7 @@ function ProfileBookingCard({ item, onWriteReview, onViewReview, onReport, onCon
                                         {rm.avatarUrl ? (
                                             <img src={rm.avatarUrl} alt={rm.fullName} className="w-9 h-9 rounded-full object-cover border border-border" />
                                         ) : (
-                                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center border border-border">
-                                                <User className="w-4 h-4 text-primary" />
-                                            </div>
+                                            <img src="/avatar-facebook-mac-dinh.jpg" alt={rm.fullName} className="w-9 h-9 rounded-full object-cover border border-border" />
                                         )}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium text-foreground truncate">{rm.fullName}</p>
