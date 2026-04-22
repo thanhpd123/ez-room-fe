@@ -44,7 +44,6 @@ const TENANT_BENEFIT_KEYS = [
     { icon: Star, key: 'priorityRecommend' },
     { icon: MessageCircle, key: 'unlimitedChat' },
     { icon: ShieldCheck, key: 'vipBadge' },
-    { icon: Zap, key: 'aiRoommate' },
 ];
 
 const LANDLORD_BENEFIT_KEYS = [
