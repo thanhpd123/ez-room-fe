@@ -856,6 +856,7 @@ export interface RoommateSuggestionItem {
         guest_frequency: string | null;
         interests: string[];
         deal_breakers: string | null;
+        languages: string[];
     } | null;
     preference: { preferred_districts: string[]; room_type: string | null; budget_min: number | null; budget_max: number | null; preferredLocation: string | null } | null;
     matchScore: number;
@@ -866,12 +867,32 @@ export interface RoommateSuggestionItem {
     matchStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED' | null;
 }
 
-export async function getRoommateSuggestionsRequest(limit?: number): Promise<{
+export type LifestyleWeights = {
+    smoking?: number;
+    sleep_schedule?: number;
+    pets_allowed?: number;
+    noise_tolerance?: number;
+    guest_frequency?: number;
+    social_level?: number;
+    cooking_frequency?: number;
+    work_from_home?: number;
+    personalityType?: number;
+    interests?: number;
+    cleanliness?: number;
+};
+
+export async function getRoommateSuggestionsRequest(limit?: number, weights?: LifestyleWeights): Promise<{
     success: boolean;
     data: RoommateSuggestionItem[];
     message?: string;
 }> {
-    const qs = limit != null ? `?limit=${limit}` : '';
+    const params = new URLSearchParams();
+    if (limit != null) params.set('limit', String(limit));
+    // Send weights as a JSON string — avoids bracket-encoding issues with Express query parser
+    if (weights && Object.keys(weights).length > 0) {
+        params.set('weights', JSON.stringify(weights));
+    }
+    const qs = params.toString() ? `?${params.toString()}` : '';
     const res = await authFetch(`/roommate/suggestions${qs}`);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Lỗi tải gợi ý roommate');

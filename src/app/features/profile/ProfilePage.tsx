@@ -161,63 +161,6 @@ function ToggleSwitch({ checked, onChange, label, description, disabled }: {
     );
 }
 
-function TagInput({ value, onChange, placeholder, suggestions }: {
-    value: string;
-    onChange: (v: string) => void;
-    placeholder?: string;
-    suggestions?: string[];
-}) {
-    const [input, setInput] = useState('');
-    const tags = value ? value.split(',').map((s) => s.trim()).filter(Boolean) : [];
-
-    const addTag = (tag: string) => {
-        const t = tag.trim();
-        if (!t || tags.includes(t)) { setInput(''); return; }
-        onChange([...tags, t].join(', '));
-        setInput('');
-    };
-
-    const removeTag = (tag: string) => onChange(tags.filter((t) => t !== tag).join(', '));
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(input); }
-        else if (e.key === 'Backspace' && !input && tags.length > 0) removeTag(tags[tags.length - 1]);
-    };
-
-    return (
-        <div>
-            <div className="min-h-12 w-full px-3 py-2 bg-background border border-border rounded-xl focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all flex flex-wrap gap-1.5">
-                {tags.map((tag) => (
-                    <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2.5 py-1 rounded-full text-xs font-medium">
-                        {tag}
-                        <button type="button" onClick={() => removeTag(tag)} className="hover:bg-primary/20 rounded-full p-0.5 transition-colors">
-                            <X className="w-3 h-3" />
-                        </button>
-                    </span>
-                ))}
-                <input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    onBlur={() => { if (input.trim()) addTag(input); }}
-                    placeholder={tags.length === 0 ? placeholder : 'Thêm...'}
-                    className="flex-1 min-w-30 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground py-1"
-                />
-            </div>
-            {suggestions && suggestions.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                    {suggestions.filter((s) => !tags.includes(s)).map((s) => (
-                        <button key={s} type="button" onClick={() => addTag(s)}
-                            className="text-xs px-2.5 py-1 rounded-full border border-border bg-muted/50 text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors">
-                            + {s}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
-
 type PreferenceFormState = ReturnType<typeof toPreferenceForm>;
 
 function PreferredDistrictsField({ preference, setPreference }: {
@@ -292,8 +235,6 @@ function toLifestyleForm(p: LifestyleProfileResponse | null) {
         personalityType: '', social_level: '', cleanliness: '', noise_tolerance: '',
         occupation_type: '', cooking_frequency: '', guest_frequency: '',
         interests: '', languages: '',
-        preferred_lease_months: '' as number | '', move_in_date: '',
-        deal_breakers: '',
     };
     if (!p) return defaults;
     return {
@@ -305,9 +246,6 @@ function toLifestyleForm(p: LifestyleProfileResponse | null) {
         occupation_type: p.occupation_type ?? '', cooking_frequency: p.cooking_frequency ?? '',
         guest_frequency: p.guest_frequency ?? '',
         interests: (p.interests ?? []).join(', '), languages: (p.languages ?? []).join(', '),
-        preferred_lease_months: (p.preferred_lease_months ?? '') as number | '',
-        move_in_date: p.move_in_date ?? '',
-        deal_breakers: p.deal_breakers ?? '',
     };
 }
 
@@ -439,9 +377,6 @@ export function ProfilePage() {
                 guest_frequency: lifestyle.guest_frequency || null,
                 interests: lifestyle.interests ? lifestyle.interests.split(',').map((s) => s.trim()).filter(Boolean) : [],
                 languages: lifestyle.languages ? lifestyle.languages.split(',').map((s) => s.trim()).filter(Boolean) : [],
-                preferred_lease_months: lifestyle.preferred_lease_months === '' ? null : Number(lifestyle.preferred_lease_months),
-                move_in_date: lifestyle.move_in_date || null,
-                deal_breakers: lifestyle.deal_breakers || null,
             });
             setLifestyleSuccess(true); setTimeout(() => setLifestyleSuccess(false), 3000);
         } catch (err) { setLifestyleError(err instanceof Error ? err.message : t('common.error')); }
@@ -654,12 +589,6 @@ export function ProfilePage() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className={labelClass}>{t('profile.socialLevel')}</label>
-                                            <select value={lifestyle.social_level} onChange={(e) => setLifestyle((l) => ({ ...l, social_level: e.target.value }))} className={inputClass}>
-                                                {SOCIAL_LEVEL_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
                                             <label className={labelClass}><Volume2 className="w-3.5 h-3.5 inline mr-1 -mt-0.5 text-muted-foreground" />{t('profile.noiseTolerance')}</label>
                                             <select value={lifestyle.noise_tolerance} onChange={(e) => setLifestyle((l) => ({ ...l, noise_tolerance: e.target.value }))} className={inputClass}>
                                                 {NOISE_TOLERANCE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
@@ -705,31 +634,6 @@ export function ProfilePage() {
                                             );
                                         })}
                                     </div>
-                                    <div>
-                                        <label className={labelClass}>{t('profile.languages')}</label>
-                                        <p className="text-xs text-muted-foreground mb-2">{t('profile.languagesNote')}</p>
-                                        <TagInput value={lifestyle.languages} onChange={(v) => setLifestyle((l) => ({ ...l, languages: v }))} placeholder="VD: Tiếng Việt, English..." suggestions={LANGUAGE_SUGGESTIONS} />
-                                    </div>
-                                </SectionCard>
-
-                                {/* Move-in plans */}
-                                <SectionCard icon={<Calendar className="w-4 h-4 text-primary" />} title={t('profile.movePlan')} subtitle={t('profile.movePlanSub')}>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={labelClass}>{t('profile.moveInDate')}</label>
-                                            <input type="date" value={lifestyle.move_in_date} onChange={(e) => setLifestyle((l) => ({ ...l, move_in_date: e.target.value }))} className={inputClass} />
-                                        </div>
-                                        <div>
-                                            <label className={labelClass}>{t('profile.leaseMonths')}</label>
-                                            <input type="number" value={lifestyle.preferred_lease_months} onChange={(e) => setLifestyle((l) => ({ ...l, preferred_lease_months: e.target.value === '' ? '' : Number(e.target.value) }))} placeholder="VD: 6" min={1} max={60} className={inputClass} />
-                                        </div>
-                                    </div>
-                                </SectionCard>
-
-                                {/* Deal breakers */}
-                                <SectionCard icon={<X className="w-4 h-4 text-primary" />} title={t('profile.dealBreakers')} subtitle={t('profile.dealBreakersSub')}>
-                                    <textarea value={lifestyle.deal_breakers} onChange={(e) => setLifestyle((l) => ({ ...l, deal_breakers: e.target.value }))} placeholder="VD: Hút thuốc trong phòng, Tiệc tùng thường xuyên, Không giữ vệ sinh..." className={`${inputClass} min-h-20 resize-y`} maxLength={500} rows={3} />
-                                    <p className="text-xs text-muted-foreground">{lifestyle.deal_breakers.length}/500</p>
                                 </SectionCard>
 
                                 <button type="submit" disabled={lifestyleSaving} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/app/features/home/components';
 import { useAuth } from '@/app/context/useAuth';
@@ -297,6 +297,29 @@ export function FindRoommatePage() {
     const PAGE_SIZE = 9;
     const [suggestionPage, setSuggestionPage] = useState(1);
 
+    // Weights customization
+    const DEFAULT_WEIGHTS: Record<string, number> = {
+        smoking: 5, sleep_schedule: 5, pets_allowed: 5,
+        noise_tolerance: 5, guest_frequency: 5, drinking: 5,
+        cooking_frequency: 5, work_from_home: 5,
+        personalityType: 5, interests: 5,
+    };
+    const CRITERION_LABELS: Record<string, string> = {
+        smoking: 'Hút thuốc',
+        sleep_schedule: 'Giờ ngủ',
+        pets_allowed: 'Thú cưng',
+        noise_tolerance: 'Chịu ồn',
+        guest_frequency: 'Tần suất có khách',
+        drinking: 'Uống rượu bia',
+        cooking_frequency: 'Nấu ăn',
+        work_from_home: 'Làm việc tại nhà',
+        personalityType: 'Tính cách',
+        interests: 'Sở thích',
+    };
+    const [customWeights, setCustomWeights] = useState<Record<string, number>>(DEFAULT_WEIGHTS);
+    const [appliedWeights, setAppliedWeights] = useState<Record<string, number> | null>(null);
+    const [showWeightsPanel, setShowWeightsPanel] = useState(false);
+    const allWeightsZero = Object.values(customWeights).every((v) => v === 0);
     // Filter state (live inputs)
     const [filterArea, setFilterArea] = useState('');
     const [filterBudgetMax, setFilterBudgetMax] = useState<number | ''>('');
@@ -327,6 +350,20 @@ export function FindRoommatePage() {
         setAreaSearchActive(false);
         setAreaSearchResults([]);
         setSuggestionPage(1);
+    };
+
+    const handleApplyWeights = () => {
+        if (allWeightsZero) return;
+        setAppliedWeights(customWeights);
+        setSuggestionPage(1);
+        loadSuggestions(customWeights);
+    };
+
+    const handleResetWeights = () => {
+        setCustomWeights(DEFAULT_WEIGHTS);
+        setAppliedWeights(null);
+        setSuggestionPage(1);
+        loadSuggestions(null);
     };
 
     const handleSearch = async () => {
@@ -395,13 +432,13 @@ export function FindRoommatePage() {
         });
     }, [suggestions, appliedFilter, hasAppliedFilter]);
 
-    const loadSuggestions = () => {
+    const loadSuggestions = useCallback((weights?: Record<string, number> | null) => {
         setLoadingSuggestions(true);
-        getRoommateSuggestionsRequest(24)
+        getRoommateSuggestionsRequest(24, weights ?? undefined)
             .then((r) => setSuggestions(r.data || []))
             .catch(() => setSuggestions([]))
             .finally(() => setLoadingSuggestions(false));
-    };
+    }, []);
 
     const loadMatches = () => {
         setLoadingMatches(true);
@@ -413,6 +450,7 @@ export function FindRoommatePage() {
 
     useEffect(() => {
         loadSuggestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
     // Fetch fresh user data to ensure gender check is not stale after a profile update
@@ -754,28 +792,95 @@ export function FindRoommatePage() {
                                 <Sparkles className="w-5 h-5 text-accent" />
                                 Gợi ý roommate
                             </h2>
-                            <button
-                                type="button"
-                                onClick={() => setShowFilters((v) => !v)}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${showFilters
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-muted text-foreground hover:bg-muted/80'
-                                    }`}
-                            >
-                                <SlidersHorizontal className="w-4 h-4" />
-                                Bộ lọc
-                                {hasActiveFilter && (
-                                    <span className="w-2 h-2 rounded-full bg-accent inline-block" />
-                                )}
-                            </button>
-                        </div>
-                        <p className="text-muted-foreground text-sm mb-4">
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowWeightsPanel((v) => !v)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${showWeightsPanel
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-muted text-foreground hover:bg-muted/80'
+                                        }`}
+                                >
+                                    <SlidersHorizontal className="w-4 h-4" />
+                                    Độ ưu tiên
+                                    {appliedWeights && (
+                                        <span className="w-2 h-2 rounded-full bg-accent inline-block" />
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFilters((v) => !v)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${showFilters
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-muted text-foreground hover:bg-muted/80'
+                                        }`}
+                                >
+                                    <SlidersHorizontal className="w-4 h-4" />
+                                    Bộ lọc
+                                    {hasActiveFilter && (
+                                        <span className="w-2 h-2 rounded-full bg-accent inline-block" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>                        <p className="text-muted-foreground text-sm mb-4">
                             {areaSearchActive
                                 ? <>Ưu tiên người đang tìm phòng ở <strong className="text-primary">{areaSearchArea}</strong> — xếp hạng theo lượt tương tác từ cao đến thấp</>
                                 : hasGender
                                     ? 'Ưu tiên người cùng giới và có phong cách sống phù hợp với bạn'
                                     : 'Tenant phù hợp được sắp xếp theo điểm match cao đến thấp'}
                         </p>
+
+                        {/* WeightsPanel */}
+                        {showWeightsPanel && (
+                            <div className="mb-6 p-4 bg-card rounded-2xl border border-border shadow-sm">
+                                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                                    <SlidersHorizontal className="w-4 h-4 text-primary" />
+                                    Tùy chỉnh độ ưu tiên
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                                    {Object.keys(DEFAULT_WEIGHTS).map((key) => (
+                                        <div key={key} className="flex items-center gap-3">
+                                            <span className="text-xs text-muted-foreground w-36 shrink-0">{CRITERION_LABELS[key]}</span>
+                                            <input
+                                                type="range"
+                                                min={0}
+                                                max={10}
+                                                step={1}
+                                                value={customWeights[key]}
+                                                onChange={(e) => setCustomWeights((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
+                                                className="flex-1 accent-primary"
+                                            />
+                                            <span className="text-xs font-semibold text-foreground w-4 text-right shrink-0">{customWeights[key]}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                {allWeightsZero && (
+                                    <p className="mt-3 text-xs text-destructive">Vui lòng đặt ít nhất một tiêu chí &gt; 0</p>
+                                )}
+                                <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border">
+                                    <button
+                                        type="button"
+                                        onClick={handleApplyWeights}
+                                        disabled={allWeightsZero || loadingSuggestions}
+                                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                                    >
+                                        {loadingSuggestions ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                        Áp dụng
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleResetWeights}
+                                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition-colors"
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                        Đặt lại
+                                    </button>
+                                    {appliedWeights && (
+                                        <span className="text-xs text-primary ml-auto">Đang dùng độ ưu tiên tùy chỉnh</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Filter bar */}
                         {showFilters && (
@@ -1336,7 +1441,7 @@ export function FindRoommatePage() {
                     </section>
 
                     {/* ── People You May Know ── */}
-                    {!loadingPymk && (pymkGrouped.length > 0 || (pymkIsRandom && pymkList.length > 0)) && (
+                    {/* {!loadingPymk && (pymkGrouped.length > 0 || (pymkIsRandom && pymkList.length > 0)) && (
                         <section className="mt-2 mb-12">
                             <h2 className="font-heading text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
                                 <TrendingUp className="w-5 h-5 text-primary" />
@@ -1348,7 +1453,7 @@ export function FindRoommatePage() {
                                     : 'Những người đang tìm phòng cùng khu vực với bạn'}
                             </p>
 
-                            {/* Random mode: flat grid */}
+                 
                             {pymkIsRandom && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                     {pymkList.map((item) => (
@@ -1372,7 +1477,6 @@ export function FindRoommatePage() {
                                 </div>
                             )}
 
-                            {/* Grouped by area */}
                             {!pymkIsRandom && pymkGrouped.map((group) => (
                                 <div key={group.area} className="mb-8">
                                     <div className="flex items-center gap-2 mb-3">
@@ -1410,7 +1514,7 @@ export function FindRoommatePage() {
                                 </div>
                             ))}
                         </section>
-                    )}
+                    )} */}
 
                     {/* My matches */}
                     <section>

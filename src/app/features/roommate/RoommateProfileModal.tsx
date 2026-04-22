@@ -212,6 +212,14 @@ export function RoommateProfileModal({ userId, matchScore, onClose }: RoommatePr
                                             </div>
                                         )}
 
+                                        {/* Languages */}
+                                        {L.languages && L.languages.length > 0 && (
+                                            <div className="mt-3 p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/30">
+                                                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 block mb-2">🗣️ Ngôn ngữ</span>
+                                                <TagList items={L.languages} color="primary" />
+                                            </div>
+                                        )}
+
                                         {/* ★ Deal-breakers – highlighted */}
                                         {L.deal_breakers && (
                                             <div className="mt-3 p-3 rounded-xl bg-red-50/80 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30">
