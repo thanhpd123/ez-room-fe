@@ -7,7 +7,7 @@ import {
     Moon, Sparkles, MapPin, Banknote, Crown, X,
     Users, Home, Calendar, Star, Languages,
     Volume2, ChevronDown,
-    CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw,
+    CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw, Lock,
     CheckCircle2, XCircle, Clock3, ArrowRight, MessageCircle, Flag, Eye,
 } from 'lucide-react';
 import { useAuth } from '@/app/context/useAuth';
@@ -15,6 +15,8 @@ import { ImageUpload } from '@/app/components/ImageUpload';
 import { useProvinces } from '@/app/hooks/useProvinces';
 import {
     updateProfileRequest,
+    changePasswordRequest,
+    getStoredToken,
     getLifestyleRequest,
     upsertLifestyleRequest,
     getPreferenceRequest,
@@ -359,6 +361,15 @@ export function ProfilePage() {
     const [profileError, setProfileError] = useState<string | null>(null);
     const [profileSuccess, setProfileSuccess] = useState(false);
 
+    const canChangePassword = typeof window !== 'undefined' && !!getStoredToken();
+    const [pwCurrent, setPwCurrent] = useState('');
+    const [pwNew, setPwNew] = useState('');
+    const [pwConfirm, setPwConfirm] = useState('');
+    const [pwSaving, setPwSaving] = useState(false);
+    const [pwError, setPwError] = useState<string | null>(null);
+    const [pwFieldErrors, setPwFieldErrors] = useState<string[]>([]);
+    const [pwSuccess, setPwSuccess] = useState(false);
+
     const [lifestyle, setLifestyle] = useState(toLifestyleForm(null));
     const [lifestyleLoading, setLifestyleLoading] = useState(true);
     const [lifestyleSaving, setLifestyleSaving] = useState(false);
@@ -418,6 +429,32 @@ export function ProfilePage() {
             setProfileSuccess(true); setTimeout(() => setProfileSuccess(false), 3000);
         } catch (err) { setProfileError(err instanceof Error ? err.message : t('common.error')); }
         finally { setProfileSaving(false); }
+    };
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setPwError(null);
+        setPwFieldErrors([]);
+        setPwSuccess(false);
+        setPwSaving(true);
+        try {
+            await changePasswordRequest({
+                currentPassword: pwCurrent,
+                newPassword: pwNew,
+                confirmNewPassword: pwConfirm,
+            });
+            setPwCurrent('');
+            setPwNew('');
+            setPwConfirm('');
+            setPwSuccess(true);
+            setTimeout(() => setPwSuccess(false), 4000);
+        } catch (err) {
+            const e = err as Error & { errors?: string[] };
+            setPwError(e.message || t('common.error'));
+            if (Array.isArray(e.errors) && e.errors.length > 0) setPwFieldErrors(e.errors);
+        } finally {
+            setPwSaving(false);
+        }
     };
 
     const handleSaveLifestyle = async (e: React.FormEvent) => {
@@ -563,50 +600,95 @@ export function ProfilePage() {
 
                 {/* ── PROFILE TAB ── */}
                 {tab === 'profile' && (
-                    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 border-b border-border bg-muted/30">
-                            <h3 className="font-heading font-semibold text-foreground flex items-center gap-2">
-                                <User className="w-4 h-4 text-primary" />{t('profile.sectionBasic')}
-                            </h3>
-                            <p className="text-muted-foreground text-xs mt-0.5">{t('profile.sectionBasicSub')}</p>
+                    <div className="space-y-6">
+                        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-border bg-muted/30">
+                                <h3 className="font-heading font-semibold text-foreground flex items-center gap-2">
+                                    <User className="w-4 h-4 text-primary" />{t('profile.sectionBasic')}
+                                </h3>
+                                <p className="text-muted-foreground text-xs mt-0.5">{t('profile.sectionBasicSub')}</p>
+                            </div>
+                            <form onSubmit={handleSaveProfile} className="p-6 space-y-5">
+                                {profileError && <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">{profileError}</div>}
+                                {profileSuccess && (
+                                    <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2">
+                                        <Check className="w-4 h-4 shrink-0" />{t('profile.savedChanges')}
+                                    </div>
+                                )}
+                                <div>
+                                    <label className={labelClass}>{t('profile.fullName')}</label>
+                                    <input value={profileForm.fullName} onChange={(e) => setProfileForm((f) => ({ ...f, fullName: e.target.value }))} className={inputClass} placeholder="Nguyễn Văn A" required />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>{t('profile.email')}</label>
+                                    <input type="email" value={user?.email ?? ''} disabled className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-muted-foreground cursor-not-allowed text-sm" />
+                                    <p className="text-xs text-muted-foreground mt-1">{t('profile.emailNote')}</p>
+                                </div>
+                                <div>
+                                    <label className={labelClass}>{t('profile.phone')}</label>
+                                    <div className="relative">
+                                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                        <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} placeholder="0123456789" className={`${inputClass} pl-11`} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className={labelClass}>{t('profile.gender')}</label>
+                                    <select value={profileForm.gender} onChange={(e) => setProfileForm((f) => ({ ...f, gender: e.target.value }))} className={inputClass}>
+                                        {PROFILE_GENDER_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                    <p className="text-xs text-muted-foreground mt-1">{t('profile.genderNote')}</p>
+                                </div>
+                                <div>
+                                    <ImageUpload label={t('profile.avatar')} value={profileForm.avatarUrl} onChange={(url) => setProfileForm((f) => ({ ...f, avatarUrl: url }))} placeholder={t('profile.avatarPlaceholder')} previewClassName="w-24 h-24 rounded-xl object-cover border border-border" />
+                                </div>
+                                <button type="submit" disabled={profileSaving} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm">
+                                    {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t('profile.saveBtn')}
+                                </button>
+                            </form>
                         </div>
-                        <form onSubmit={handleSaveProfile} className="p-6 space-y-5">
-                            {profileError && <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">{profileError}</div>}
-                            {profileSuccess && (
-                                <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2">
-                                    <Check className="w-4 h-4 shrink-0" />{t('profile.savedChanges')}
+
+                        {canChangePassword ? (
+                            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                                <div className="px-6 py-4 border-b border-border bg-muted/30">
+                                    <h3 className="font-heading font-semibold text-foreground flex items-center gap-2">
+                                        <Lock className="w-4 h-4 text-primary" />{t('profile.sectionPassword')}
+                                    </h3>
+                                    <p className="text-muted-foreground text-xs mt-0.5">{t('profile.sectionPasswordSub')}</p>
                                 </div>
-                            )}
-                            <div>
-                                <label className={labelClass}>{t('profile.fullName')}</label>
-                                <input value={profileForm.fullName} onChange={(e) => setProfileForm((f) => ({ ...f, fullName: e.target.value }))} className={inputClass} placeholder="Nguyễn Văn A" required />
+                                <form onSubmit={handleChangePassword} className="p-6 space-y-5">
+                                    {pwSuccess && (
+                                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm flex items-center gap-2">
+                                            <Check className="w-4 h-4 shrink-0" />{t('profile.passwordSuccess')}
+                                        </div>
+                                    )}
+                                    {pwError && <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">{pwError}</div>}
+                                    {pwFieldErrors.length > 0 && (
+                                        <ul className="list-disc pl-5 text-sm text-destructive space-y-0.5">
+                                            {pwFieldErrors.map((msg) => <li key={msg}>{msg}</li>)}
+                                        </ul>
+                                    )}
+                                    <div>
+                                        <label className={labelClass}>{t('profile.currentPassword')}</label>
+                                        <input type="password" autoComplete="current-password" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} className={inputClass} required />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>{t('profile.newPassword')}</label>
+                                        <input type="password" autoComplete="new-password" value={pwNew} onChange={(e) => setPwNew(e.target.value)} className={inputClass} required />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>{t('profile.confirmPassword')}</label>
+                                        <input type="password" autoComplete="new-password" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} className={inputClass} required />
+                                    </div>
+                                    <button type="submit" disabled={pwSaving} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm">
+                                        {pwSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}{t('profile.changePasswordBtn')}
+                                    </button>
+                                </form>
                             </div>
-                            <div>
-                                <label className={labelClass}>{t('profile.email')}</label>
-                                <input type="email" value={user?.email ?? ''} disabled className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-muted-foreground cursor-not-allowed text-sm" />
-                                <p className="text-xs text-muted-foreground mt-1">{t('profile.emailNote')}</p>
+                        ) : (
+                            <div className="rounded-2xl border border-border bg-muted/30 px-5 py-4 text-sm text-muted-foreground">
+                                {t('profile.passwordOAuthNote')}
                             </div>
-                            <div>
-                                <label className={labelClass}>{t('profile.phone')}</label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                                    <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))} placeholder="0123456789" className={`${inputClass} pl-11`} />
-                                </div>
-                            </div>
-                            <div>
-                                <label className={labelClass}>{t('profile.gender')}</label>
-                                <select value={profileForm.gender} onChange={(e) => setProfileForm((f) => ({ ...f, gender: e.target.value }))} className={inputClass}>
-                                    {PROFILE_GENDER_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
-                                </select>
-                                <p className="text-xs text-muted-foreground mt-1">{t('profile.genderNote')}</p>
-                            </div>
-                            <div>
-                                <ImageUpload label={t('profile.avatar')} value={profileForm.avatarUrl} onChange={(url) => setProfileForm((f) => ({ ...f, avatarUrl: url }))} placeholder={t('profile.avatarPlaceholder')} previewClassName="w-24 h-24 rounded-xl object-cover border border-border" />
-                            </div>
-                            <button type="submit" disabled={profileSaving} className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 disabled:opacity-60 transition-all shadow-sm">
-                                {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t('profile.saveBtn')}
-                            </button>
-                        </form>
+                        )}
                     </div>
                 )}
 

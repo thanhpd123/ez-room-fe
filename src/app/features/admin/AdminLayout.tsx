@@ -82,7 +82,7 @@ export function AdminLayout() {
             key: 'change-password',
             icon: <LockOutlined />,
             label: t('admin.userMenu.changePassword'),
-            onClick: () => navigate('/forgot-password'),
+            onClick: () => navigate('/profile'),
         },
         {
             type: 'divider',
