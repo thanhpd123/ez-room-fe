@@ -70,7 +70,7 @@ function PymkCard({
         else if (L.smoking === false) tags.push({ label: 'Không hút thuốc' });
         if (L.pets_allowed) tags.push({ label: 'Nuôi thú cưng' });
         if (L.sleep_schedule) tags.push({ label: `Ngủ: ${L.sleep_schedule}` });
-        if (L.personalityType) tags.push({ label: L.personalityType });
+        if (L.social_level) tags.push({ label: `Giao tiếp: ${L.social_level}` });
         if (L.cleanliness) tags.push({ label: `Sạch sẽ: ${L.cleanliness}` });
         if (L.noise_tolerance) tags.push({ label: `Chịu ồn: ${L.noise_tolerance}` });
         if (L.guest_frequency) tags.push({ label: `Khách: ${L.guest_frequency}` });
@@ -201,7 +201,7 @@ function LifestyleTags({ item }: { item: RoommateSuggestionItem }) {
 
     // Core lifestyle
     if (L?.sleep_schedule) tags.push({ label: `Ngủ: ${L.sleep_schedule}` });
-    if (L?.personalityType) tags.push({ label: L.personalityType });
+    if (L?.social_level) tags.push({ label: `Giao tiếp: ${L.social_level}` });
     if (L?.cleanliness) tags.push({ label: `Sạch sẽ: ${L.cleanliness}` });
     if (L?.noise_tolerance) tags.push({ label: `Chịu ồn: ${L.noise_tolerance}` });
     if (L?.guest_frequency) tags.push({ label: `Khách: ${L.guest_frequency}` });
@@ -302,7 +302,7 @@ export function FindRoommatePage() {
         smoking: 5, sleep_schedule: 5, pets_allowed: 5,
         noise_tolerance: 5, guest_frequency: 5, drinking: 5,
         cooking_frequency: 5, work_from_home: 5,
-        personalityType: 5, interests: 5,
+        social_level: 5, interests: 5,
     };
     const CRITERION_LABELS: Record<string, string> = {
         smoking: 'Hút thuốc',
@@ -313,7 +313,7 @@ export function FindRoommatePage() {
         drinking: 'Uống rượu bia',
         cooking_frequency: 'Nấu ăn',
         work_from_home: 'Làm việc tại nhà',
-        personalityType: 'Tính cách',
+        social_level: 'Mức độ giao tiếp',
         interests: 'Sở thích',
     };
     const [customWeights, setCustomWeights] = useState<Record<string, number>>(DEFAULT_WEIGHTS);
@@ -706,9 +706,9 @@ export function FindRoommatePage() {
 
                                             {r.lifestyle && (
                                                 <div className="flex flex-wrap gap-1.5 mb-3">
-                                                    {r.lifestyle.personalityType && (
+                                                    {r.lifestyle.social_level && (
                                                         <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                                            {r.lifestyle.personalityType}
+                                                            Giao tiếp: {r.lifestyle.social_level}
                                                         </span>
                                                     )}
                                                     {r.lifestyle.smoking === false && (
@@ -843,7 +843,7 @@ export function FindRoommatePage() {
                                             <span className="text-xs text-muted-foreground w-36 shrink-0">{CRITERION_LABELS[key]}</span>
                                             <input
                                                 type="range"
-                                                min={0}
+                                                min={1}
                                                 max={10}
                                                 step={1}
                                                 value={customWeights[key]}
@@ -988,7 +988,6 @@ export function FindRoommatePage() {
                                     {areaSearchActive && (
                                         <p className="text-sm text-muted-foreground ml-auto">
                                             Tìm thấy <span className="font-semibold text-foreground">{areaSearchResults.length}</span> roommate ở <span className="font-semibold text-primary">{areaSearchArea}</span>
-                                            <span className="text-xs ml-1">({areaSearchTotalRooms} phòng trong khu vực)</span>
                                         </p>
                                     )}
                                 </div>
