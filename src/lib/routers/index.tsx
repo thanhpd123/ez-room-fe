@@ -161,6 +161,16 @@ const routes = [
         ),
     },
     {
+        path: '/wallet',
+        element: (
+            <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                    <WalletPage />
+                </Suspense>
+            </ProtectedRoute>
+        ),
+    },
+    {
         path: '/roommate',
         element: (
             <ProtectedRoute>

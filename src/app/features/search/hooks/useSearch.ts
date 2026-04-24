@@ -6,6 +6,13 @@ import type { SmartSearchRoomItem } from '@/lib/api';
 import { useAuth } from '@/app/context/useAuth';
 import { translateBatch } from '@/lib/translate-api';
 
+function normalizeAdminPrefix(value?: string): string | undefined {
+    const normalized = (value || '')
+        .trim()
+        .replace(/^(thành\s*phố|tp\.?|tỉnh)\s+/i, '');
+    return normalized || undefined;
+}
+
 /** True if text contains Vietnamese diacritics → already Vietnamese. */
 function isVietnamese(text: string): boolean {
     return /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(text);
@@ -99,8 +106,8 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
 
         const params = {
             q: queryText || undefined,
-            city: criteria.city?.trim() || undefined,
-            district: criteria.district?.trim() || criteria.location?.trim() || undefined,
+            city: normalizeAdminPrefix(criteria.city),
+            district: normalizeAdminPrefix(criteria.district) || normalizeAdminPrefix(criteria.location),
             address: criteria.address?.trim() || undefined,
             minPrice: criteria.minPrice,
             maxPrice: criteria.maxPrice,
@@ -256,23 +263,34 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
         const q = searchParams.get('q');
         const location = searchParams.get('location');
         const price = searchParams.get('price');
+        const minPriceParam = searchParams.get('minPrice');
+        const maxPriceParam = searchParams.get('maxPrice');
         const roomType = searchParams.get('roomType');
         const amenitiesParam = searchParams.get('amenities');
         const minAreaParam = searchParams.get('minArea');
         const maxAreaParam = searchParams.get('maxArea');
-        if (district || city || address || q || location || price || roomType || amenitiesParam || minAreaParam || maxAreaParam) {
+        if (district || city || address || q || location || price || minPriceParam || maxPriceParam || roomType || amenitiesParam || minAreaParam || maxAreaParam) {
             const criteria: SearchCriteria = {
                 q: q || undefined,
-                city: city || undefined,
-                district: district || undefined,
+                city: normalizeAdminPrefix(city || undefined),
+                district: normalizeAdminPrefix(district || undefined),
                 address: address || undefined,
-                location: district || city || location || undefined,
+                location:
+                    normalizeAdminPrefix(district || undefined) ||
+                    normalizeAdminPrefix(city || undefined) ||
+                    normalizeAdminPrefix(location || undefined),
                 roomType: (roomType as SearchCriteria['roomType']) || undefined,
             };
             if (price) {
                 const parts = price.split('-').map((s) => (s ? parseInt(s, 10) : undefined));
                 if (parts[0] != null) criteria.minPrice = parts[0];
                 if (parts[1] != null) criteria.maxPrice = parts[1];
+            }
+            if (minPriceParam && !Number.isNaN(Number(minPriceParam))) {
+                criteria.minPrice = Number(minPriceParam);
+            }
+            if (maxPriceParam && !Number.isNaN(Number(maxPriceParam))) {
+                criteria.maxPrice = Number(maxPriceParam);
             }
             if (amenitiesParam) {
                 criteria.amenities = amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean);

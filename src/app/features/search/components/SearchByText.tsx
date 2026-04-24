@@ -47,15 +47,61 @@ const initialFormState: FormState = {
     selectedAmenities: [],
 };
 
+function normalizeAdminPrefix(value: string): string {
+    if (!value) return '';
+    return value
+        .trim()
+        .replace(/^(thành\s*phố|tp\.?|tỉnh)\s+/i, '');
+}
+
+function formStateFromSearchParams(searchParams: URLSearchParams): FormState {
+    const q = searchParams.get('q') || '';
+    const city = normalizeAdminPrefix(searchParams.get('city') || '');
+    const district = normalizeAdminPrefix(searchParams.get('district') || '');
+    const address = searchParams.get('address') || '';
+    const roomType = searchParams.get('roomType') || '';
+    const price = searchParams.get('price') || '';
+    const minPriceParam = searchParams.get('minPrice') || '';
+    const maxPriceParam = searchParams.get('maxPrice') || '';
+    const amenitiesParam = searchParams.get('amenities');
+    const minAreaParam = searchParams.get('minArea');
+    const maxAreaParam = searchParams.get('maxArea');
+
+    const [rawMinPrice, rawMaxPrice] = price
+        .split('-')
+        .map((s) => s.trim())
+        .slice(0, 2);
+    const parsedMin = rawMinPrice && !Number.isNaN(Number(rawMinPrice)) ? rawMinPrice : '';
+    const parsedMax = rawMaxPrice && !Number.isNaN(Number(rawMaxPrice)) ? rawMaxPrice : '';
+    const minPrice = minPriceParam && !Number.isNaN(Number(minPriceParam)) ? minPriceParam : parsedMin;
+    const maxPrice = maxPriceParam && !Number.isNaN(Number(maxPriceParam)) ? maxPriceParam : parsedMax;
+    const selectedAmenities = amenitiesParam
+        ? amenitiesParam.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+
+    return {
+        ...initialFormState,
+        q,
+        city,
+        district,
+        address,
+        minPrice,
+        maxPrice,
+        minArea: minAreaParam && !Number.isNaN(Number(minAreaParam)) ? minAreaParam : '',
+        maxArea: maxAreaParam && !Number.isNaN(Number(maxAreaParam)) ? maxAreaParam : '',
+        roomType: (roomType as RoomType | '') || '',
+        selectedAmenities,
+    };
+}
+
 const syncStateFromParams = (params: URLSearchParams, currentForm: FormState): FormState => {
-    const city = params.get('city') || '';
-    const district = params.get('district') || '';
+    const city = normalizeAdminPrefix(params.get('city') || '');
+    const district = normalizeAdminPrefix(params.get('district') || '');
     const address = params.get('address') || '';
     const amenitiesParam = params.get('amenities');
     const minAreaParam = params.get('minArea');
     const maxAreaParam = params.get('maxArea');
 
-    // Chỉ cập nhật nếu có tham số liên quan
     if (!city && !district && !address && !amenitiesParam && !minAreaParam && !maxAreaParam) {
         return currentForm;
     }
@@ -72,18 +118,15 @@ export function SearchByText({ onSearch, isSearching, basicOnly = false, onVoice
     const { accessToken } = useAuth();
     const [searchParams] = useSearchParams();
 
-    // State cho URL synchronization thay vì useEffect
     const currentParamsStr = searchParams.toString();
     const [prevParamsStr, setPrevParamsStr] = useState(currentParamsStr);
 
-    const [formState, setFormState] = useState<FormState>(() => syncStateFromParams(searchParams, initialFormState));
+    const [formState, setFormState] = useState<FormState>(() => formStateFromSearchParams(searchParams));
 
-    // Derived state update - an toàn trong React 16.3+ để tránh useEffect
     if (currentParamsStr !== prevParamsStr) {
         setPrevParamsStr(currentParamsStr);
         setFormState((prev) => syncStateFromParams(searchParams, prev));
     }
-
     const [error, setError] = useState('');
     const [useMyLocation, setUseMyLocation] = useState(false);
     const geo = useGeolocation();
