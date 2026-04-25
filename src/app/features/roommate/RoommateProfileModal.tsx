@@ -3,7 +3,6 @@ import {
     X,
     Loader2,
     Cigarette,
-    Wine,
     PawPrint,
     Moon,
     Sparkles,
@@ -12,6 +11,7 @@ import {
     UserCheck,
     Shield,
     Eye,
+    UtensilsCrossed,
 } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
 import { getRoommateProfileRequest, type RoommatePublicProfile } from '@/lib/api';
@@ -195,13 +195,13 @@ export function RoommateProfileModal({ userId, matchScore, onClose }: RoommatePr
                                     <Section title="Phong cách sống">
                                         <div className="grid grid-cols-1 gap-0.5">
                                             <InfoRow icon={Cigarette} label="Hút thuốc" value={boolLabel(L.smoking)} />
-                                            <InfoRow icon={Wine} label="Uống rượu/bia" value={boolLabel(L.drinking)} />
                                             <InfoRow icon={PawPrint} label="Nuôi thú cưng" value={boolLabel(L.pets_allowed)} />
                                             <InfoRow icon={Moon} label="Lịch ngủ" value={L.sleep_schedule} />
-                                            <InfoRow icon={UserCheck} label="Tính cách" value={L.personalityType} />
+                                            <InfoRow icon={UserCheck} label="Mức độ giao tiếp" value={L.social_level} />
                                             <InfoRow icon={Shield} label="Sạch sẽ" value={L.cleanliness} />
                                             <InfoRow icon={Volume2} label="Chịu ồn" value={L.noise_tolerance} />
                                             <InfoRow icon={Users} label="Khách đến chơi" value={L.guest_frequency} />
+                                            <InfoRow icon={UtensilsCrossed} label="Nấu ăn" value={L.cooking_frequency} />
                                         </div>
 
                                         {/* ★ Interests – highlighted */}
@@ -209,14 +209,6 @@ export function RoommateProfileModal({ userId, matchScore, onClose }: RoommatePr
                                             <div className="mt-4 p-3 rounded-xl bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200/50 dark:border-blue-800/30">
                                                 <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 block mb-2">★ Sở thích</span>
                                                 <TagList items={L.interests} color="primary" />
-                                            </div>
-                                        )}
-
-                                        {/* Languages */}
-                                        {L.languages && L.languages.length > 0 && (
-                                            <div className="mt-3 p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/30">
-                                                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 block mb-2">🗣️ Ngôn ngữ</span>
-                                                <TagList items={L.languages} color="primary" />
                                             </div>
                                         )}
 

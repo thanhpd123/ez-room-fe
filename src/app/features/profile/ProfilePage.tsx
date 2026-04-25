@@ -61,19 +61,9 @@ const SLEEP_SCHEDULE_OPTIONS = [
     { value: 'Khuya (sau 0h)', label: '🦉 Khuya (sau 0h)' },
 ];
 
-const PERSONALITY_OPTIONS = [
-    { value: '', label: '— Chọn —' },
-    { value: 'Hướng ngoại', label: '🗣️ Hướng ngoại' },
-    { value: 'Hướng nội', label: '📚 Hướng nội' },
-    { value: 'Yên tĩnh', label: '🧘 Yên tĩnh' },
-    { value: 'Dễ gần', label: '🤝 Dễ gần' },
-    { value: 'Năng động', label: '⚡ Năng động' },
-    { value: 'Khác', label: 'Khác' },
-];
-
 const SOCIAL_LEVEL_OPTIONS = [
     { value: '', label: '— Chọn —' },
-    { value: 'Thấp', label: '🔇 Ít giao tiếp' },
+    { value: 'Thấp', label: '🔇 Hướng nội' },
     { value: 'Trung bình', label: '💬 Bình thường' },
     { value: 'Cao', label: '🎉 Rất thích giao lưu' },
 ];
@@ -81,7 +71,6 @@ const SOCIAL_LEVEL_OPTIONS = [
 const CLEANLINESS_OPTIONS = [
     { value: '', label: '— Chọn —' },
     { value: 'Rất sạch', label: '✨ Rất sạch sẽ' },
-    { value: 'Sạch', label: '🧹 Sạch sẽ' },
     { value: 'Bình thường', label: '😐 Bình thường' },
     { value: 'Không quan tâm', label: '🤷 Không quan tâm' },
 ];
@@ -98,7 +87,13 @@ const GUEST_FREQUENCY_OPTIONS = [
     { value: 'Không bao giờ', label: '🚫 Không bao giờ' },
     { value: 'Hiếm', label: '😶 Rất hiếm' },
     { value: 'Thỉnh thoảng', label: '🙂 Thỉnh thoảng' },
-    { value: 'Thường xuyên', label: '🎊 Thường xuyên' },
+];
+
+const COOKING_FREQUENCY_OPTIONS = [
+    { value: '', label: '— Chọn —' },
+    { value: 'không nấu', label: '🍕 Không nấu' },
+    { value: 'ít', label: '🥡 Ít khi nấu' },
+    { value: 'thường xuyên', label: '🍳 Thường xuyên' },
 ];
 
 const ROOM_TYPE_OPTIONS = [
@@ -109,7 +104,7 @@ const ROOM_TYPE_OPTIONS = [
     { value: 'APARTMENT', label: 'Căn hộ' },
 ];
 
-const INTEREST_SUGGESTIONS = ['Đọc sách', 'Thể thao', 'Âm nhạc', 'Du lịch', 'Nấu ăn', 'Gaming', 'Phim ảnh', 'Yoga', 'Chạy bộ', 'Nhiếp ảnh'];
+const INTEREST_SUGGESTIONS = ['Đọc sách', 'Thể thao', 'Âm nhạc', 'Du lịch', 'Gaming', 'Phim ảnh', 'Yoga', 'Chạy bộ', 'Nhiếp ảnh'];
 const LANGUAGE_SUGGESTIONS = ['Tiếng Việt', 'English', '中文', '한국어', '日本語', 'Français'];
 
 // ─── Shared UI helpers ───────────────────────────────────────────────────────
@@ -234,7 +229,7 @@ function toLifestyleForm(p: LifestyleProfileResponse | null) {
     const defaults = {
         smoking: false, drinking: false, pets_allowed: false, work_from_home: false,
         sleep_schedule: '', wake_time: '', bedtime: '', quiet_hours_preference: '', temperature_preference: '',
-        personalityType: '', social_level: '', cleanliness: '', noise_tolerance: '',
+        social_level: '', cleanliness: '', noise_tolerance: '',
         occupation_type: '', cooking_frequency: '', guest_frequency: '',
         interests: '', languages: '',
     };
@@ -243,11 +238,11 @@ function toLifestyleForm(p: LifestyleProfileResponse | null) {
         smoking: !!p.smoking, drinking: !!p.drinking, pets_allowed: !!p.pets_allowed, work_from_home: !!p.work_from_home,
         sleep_schedule: p.sleep_schedule ?? '', wake_time: p.wake_time ?? '', bedtime: p.bedtime ?? '',
         quiet_hours_preference: p.quiet_hours_preference ?? '', temperature_preference: p.temperature_preference ?? '',
-        personalityType: p.personalityType ?? '', social_level: p.social_level ?? '',
+        social_level: p.social_level ?? '',
         cleanliness: p.cleanliness ?? '', noise_tolerance: p.noise_tolerance ?? '',
         occupation_type: p.occupation_type ?? '', cooking_frequency: p.cooking_frequency ?? '',
         guest_frequency: p.guest_frequency ?? '',
-        interests: (p.interests ?? []).join(', '), languages: (p.languages ?? []).join(', '),
+        interests: (p.interests ?? []).filter(i => i !== 'Nấu ăn').join(', '), languages: (p.languages ?? []).join(', '),
     };
 }
 
@@ -406,7 +401,6 @@ export function ProfilePage() {
                 wake_time: lifestyle.wake_time || null, bedtime: lifestyle.bedtime || null,
                 quiet_hours_preference: lifestyle.quiet_hours_preference || null,
                 temperature_preference: lifestyle.temperature_preference || null,
-                personalityType: lifestyle.personalityType || null,
                 social_level: lifestyle.social_level || null,
                 cleanliness: lifestyle.cleanliness || null, noise_tolerance: lifestyle.noise_tolerance || null,
                 occupation_type: lifestyle.occupation_type || null,
@@ -643,19 +637,8 @@ export function ProfilePage() {
                                 <SectionCard icon={<Sparkles className="w-4 h-4 text-primary" />} title={t('profile.habits')} subtitle={t('profile.habitsSub')}>
                                     <div className="divide-y divide-border">
                                         <div className="pb-3"><ToggleSwitch checked={lifestyle.smoking} onChange={(v) => setLifestyle((l) => ({ ...l, smoking: v }))} label={t('profile.smoking')} description={t('profile.smokingDesc')} /></div>
-                                        <div className="py-3"><ToggleSwitch checked={lifestyle.drinking} onChange={(v) => setLifestyle((l) => ({ ...l, drinking: v }))} label={t('profile.drinking')} description={t('profile.drinkingDesc')} /></div>
                                         <div className="py-3"><ToggleSwitch checked={lifestyle.pets_allowed} onChange={(v) => setLifestyle((l) => ({ ...l, pets_allowed: v }))} label={t('profile.pets')} description={t('profile.petsDesc')} /></div>
                                         <div className="pt-3"><ToggleSwitch checked={lifestyle.work_from_home} onChange={(v) => setLifestyle((l) => ({ ...l, work_from_home: v }))} label={t('profile.wfh')} description={t('profile.wfhDesc')} /></div>
-                                    </div>
-                                </SectionCard>
-
-                                {/* Sleep & Schedule */}
-                                <SectionCard icon={<Moon className="w-4 h-4 text-primary" />} title={t('profile.schedule')} subtitle={t('profile.scheduleSub')}>
-                                    <div>
-                                        <label className={labelClass}>{t('profile.sleepHabit')}</label>
-                                        <select value={lifestyle.sleep_schedule} onChange={(e) => setLifestyle((l) => ({ ...l, sleep_schedule: e.target.value }))} className={inputClass}>
-                                            {SLEEP_SCHEDULE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
-                                        </select>
                                     </div>
                                 </SectionCard>
 
@@ -663,9 +646,9 @@ export function ProfilePage() {
                                 <SectionCard icon={<Users className="w-4 h-4 text-primary" />} title={t('profile.personality')} subtitle={t('profile.personalitySub')}>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
-                                            <label className={labelClass}>{t('profile.personalityType')}</label>
-                                            <select value={lifestyle.personalityType} onChange={(e) => setLifestyle((l) => ({ ...l, personalityType: e.target.value }))} className={inputClass}>
-                                                {PERSONALITY_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            <label className={labelClass}>Mức độ giao tiếp</label>
+                                            <select value={lifestyle.social_level} onChange={(e) => setLifestyle((l) => ({ ...l, social_level: e.target.value }))} className={inputClass}>
+                                                {SOCIAL_LEVEL_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
                                             </select>
                                         </div>
                                         <div>
@@ -686,6 +669,18 @@ export function ProfilePage() {
                                                 {GUEST_FREQUENCY_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
                                             </select>
                                         </div>
+                                        <div>
+                                            <label className={labelClass}>Nấu ăn</label>
+                                            <select value={lifestyle.cooking_frequency} onChange={(e) => setLifestyle((l) => ({ ...l, cooking_frequency: e.target.value }))} className={inputClass}>
+                                                {COOKING_FREQUENCY_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>{t('profile.sleepHabit')}</label>
+                                            <select value={lifestyle.sleep_schedule} onChange={(e) => setLifestyle((l) => ({ ...l, sleep_schedule: e.target.value }))} className={inputClass}>
+                                                {SLEEP_SCHEDULE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        </div>
                                     </div>
                                 </SectionCard>
 
@@ -693,17 +688,22 @@ export function ProfilePage() {
                                 <SectionCard icon={<Languages className="w-4 h-4 text-primary" />} title={t('profile.interests')} subtitle={t('profile.interestsLangSub')}>
                                     <div className="flex flex-wrap gap-2">
                                         {INTEREST_SUGGESTIONS.map((interest) => {
-                                            const selected = lifestyle.interests.includes(interest);
+                                            const currentInterests = lifestyle.interests ? lifestyle.interests.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                            const selected = currentInterests.some(i => i.toLowerCase() === interest.toLowerCase());
                                             return (
                                                 <button
                                                     key={interest}
                                                     type="button"
-                                                    onClick={() => setLifestyle((l) => ({
-                                                        ...l,
-                                                        interests: selected
-                                                            ? l.interests.split(', ').filter((i: string) => i !== interest).join(', ')
-                                                            : (l.interests ? l.interests + ', ' + interest : interest),
-                                                    }))}
+                                                    onClick={() => setLifestyle((l) => {
+                                                        const interestsList = l.interests ? l.interests.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                                        const newInterests = selected
+                                                            ? interestsList.filter(i => i.toLowerCase() !== interest.toLowerCase())
+                                                            : [...interestsList, interest];
+                                                        return {
+                                                            ...l,
+                                                            interests: newInterests.join(', '),
+                                                        };
+                                                    })}
                                                     className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${selected
                                                         ? 'bg-primary text-primary-foreground border-primary'
                                                         : 'bg-background text-foreground border-border hover:border-primary/50'
