@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Header } from '@/app/features/home/components';
 import {
     User, Heart, Sliders, Loader2, Save, Mail, Phone, Check,
-    Moon, Sparkles, MapPin, Banknote, Crown, X,
+    Sparkles, MapPin, Banknote, Crown, X,
     Users, Home, Calendar, Star, Languages,
     Volume2, ChevronDown,
     CreditCard, Building2, AlertCircle, ExternalLink, RefreshCw, Lock,
@@ -105,6 +105,7 @@ const ROOM_TYPE_OPTIONS = [
 ];
 
 const INTEREST_SUGGESTIONS = ['Đọc sách', 'Thể thao', 'Âm nhạc', 'Du lịch', 'Gaming', 'Phim ảnh', 'Yoga', 'Chạy bộ', 'Nhiếp ảnh'];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const LANGUAGE_SUGGESTIONS = ['Tiếng Việt', 'English', '中文', '한국어', '日本語', 'Français'];
 
 // ─── Shared UI helpers ───────────────────────────────────────────────────────
