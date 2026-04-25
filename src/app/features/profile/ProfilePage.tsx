@@ -642,16 +642,6 @@ export function ProfilePage() {
                                     </div>
                                 </SectionCard>
 
-                                {/* Sleep & Schedule */}
-                                <SectionCard icon={<Moon className="w-4 h-4 text-primary" />} title={t('profile.schedule')} subtitle={t('profile.scheduleSub')}>
-                                    <div>
-                                        <label className={labelClass}>{t('profile.sleepHabit')}</label>
-                                        <select value={lifestyle.sleep_schedule} onChange={(e) => setLifestyle((l) => ({ ...l, sleep_schedule: e.target.value }))} className={inputClass}>
-                                            {SLEEP_SCHEDULE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
-                                        </select>
-                                    </div>
-                                </SectionCard>
-
                                 {/* Personality & Daily Life */}
                                 <SectionCard icon={<Users className="w-4 h-4 text-primary" />} title={t('profile.personality')} subtitle={t('profile.personalitySub')}>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -685,6 +675,12 @@ export function ProfilePage() {
                                                 {COOKING_FREQUENCY_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
                                             </select>
                                         </div>
+                                        <div>
+                                            <label className={labelClass}>{t('profile.sleepHabit')}</label>
+                                            <select value={lifestyle.sleep_schedule} onChange={(e) => setLifestyle((l) => ({ ...l, sleep_schedule: e.target.value }))} className={inputClass}>
+                                                {SLEEP_SCHEDULE_OPTIONS.map((o) => <option key={o.value || 'empty'} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        </div>
                                     </div>
                                 </SectionCard>
 
@@ -693,7 +689,7 @@ export function ProfilePage() {
                                     <div className="flex flex-wrap gap-2">
                                         {INTEREST_SUGGESTIONS.map((interest) => {
                                             const currentInterests = lifestyle.interests ? lifestyle.interests.split(',').map(s => s.trim()).filter(Boolean) : [];
-                                            const selected = currentInterests.includes(interest);
+                                            const selected = currentInterests.some(i => i.toLowerCase() === interest.toLowerCase());
                                             return (
                                                 <button
                                                     key={interest}
@@ -701,7 +697,7 @@ export function ProfilePage() {
                                                     onClick={() => setLifestyle((l) => {
                                                         const interestsList = l.interests ? l.interests.split(',').map(s => s.trim()).filter(Boolean) : [];
                                                         const newInterests = selected
-                                                            ? interestsList.filter(i => i !== interest)
+                                                            ? interestsList.filter(i => i.toLowerCase() !== interest.toLowerCase())
                                                             : [...interestsList, interest];
                                                         return {
                                                             ...l,

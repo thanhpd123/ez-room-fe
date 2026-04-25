@@ -4,6 +4,7 @@ import { Header } from '@/app/features/home/components';
 import { useAuth } from '@/app/context/useAuth';
 import { useChatBox } from '@/app/context/useChatBox';
 import { ImageWithFallback } from '@/app/components/ImageWithFallback';
+import { useProvinces } from '@/app/hooks/useProvinces';
 import { RoommateProfileModal } from './RoommateProfileModal';
 import {
     Users,
@@ -327,6 +328,11 @@ export function FindRoommatePage() {
     const [filterGender, setFilterGender] = useState('');
     const [showFilters, setShowFilters] = useState(true);
 
+    // Province/ward picker for area filter
+    const { provinces, getWardsFor } = useProvinces();
+    const [filterProvince, setFilterProvince] = useState('');
+    const wardList = filterProvince ? getWardsFor(filterProvince) : [];
+
     // Applied filter state (only set when user clicks Search)
     const [appliedFilter, setAppliedFilter] = useState<{
         area: string; budgetMax: number | ''; roomType: string; gender: string;
@@ -343,6 +349,7 @@ export function FindRoommatePage() {
 
     const resetFilters = () => {
         setFilterArea('');
+        setFilterProvince('');
         setFilterBudgetMax('');
         setFilterRoomType('');
         setFilterGender('');
@@ -892,17 +899,53 @@ export function FindRoommatePage() {
                                             <MapPin className="w-3.5 h-3.5" />
                                             Khu vực
                                         </label>
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                            <input
-                                                type="text"
-                                                value={filterArea}
-                                                onChange={(e) => setFilterArea(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                                placeholder="VD: Quận 1, Bình Thạnh..."
-                                                className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                            />
-                                        </div>
+                                        {filterArea ? (
+                                            <div className="flex items-center gap-1.5 px-3 py-2.5 bg-primary/10 border border-primary/30 rounded-xl text-sm text-primary font-medium">
+                                                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                                                <span className="flex-1 truncate">{filterArea}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setFilterArea(''); setFilterProvince(''); }}
+                                                    className="shrink-0 hover:bg-primary/20 rounded-full p-0.5"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-1.5">
+                                                <select
+                                                    value={filterProvince}
+                                                    onChange={(e) => { setFilterProvince(e.target.value); setFilterArea(''); }}
+                                                    className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                >
+                                                    <option value="">Chọn tỉnh / thành phố</option>
+                                                    {provinces.map((p) => (
+                                                        <option key={p.code} value={p.name}>{p.name}</option>
+                                                    ))}
+                                                </select>
+                                                {filterProvince && wardList.length > 0 && (
+                                                    <select
+                                                        value=""
+                                                        onChange={(e) => { if (e.target.value) setFilterArea(e.target.value); }}
+                                                        className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                    >
+                                                        <option value="">Chọn quận / phường</option>
+                                                        {wardList.map((w) => (
+                                                            <option key={w.code} value={w.name}>{w.name}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                                {filterProvince && wardList.length === 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFilterArea(filterProvince)}
+                                                        className="w-full px-3 py-2 text-xs text-primary hover:bg-primary/5 border border-dashed border-primary/30 rounded-xl transition-colors"
+                                                    >
+                                                        Tìm theo tỉnh: {filterProvince}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                     {/* Budget max */}
                                     <div>
