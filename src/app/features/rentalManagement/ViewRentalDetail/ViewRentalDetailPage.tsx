@@ -159,6 +159,14 @@ export function ViewRentalDetailPage() {
 
     return (
         <section className="mx-auto w-full max-w-5xl">
+            {/* Page header */}
+            <div className="mb-5">
+                <h1 className="text-2xl font-bold text-slate-900">Chi tiết bài đăng</h1>
+                {rental?.title && (
+                    <p className="mt-1 text-sm text-slate-500">{rental.title}</p>
+                )}
+            </div>
+
             <div className="mb-4 flex items-center justify-between gap-3">
                 <button
                     type="button"

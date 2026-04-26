@@ -83,7 +83,10 @@ export function HomePage() {
     const heroSubtitle = bannerEnabled && banner?.subtitle?.trim() ? banner.subtitle.trim() : t('home.heroSubtitle');
 
     const handleSearch = (query: string, filters: SearchFilters) => {
-        navigate(buildSearchUrl(query, filters));
+        const url = buildSearchUrl(query, filters);
+        // When the form is submitted with no criteria, navigate with browse=1 so
+        // the search page auto-triggers an empty search and displays all rooms.
+        navigate(url === '/search' ? '/search?browse=1' : url);
     };
 
     const handleLogin = () => navigate('/login');
