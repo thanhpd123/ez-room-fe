@@ -269,7 +269,10 @@ export function useSearch(isLoggedIn = false): UseSearchReturn {
         const amenitiesParam = searchParams.get('amenities');
         const minAreaParam = searchParams.get('minArea');
         const maxAreaParam = searchParams.get('maxArea');
-        if (district || city || address || q || location || price || minPriceParam || maxPriceParam || roomType || amenitiesParam || minAreaParam || maxAreaParam) {
+        // browse=1 is set by the home page when the user submits without any filters
+        // so that an empty search is still triggered and all rooms are shown.
+        const browse = searchParams.get('browse');
+        if (district || city || address || q || location || price || minPriceParam || maxPriceParam || roomType || amenitiesParam || minAreaParam || maxAreaParam || browse) {
             const criteria: SearchCriteria = {
                 q: q || undefined,
                 city: normalizeAdminPrefix(city || undefined),

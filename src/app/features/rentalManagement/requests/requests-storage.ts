@@ -31,6 +31,7 @@ export interface RentalRequest {
     sourceType?: 'PREORDER' | 'FAVORITE';
     status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
     paymentStatus: 'UNPAID' | 'PAID' | 'REFUNDED';
+    depositAmount: number;
     createdAt: string;
     user: {
         id: string;
