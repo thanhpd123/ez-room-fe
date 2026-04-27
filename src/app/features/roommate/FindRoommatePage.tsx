@@ -1237,7 +1237,7 @@ export function FindRoommatePage() {
                         ) : null}
 
                         {/* Secondary section: people whose preferred_districts matches the area */}
-                        {areaSearchActive && !areaSearching && (() => {
+                        {/* {areaSearchActive && !areaSearching && (() => {
                             const areaLower = areaSearchArea.toLowerCase();
                             const activityIds = new Set(areaSearchResults.map((r) => r.user.id));
                             const matched = suggestions.filter((s) => {
@@ -1329,7 +1329,7 @@ export function FindRoommatePage() {
                                     </div>
                                 </div>
                             );
-                        })()}
+                        })()} */}
 
                         {/* General suggestions (no area filter) */}
                         {!areaSearchActive ? (
