@@ -1691,14 +1691,6 @@ export function FindRoommatePage() {
                                                         <div className="flex gap-2 shrink-0">
                                                             <button
                                                                 type="button"
-                                                                onClick={() => openInviteModal(m.otherUser!.id, m.otherUser!.fullName || '')}
-                                                                className="p-2.5 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 shrink-0"
-                                                                title="Mời ở ghép"
-                                                            >
-                                                                <DoorOpen className="w-5 h-5" />
-                                                            </button>
-                                                            <button
-                                                                type="button"
                                                                 onClick={() => (chatBox ? chatBox.openChatWith(m.otherUser!.id) : navigate(`/chat/${m.otherUser!.id}`))}
                                                                 className="p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
                                                                 title="Nhắn tin"
