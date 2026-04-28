@@ -421,17 +421,18 @@ export function RoomsPage() {
                                                 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'
                                             }
                                             alt={name}
+                                            crossOrigin="anonymous"
                                             loading="lazy"
                                         />
                                     </div>
                                     {images.length > 1 && (
                                         <div className="img-sub">
-                                            <img src={images[1]} alt="" loading="lazy" />
+                                            <img src={images[1]} alt="" crossOrigin="anonymous" loading="lazy" />
                                         </div>
                                     )}
                                     {images.length > 2 && (
                                         <div className="img-sub">
-                                            <img src={images[2]} alt="" loading="lazy" />
+                                            <img src={images[2]} alt="" crossOrigin="anonymous" loading="lazy" />
                                         </div>
                                     )}
                                     {images.length > 3 && (

@@ -101,7 +101,7 @@ export function FavoritesPage() {
                                 >
                                     <div className="flex flex-col md:flex-row gap-5 p-5">
                                         <div className="relative w-full md:w-64 h-48 md:h-auto flex-shrink-0 rounded-xl overflow-hidden bg-muted">
-                                            <img src={room.image} alt={room.name} className="w-full h-full object-cover" />
+                                            <img src={room.image} alt={room.name} crossOrigin="anonymous" className="w-full h-full object-cover" />
                                             {!room.available && (
                                                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                                                     <span className="bg-card text-foreground px-4 py-2 rounded-xl font-medium text-sm">

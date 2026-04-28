@@ -215,6 +215,7 @@ export function HomePage() {
                                             <ImageWithFallback
                                                 src={room.images?.[0] || ''}
                                                 alt={name}
+                                                crossOrigin="anonymous"
                                                 className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
                                             />
                                             <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
@@ -312,6 +313,7 @@ export function HomePage() {
                                             <ImageWithFallback
                                                 src={room.images?.[0] || ''}
                                                 alt={room.title}
+                                                crossOrigin="anonymous"
                                                 className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
                                             />
                                             <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />

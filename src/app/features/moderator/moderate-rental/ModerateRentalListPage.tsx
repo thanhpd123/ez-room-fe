@@ -219,8 +219,8 @@ export function ModerateRentalListPage() {
                                             type="button"
                                             onClick={() => setSelectedId(item.rental_id)}
                                             className={`w-full px-4 py-3 text-left transition rounded-xl ${selectedId === item.rental_id
-                                                    ? 'bg-slate-100 border-l-4 border-l-slate-900'
-                                                    : 'hover:bg-slate-50'
+                                                ? 'bg-slate-100 border-l-4 border-l-slate-900'
+                                                : 'hover:bg-slate-50'
                                                 }`}
                                         >
                                             <div className="flex items-center justify-between gap-2">
@@ -257,6 +257,7 @@ export function ModerateRentalListPage() {
                                             <img
                                                 src={selectedImages[activeImageIdx] || selectedImages[0]}
                                                 alt={selectedItem.title}
+                                                crossOrigin="anonymous"
                                                 className="h-56 w-full object-cover sm:h-72"
                                             />
                                             {selectedImages.length > 1 && (
@@ -267,13 +268,14 @@ export function ModerateRentalListPage() {
                                                             type="button"
                                                             onClick={() => setActiveImageIdx(i)}
                                                             className={`h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition ${i === activeImageIdx
-                                                                    ? 'border-slate-900'
-                                                                    : 'border-transparent hover:border-slate-300'
+                                                                ? 'border-slate-900'
+                                                                : 'border-transparent hover:border-slate-300'
                                                                 }`}
                                                         >
                                                             <img
                                                                 src={url}
                                                                 alt={`Ảnh ${i + 1}`}
+                                                                crossOrigin="anonymous"
                                                                 className="h-full w-full object-cover"
                                                             />
                                                         </button>
@@ -285,6 +287,7 @@ export function ModerateRentalListPage() {
                                         <img
                                             src={DEFAULT_THUMB}
                                             alt={selectedItem.title}
+                                            crossOrigin="anonymous"
                                             className="h-56 w-full object-cover sm:h-72 opacity-50"
                                         />
                                     )}
@@ -416,18 +419,18 @@ export function ModerateRentalListPage() {
                                                                                     src={doc.imageUrl}
                                                                                     alt={
                                                                                         DOCUMENT_TYPE_LABELS[
-                                                                                            doc.documentType
+                                                                                        doc.documentType
                                                                                         ] ?? doc.documentType
                                                                                     }
+                                                                                    crossOrigin="anonymous"
                                                                                     className="h-full w-full object-cover"
                                                                                 />
                                                                             </button>
                                                                             <span
-                                                                                className={`absolute -top-1.5 -right-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                                                                                    DOCUMENT_STATUS_LABELS[doc.status]
+                                                                                className={`absolute -top-1.5 -right-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${DOCUMENT_STATUS_LABELS[doc.status]
                                                                                         ?.className ??
                                                                                     'bg-slate-100 text-slate-600'
-                                                                                }`}
+                                                                                    }`}
                                                                             >
                                                                                 {DOCUMENT_STATUS_LABELS[doc.status]
                                                                                     ?.label ?? doc.status}
@@ -566,6 +569,7 @@ export function ModerateRentalListPage() {
                         <img
                             src={lightboxUrl}
                             alt="Document preview"
+                            crossOrigin="anonymous"
                             className="max-h-[85vh] max-w-full rounded-lg object-contain"
                         />
                         <button

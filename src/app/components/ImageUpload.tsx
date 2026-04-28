@@ -16,7 +16,7 @@ const DEFAULT_ACCEPT = 'image/jpeg,image/jpg,image/png,image/gif,image/webp';
 
 export function ImageUpload({
     value = '',
-    onChange = () => {},
+    onChange = () => { },
     label = 'Ảnh',
     accept = DEFAULT_ACCEPT,
     placeholder = 'Chọn ảnh từ máy tính',
@@ -67,6 +67,7 @@ export function ImageUpload({
                             <img
                                 src={value}
                                 alt="Preview"
+                                crossOrigin="anonymous"
                                 className={previewClassName}
                             />
                         )}

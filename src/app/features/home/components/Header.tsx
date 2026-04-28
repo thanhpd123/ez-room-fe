@@ -460,6 +460,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 <img
                                     src={roomPreview.images[0]}
                                     alt={roomPreview.name}
+                                    crossOrigin="anonymous"
                                     className="w-full h-full object-cover"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />

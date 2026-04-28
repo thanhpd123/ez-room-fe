@@ -37,6 +37,7 @@ export function PopularAreasCard({ area }: PopularAreasCardProps) {
             <ImageWithFallback
                 src={area.image}
                 alt={area.district}
+                crossOrigin="anonymous"
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />

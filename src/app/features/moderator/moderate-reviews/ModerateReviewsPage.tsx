@@ -222,8 +222,8 @@ export function ModerateReviewsPage() {
                             }
                         }}
                         className={`rounded-xl px-4 py-2 text-sm font-medium transition ${activeTab === tab.value
-                                ? 'bg-slate-900 text-white'
-                                : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
                             }`}
                     >
                         {tab.label}
@@ -306,6 +306,7 @@ export function ModerateReviewsPage() {
                                     <img
                                         src={detail.room.images[0]}
                                         alt="Phòng"
+                                        crossOrigin="anonymous"
                                         className="h-40 w-full rounded-xl object-cover"
                                     />
                                 )}
@@ -317,6 +318,7 @@ export function ModerateReviewsPage() {
                                             <img
                                                 src={detail.tenant.avatarUrl}
                                                 alt=""
+                                                crossOrigin="anonymous"
                                                 className="h-10 w-10 rounded-full object-cover"
                                             />
                                         ) : (

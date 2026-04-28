@@ -56,6 +56,7 @@ export function HeroSlideshow({ rentals, children, customImageUrl, ctaText, ctaL
                             <ImageWithFallback
                                 src={slide.imageUrl}
                                 alt=""
+                                crossOrigin="anonymous"
                                 className="w-full h-full object-cover"
                                 loading={i === 0 ? 'eager' : 'lazy'}
                             />

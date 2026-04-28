@@ -167,21 +167,19 @@ export function TenantReviewDashboard({ onRefresh }: TenantReviewDashboardProps)
       <div className="flex gap-4 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('pending')}
-          className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'pending'
+          className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'pending'
               ? 'border-primary text-primary'
               : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           Chờ đánh giá ({pendingReviews.length})
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'history'
+          className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'history'
               ? 'border-primary text-primary'
               : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           Lịch sử ({reviewHistory.length})
         </button>
@@ -208,6 +206,7 @@ export function TenantReviewDashboard({ onRefresh }: TenantReviewDashboardProps)
                         <img
                           src={rental.tenant.avatarUrl}
                           alt={rental.tenant.fullName}
+                          crossOrigin="anonymous"
                           className="w-full h-full object-cover"
                         />
                       ) : (
