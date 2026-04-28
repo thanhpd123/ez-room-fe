@@ -13,7 +13,7 @@ export function getChatSocket(token: string): Socket {
     }
     socket = io(getApiBaseUrl(), {
         auth: { token },
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'],
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
     });
