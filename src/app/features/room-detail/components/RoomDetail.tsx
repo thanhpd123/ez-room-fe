@@ -245,8 +245,9 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
           <div className="lg:col-span-2">
             <img
-              src={room.images[selectedImage]}
+              src={room.images[selectedImage] || undefined}
               alt={room.title}
+              crossOrigin="anonymous"
               className="w-full h-96 object-cover rounded-xl"
             />
           </div>
@@ -259,8 +260,9 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                   }`}
               >
                 <img
-                  src={image}
+                  src={image || undefined}
                   alt={`Gallery ${index + 1}`}
+                  crossOrigin="anonymous"
                   className="w-full h-full object-cover hover:scale-105 transition-transform"
                 />
               </button>
@@ -394,8 +396,9 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                     className="shrink-0 hover:opacity-80 transition-opacity"
                   >
                     <img
-                      src={room.landlord.avatar}
+                      src={room.landlord.avatar || undefined}
                       alt={room.landlord.name}
+                      crossOrigin="anonymous"
                       className="w-12 h-12 rounded-full object-cover"
                     />
                   </Link>
@@ -438,7 +441,7 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
             </div>
           </div>
         </div>
-      </main>
+      </main >
 
       {showDepositModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -531,15 +534,18 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
             </div>
           </section>
         </div>
-      )}
+      )
+      }
 
-      {redirectingToPayOS && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-60">
-          <div className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm font-medium text-primary shadow-sm">
-            {t('roomDetail.redirecting')}
+      {
+        redirectingToPayOS && (
+          <div className="fixed top-5 left-1/2 -translate-x-1/2 z-60">
+            <div className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm font-medium text-primary shadow-sm">
+              {t('roomDetail.redirecting')}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }

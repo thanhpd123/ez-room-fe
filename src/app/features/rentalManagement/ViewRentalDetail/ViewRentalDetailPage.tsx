@@ -374,7 +374,7 @@ export function ViewRentalDetailPage() {
                                         <div className="flex flex-wrap gap-3">
                                             {filteredImages.map((url, idx) => (
                                                 <a key={idx} href={getSupabasePublicUrl(url)} target="_blank" rel="noreferrer" className="block relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200 hover:border-slate-400 group">
-                                                    <img src={getSupabasePublicUrl(url)} alt="room" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                                                    <img src={getSupabasePublicUrl(url)} alt="room" crossOrigin="anonymous" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                                                 </a>
                                             ))}
                                             <div className="flex h-24 w-24 flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-white">

@@ -237,6 +237,7 @@ export function ViewListRentalPage() {
                                     <img
                                         src={item.images?.[0] ?? DEFAULT_THUMB}
                                         alt={item.title}
+                                        crossOrigin="anonymous"
                                         className="h-44 w-full rounded-xl object-cover border border-border"
                                     />
                                     <div className="flex flex-col gap-3">

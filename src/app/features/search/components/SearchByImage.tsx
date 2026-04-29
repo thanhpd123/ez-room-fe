@@ -119,8 +119,8 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
                 {(error || imageSearchError) && (
                     <div
                         className={`p-4 rounded-xl flex flex-col gap-3 ${imageSearchError === VIP_IMAGE_SEARCH_ERROR
-                                ? 'bg-violet-500/10 border border-violet-500/25'
-                                : 'bg-destructive/10 border border-destructive/20'
+                            ? 'bg-violet-500/10 border border-violet-500/25'
+                            : 'bg-destructive/10 border border-destructive/20'
                             }`}
                     >
                         {imageSearchError === VIP_IMAGE_SEARCH_ERROR ? (
@@ -182,7 +182,7 @@ export function SearchByImage({ onSearch, isSearching, imageSearchError = null, 
                 ) : (
                     <div className="space-y-3">
                         <div className="relative rounded-xl overflow-hidden bg-muted group">
-                            <img src={previewUrl} alt="Preview" className="w-full h-auto max-h-64 object-contain" />
+                            <img src={previewUrl} alt="Preview" crossOrigin="anonymous" className="w-full h-auto max-h-64 object-contain" />
                             <button
                                 type="button"
                                 onClick={handleRemoveImage}

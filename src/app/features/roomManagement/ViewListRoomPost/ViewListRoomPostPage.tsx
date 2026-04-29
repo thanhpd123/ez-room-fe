@@ -239,6 +239,7 @@ export function ViewListRoomPostPage() {
                                         'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80'
                                     }
                                     alt={post.title}
+                                    crossOrigin="anonymous"
                                     className="h-40 w-full rounded-xl object-cover"
                                 />
 

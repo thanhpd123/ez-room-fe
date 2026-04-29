@@ -234,7 +234,7 @@ export function ChatPage() {
                 setPeer(null);
             })
             .finally(() => setLoadingThread(false));
-    }, []);
+    }, [t]);
 
     const loadMoreMessages = useCallback(() => {
         if (!selectedPeerId || loadingMore || !hasMore || messages.length === 0) return;

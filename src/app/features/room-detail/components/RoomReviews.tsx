@@ -97,8 +97,8 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                     <Star
                                         key={i}
                                         className={`w-4 h-4 ${i < Math.round(stats.averageRating)
-                                                ? 'fill-primary text-primary'
-                                                : 'text-muted-foreground'
+                                            ? 'fill-primary text-primary'
+                                            : 'text-muted-foreground'
                                             }`}
                                     />
                                 ))}
@@ -120,6 +120,7 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                 <img
                                     src={review.author.avatar}
                                     alt={review.author.name}
+                                    crossOrigin="anonymous"
                                     className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                                 />
                             ) : (
@@ -144,8 +145,8 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                         <Star
                                             key={i}
                                             className={`w-4 h-4 ${i < (review.rating || 0)
-                                                    ? 'fill-primary text-primary'
-                                                    : 'text-muted-foreground'
+                                                ? 'fill-primary text-primary'
+                                                : 'text-muted-foreground'
                                                 }`}
                                         />
                                     ))}
@@ -164,8 +165,8 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                                 <div
                                                     key={i}
                                                     className={`w-1.5 h-1.5 rounded-full ${i < (review.cleanlinessRating || 0)
-                                                            ? 'bg-primary'
-                                                            : 'bg-muted-foreground'
+                                                        ? 'bg-primary'
+                                                        : 'bg-muted-foreground'
                                                         }`}
                                                 />
                                             ))}
@@ -180,8 +181,8 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                                 <div
                                                     key={i}
                                                     className={`w-1.5 h-1.5 rounded-full ${i < (review.locationRating || 0)
-                                                            ? 'bg-primary'
-                                                            : 'bg-muted-foreground'
+                                                        ? 'bg-primary'
+                                                        : 'bg-muted-foreground'
                                                         }`}
                                                 />
                                             ))}
@@ -196,8 +197,8 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                                 <div
                                                     key={i}
                                                     className={`w-1.5 h-1.5 rounded-full ${i < (review.valueRating || 0)
-                                                            ? 'bg-primary'
-                                                            : 'bg-muted-foreground'
+                                                        ? 'bg-primary'
+                                                        : 'bg-muted-foreground'
                                                         }`}
                                                 />
                                             ))}
@@ -212,8 +213,8 @@ export function RoomReviews({ roomId }: RoomReviewsProps) {
                                                 <div
                                                     key={i}
                                                     className={`w-1.5 h-1.5 rounded-full ${i < (review.landlordRating || 0)
-                                                            ? 'bg-primary'
-                                                            : 'bg-muted-foreground'
+                                                        ? 'bg-primary'
+                                                        : 'bg-muted-foreground'
                                                         }`}
                                                 />
                                             ))}

@@ -184,6 +184,7 @@ export function CreateContractModal({
                                                     <img
                                                         src={u.avatarUrl}
                                                         alt=""
+                                                        crossOrigin="anonymous"
                                                         className="h-12 w-12 rounded-full object-cover"
                                                     />
                                                 ) : (
@@ -215,6 +216,7 @@ export function CreateContractModal({
                                         <img
                                             src={selectedTenant.avatarUrl}
                                             alt=""
+                                            crossOrigin="anonymous"
                                             className="h-10 w-10 rounded-full object-cover"
                                         />
                                     ) : (
@@ -238,8 +240,8 @@ export function CreateContractModal({
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
                                     className={`w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-1 ${formErrors.startDate
-                                            ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500'
-                                            : 'border-slate-300 focus:border-slate-900 focus:ring-slate-900'
+                                        ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500'
+                                        : 'border-slate-300 focus:border-slate-900 focus:ring-slate-900'
                                         }`}
                                 />
                                 {formErrors.startDate && (

@@ -51,22 +51,41 @@ export function HomePage() {
 
     const heroRentals = useMemo(() => rentals.slice(0, HERO_SLIDES_COUNT), [rentals]);
     const popularAreas = usePopularAreas(rentals, 4);
-    const { rooms: recommendedRooms, hint: recommendHint, loading: recommendLoading, isLoggedIn } = useRecommendedRooms();
-
     const [featuredRooms, setFeaturedRooms] = useState<PublicRoomItem[]>([]);
     const [featuredRoomsLoading, setFeaturedRoomsLoading] = useState(true);
     const [siteConfig, setSiteConfig] = useState<PublicSiteConfig | null>(null);
+    const [loadLowerDeferred, setLoadLowerDeferred] = useState(false);
+
+    // Recommended Rooms hook, truyền flag để báo là khoan tải dữ liệu
+    const { rooms: recommendedRooms, hint: recommendHint, loading: recommendLoading, isLoggedIn } = useRecommendedRooms({ skip: !loadLowerDeferred });
 
     useEffect(() => {
+        // Trì hoãn load các API bên dưới (Lazy Load) để ưu tiên show Header và Banner Hero đầu tiên
+        const timer = setTimeout(() => setLoadLowerDeferred(true), 500);
+        const handleScroll = () => setLoadLowerDeferred(true);
+        window.addEventListener('scroll', handleScroll, { once: true, passive: true });
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
+
+    useEffect(() => {
+        // System Config thường nhanh và quan trọng cho setup UI layout, nên có thể load bình thường
         getPublicSiteConfigRequest()
             .then((res) => setSiteConfig(res.data || null))
             .catch(() => setSiteConfig(null));
+    }, []);
+
+    useEffect(() => {
+        if (!loadLowerDeferred) return; // Đợi Lazy Load bật
 
         getPublicRoomsRequest({ limit: FEATURED_COUNT })
             .then((res) => setFeaturedRooms(res.data || []))
             .catch(() => setFeaturedRooms([]))
             .finally(() => setFeaturedRoomsLoading(false));
-    }, []);
+    }, [loadLowerDeferred]);
 
     const isSectionEnabled = (key: string) => {
         const configured = siteConfig?.homeLayout?.sections;
@@ -100,9 +119,9 @@ export function HomePage() {
             {isSectionEnabled('hero') && (
                 <HeroSlideshow
                     rentals={heroRentals}
-                    customImageUrl={bannerEnabled ? banner?.imageUrl : ''}
-                    ctaText={bannerEnabled ? banner?.ctaText : ''}
-                    ctaLink={bannerEnabled ? banner?.ctaLink : ''}
+                    customImageUrl={bannerEnabled ? banner?.imageUrl || undefined : undefined}
+                    ctaText={bannerEnabled ? banner?.ctaText || undefined : undefined}
+                    ctaLink={bannerEnabled ? banner?.ctaLink || undefined : undefined}
                 >
                     <div className="text-center my-3 mb-6 sm:mb-8">
                         <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-bold mb-3 drop-shadow-lg tracking-tight max-w-3xl mx-auto">
@@ -213,8 +232,9 @@ export function HomePage() {
                                     >
                                         <div className="relative h-48 overflow-hidden">
                                             <ImageWithFallback
-                                                src={room.images?.[0] || ''}
+                                                src={room.images?.[0] || undefined}
                                                 alt={name}
+                                                crossOrigin="anonymous"
                                                 className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
                                             />
                                             <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
@@ -310,8 +330,9 @@ export function HomePage() {
                                     >
                                         <div className="relative h-48 overflow-hidden">
                                             <ImageWithFallback
-                                                src={room.images?.[0] || ''}
+                                                src={room.images?.[0] || undefined}
                                                 alt={room.title}
+                                                crossOrigin="anonymous"
                                                 className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
                                             />
                                             <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />

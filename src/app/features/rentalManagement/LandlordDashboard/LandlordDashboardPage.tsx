@@ -578,6 +578,7 @@ export function LandlordDashboardPage() {
                                                 <img
                                                     alt={room.name}
                                                     src={room.image}
+                                                    crossOrigin="anonymous"
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                 />
                                             </div>

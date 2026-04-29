@@ -221,6 +221,7 @@ function UserDetailModal({
                                 <img
                                     src={user.avatarUrl || `${DEFAULT_AVATAR}&name=${encodeURIComponent(user.fullName)}`}
                                     alt={user.fullName}
+                                    crossOrigin="anonymous"
                                     className="h-16 w-16 rounded-full object-cover bg-slate-100 ring-2 ring-slate-200"
                                 />
                                 <div>
@@ -545,6 +546,7 @@ export function TenantLandlordListPage() {
                                                 <img
                                                     src={user.avatarUrl || `${DEFAULT_AVATAR}&name=${encodeURIComponent(user.fullName)}`}
                                                     alt={user.fullName}
+                                                    crossOrigin="anonymous"
                                                     className="h-9 w-9 rounded-full object-cover bg-slate-100"
                                                 />
                                                 <span className="font-medium text-slate-900">{user.fullName}</span>

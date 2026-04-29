@@ -536,6 +536,7 @@ export function FindRoommatePage() {
             .finally(() => setUpdatingId(null));
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const openInviteModal = (userId: string, fullName: string) => {
         setInviteTarget({ userId, fullName });
         setSelectedRoomId(null);

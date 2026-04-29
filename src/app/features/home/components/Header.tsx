@@ -240,7 +240,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                 <div className="flex items-center justify-between h-14 sm:h-16">
                     <Link to="/home" className="flex items-center gap-2 no-underline min-w-0">
                         <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm shrink-0">
-                            <HomeOutlined className="text-white text-base sm:text-lg" />
+                            <HomeOutlined className="text-white text-base sm:text-lg" style={{ color: '#ffffff' }} />
                         </div>
                         <span className="font-heading font-bold text-lg sm:text-xl text-primary truncate">EzRoom</span>
                     </Link>
@@ -460,6 +460,7 @@ export function Header({ onLogin, onRegister }: HeaderProps) {
                                 <img
                                     src={roomPreview.images[0]}
                                     alt={roomPreview.name}
+                                    crossOrigin="anonymous"
                                     className="w-full h-full object-cover"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />

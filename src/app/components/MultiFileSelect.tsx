@@ -119,6 +119,7 @@ export function MultiFileSelect({
                                         <img
                                             src={file.url}
                                             alt={file.name}
+                                            crossOrigin="anonymous"
                                             className="w-full h-24 object-cover"
                                             onError={(e) => {
                                                 (e.target as HTMLImageElement).style.display = 'none';
@@ -129,19 +130,19 @@ export function MultiFileSelect({
                                     <div className={`${file.url ? 'hidden' : ''} w-full h-24 flex items-center justify-center text-xs text-slate-400`}>
                                         Không tải được ảnh
                                     </div>
-                                    
+
                                     {/* Overlay for viewing image */}
                                     <div className="absolute inset-0 pointer-events-none bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                                        <a 
-                                            href={file.url || '#'} 
-                                            target="_blank" 
+                                        <a
+                                            href={file.url || '#'}
+                                            target="_blank"
                                             rel="noreferrer"
                                             className="pointer-events-auto text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-2 py-1 rounded hover:bg-black/70"
                                         >
                                             Xem ảnh gốc
                                         </a>
                                     </div>
-                                    
+
                                     {/* Remove button */}
                                     {onRemoveExisting && (
                                         <button

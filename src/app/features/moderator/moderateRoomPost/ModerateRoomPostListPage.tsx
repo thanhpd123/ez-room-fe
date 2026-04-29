@@ -192,8 +192,8 @@ export function ModerateRoomPostListPage() {
                                             type="button"
                                             onClick={() => setSelectedId(item.room_post_id)}
                                             className={`w-full px-4 py-3 text-left transition rounded-xl ${selectedId === item.room_post_id
-                                                    ? 'bg-slate-100 border-l-4 border-l-slate-900'
-                                                    : 'hover:bg-slate-50'
+                                                ? 'bg-slate-100 border-l-4 border-l-slate-900'
+                                                : 'hover:bg-slate-50'
                                                 }`}
                                         >
                                             <div className="flex items-center justify-between gap-2">
@@ -234,6 +234,7 @@ export function ModerateRoomPostListPage() {
                                             <img
                                                 src={selectedImages[activeImageIdx] || selectedImages[0]}
                                                 alt={selectedItem.title}
+                                                crossOrigin="anonymous"
                                                 className="h-56 w-full object-cover sm:h-72"
                                             />
                                             {selectedImages.length > 1 && (
@@ -244,12 +245,13 @@ export function ModerateRoomPostListPage() {
                                                             type="button"
                                                             onClick={() => setActiveImageIdx(i)}
                                                             className={`h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition ${i === activeImageIdx
-                                                                    ? 'border-slate-900'
-                                                                    : 'border-transparent hover:border-slate-300'
+                                                                ? 'border-slate-900'
+                                                                : 'border-transparent hover:border-slate-300'
                                                                 }`}
                                                         >
                                                             <img
                                                                 src={url}
+                                                                crossOrigin="anonymous"
                                                                 alt={`Ảnh ${i + 1}`}
                                                                 className="h-full w-full object-cover"
                                                             />
@@ -262,6 +264,7 @@ export function ModerateRoomPostListPage() {
                                         <img
                                             src={DEFAULT_THUMB}
                                             alt={selectedItem.title}
+                                            crossOrigin="anonymous"
                                             className="h-56 w-full object-cover sm:h-72 opacity-50"
                                         />
                                     )}

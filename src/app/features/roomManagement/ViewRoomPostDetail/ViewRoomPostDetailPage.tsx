@@ -241,13 +241,13 @@ export function ViewRoomPostDetailPage() {
                             {isLoadingTenants
                                 ? ' Đang kiểm tra chỗ trống...'
                                 : isRoomAtCapacity
-                                ? ` Đã đủ người (${activeTenantCount}/${maxOccupants})`
-                                : ' Thêm người ở'}
+                                    ? ` Đã đủ người (${activeTenantCount}/${maxOccupants})`
+                                    : ' Thêm người ở'}
                         </button>
                     )}
                     {roomPost.status === 'PENDING' ? (
                         <span className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 cursor-not-allowed">
-                             Đang chờ duyệt
+                            Đang chờ duyệt
                         </span>
                     ) : (
                         <button
@@ -255,7 +255,7 @@ export function ViewRoomPostDetailPage() {
                             onClick={() => navigate(`/rental-management/rentals/${rentalId}/room-posts/${roomPostId}/edit`)}
                             className="rounded-xl border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
                         >
-                             Sửa
+                            Sửa
                         </button>
                     )}
                     <button
@@ -263,7 +263,7 @@ export function ViewRoomPostDetailPage() {
                         onClick={() => setShowDeleteConfirm(true)}
                         className="rounded-xl border border-rose-500 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
                     >
-                         Xóa
+                        Xóa
                     </button>
                 </div>
             </div>
@@ -328,6 +328,7 @@ export function ViewRoomPostDetailPage() {
                         'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80'
                     }
                     alt={roomPost.title}
+                    crossOrigin="anonymous"
                     className="h-64 w-full object-cover sm:h-80"
                 />
 
@@ -340,13 +341,14 @@ export function ViewRoomPostDetailPage() {
                                     key={index}
                                     onClick={() => setSelectedImageIndex(index)}
                                     className={`flex-shrink-0 rounded-lg overflow-hidden w-20 h-20 border-2 transition-colors ${selectedImageIndex === index
-                                            ? 'border-slate-900'
-                                            : 'border-slate-300 hover:border-slate-400'
+                                        ? 'border-slate-900'
+                                        : 'border-slate-300 hover:border-slate-400'
                                         }`}
                                 >
                                     <img
                                         src={image}
                                         alt={`Thumbnail ${index + 1}`}
+                                        crossOrigin="anonymous"
                                         className="w-full h-full object-cover"
                                     />
                                 </button>
@@ -386,8 +388,8 @@ export function ViewRoomPostDetailPage() {
                             <button
                                 onClick={() => setCurrentTab('details')}
                                 className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${currentTab === 'details'
-                                        ? 'border-slate-900 text-slate-900'
-                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                    ? 'border-slate-900 text-slate-900'
+                                    : 'border-transparent text-slate-600 hover:text-slate-900'
                                     }`}
                             >
                                 Chi tiết phòng
@@ -395,8 +397,8 @@ export function ViewRoomPostDetailPage() {
                             <button
                                 onClick={() => setCurrentTab('tenants')}
                                 className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors ${currentTab === 'tenants'
-                                        ? 'border-slate-900 text-slate-900'
-                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                    ? 'border-slate-900 text-slate-900'
+                                    : 'border-transparent text-slate-600 hover:text-slate-900'
                                     }`}
                             >
                                 Người thuê ({activeTenantCount})
@@ -493,8 +495,8 @@ export function ViewRoomPostDetailPage() {
                                                                     Giá: {formatCurrency(rental.actualPrice)}
                                                                 </span>
                                                                 <span className={`rounded-full px-2 py-1 text-xs font-medium ${rental.status === 'ACTIVE'
-                                                                        ? 'bg-green-100 text-green-700'
-                                                                        : 'bg-slate-100 text-slate-700'
+                                                                    ? 'bg-green-100 text-green-700'
+                                                                    : 'bg-slate-100 text-slate-700'
                                                                     }`}>
                                                                     {rental.status === 'ACTIVE' ? 'Đang thuê' : 'Đã kết thúc'}
                                                                 </span>
@@ -522,8 +524,8 @@ export function ViewRoomPostDetailPage() {
                                                                     Cọc: {formatCurrency(preorder.depositAmount)}
                                                                 </span>
                                                                 <span className={`rounded-full px-2 py-1 text-xs font-medium ${preorder.paymentStatus === 'PAID'
-                                                                        ? 'bg-green-100 text-green-700'
-                                                                        : 'bg-yellow-100 text-yellow-700'
+                                                                    ? 'bg-green-100 text-green-700'
+                                                                    : 'bg-yellow-100 text-yellow-700'
                                                                     }`}>
                                                                     {preorder.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
                                                                 </span>

@@ -34,7 +34,7 @@ export function MultiImageUpload({
 
         // Convert to array NGAY LẬP TỨC - trước reset!
         const filesArray = Array.from(files);
-        
+
         // Reset the input AFTER Array.from
         e.target.value = '';
 
@@ -121,6 +121,7 @@ export function MultiImageUpload({
                             <img
                                 src={url}
                                 alt={`Rental image ${index + 1}`}
+                                crossOrigin="anonymous"
                                 className="w-full aspect-square rounded-xl object-cover border border-slate-200"
                             />
                             <button
