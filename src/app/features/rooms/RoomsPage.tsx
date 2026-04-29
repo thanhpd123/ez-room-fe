@@ -427,12 +427,12 @@ export function RoomsPage() {
                                     </div>
                                     {images.length > 1 && (
                                         <div className="img-sub">
-                                            <img src={images[1]} alt="" crossOrigin="anonymous" loading="lazy" />
+                                            <img src={images[1] || undefined} alt="" crossOrigin="anonymous" loading="lazy" />
                                         </div>
                                     )}
                                     {images.length > 2 && (
                                         <div className="img-sub">
-                                            <img src={images[2]} alt="" crossOrigin="anonymous" loading="lazy" />
+                                            <img src={images[2] || undefined} alt="" crossOrigin="anonymous" loading="lazy" />
                                         </div>
                                     )}
                                     {images.length > 3 && (

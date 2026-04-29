@@ -245,7 +245,7 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
           <div className="lg:col-span-2">
             <img
-              src={room.images[selectedImage]}
+              src={room.images[selectedImage] || undefined}
               alt={room.title}
               crossOrigin="anonymous"
               className="w-full h-96 object-cover rounded-xl"
@@ -260,7 +260,7 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                   }`}
               >
                 <img
-                  src={image}
+                  src={image || undefined}
                   alt={`Gallery ${index + 1}`}
                   crossOrigin="anonymous"
                   className="w-full h-full object-cover hover:scale-105 transition-transform"
@@ -396,7 +396,7 @@ export function RoomDetail({ room, onBack }: RoomDetailProps) {
                     className="shrink-0 hover:opacity-80 transition-opacity"
                   >
                     <img
-                      src={room.landlord.avatar}
+                      src={room.landlord.avatar || undefined}
                       alt={room.landlord.name}
                       crossOrigin="anonymous"
                       className="w-12 h-12 rounded-full object-cover"

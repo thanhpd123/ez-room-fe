@@ -13,7 +13,7 @@ export interface RecommendedRoom {
     location: { district: string | null; city: string | null } | null;
 }
 
-export function useRecommendedRooms() {
+export function useRecommendedRooms(options?: { skip?: boolean }) {
     const [rooms, setRooms] = useState<RecommendedRoom[]>([]);
     const [hint, setHint] = useState<string>('');
     const [loading, setLoading] = useState(true);
@@ -28,6 +28,11 @@ export function useRecommendedRooms() {
                 return;
             }
             setIsLoggedIn(true);
+
+            if (options?.skip) {
+                return; // Only skip fetching recommendations, keep login state correctly fetched
+            }
+
             getRecommendRequest()
                 .then((res) => {
                     if (!cancelled && res.data) {
@@ -59,7 +64,7 @@ export function useRecommendedRooms() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [options?.skip]);
 
     return { rooms, hint, loading, isLoggedIn };
 }
