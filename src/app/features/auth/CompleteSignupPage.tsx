@@ -120,24 +120,22 @@ export function CompleteSignupPage() {
                                 <button
                                     type="button"
                                     onClick={() => setForm((f) => ({ ...f, role: 'TENANT' }))}
-                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                                        form.role === 'TENANT'
-                                            ? 'border-primary bg-primary/10 text-primary'
-                                            : 'border-border text-foreground hover:bg-muted'
-                                    }`}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${form.role === 'TENANT'
+                                        ? 'border-primary bg-primary/10 text-primary'
+                                        : 'border-border text-foreground hover:bg-muted'
+                                        }`}
                                 >
-                                    Tenant
+                                    Người thuê
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setForm((f) => ({ ...f, role: 'LANDLORD' }))}
-                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                                        form.role === 'LANDLORD'
-                                            ? 'border-primary bg-primary/10 text-primary'
-                                            : 'border-border text-foreground hover:bg-muted'
-                                    }`}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${form.role === 'LANDLORD'
+                                        ? 'border-primary bg-primary/10 text-primary'
+                                        : 'border-border text-foreground hover:bg-muted'
+                                        }`}
                                 >
-                                    Landlord
+                                    Chủ trọ
                                 </button>
                             </div>
                         </div>
