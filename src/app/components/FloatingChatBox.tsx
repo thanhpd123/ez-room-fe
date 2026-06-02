@@ -293,7 +293,7 @@ export function FloatingChatBox() {
     // eslint-disable-next-line react-hooks/immutability
     loadConversationsRef.current = loadConversations;
 
-    if (!user || !chatBox) return null;
+    if (!user || user?.role === 'ADMIN' || !chatBox) return null;
 
     return (
         <>
