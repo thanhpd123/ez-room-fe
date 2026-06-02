@@ -181,7 +181,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             avatar_url: data.avatar_url ?? '',
                         })
                     );
-                    window.location.href = '/complete-signup';
+                    if (window.location.pathname !== '/complete-signup') {
+                        window.location.href = '/complete-signup';
+                    }
                     return;
                 }
                 if (res.status === 401) {
