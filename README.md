@@ -1,8 +1,8 @@
-# EZ-Room Frontend 🏠
+# EZ-Room Frontend
 
 Dự án Frontend cho hệ thống EZ-Room, được xây dựng với các công nghệ hiện đại nhằm cung cấp trải nghiệm học tập/thuê phòng/quản lý tốt nhất với hiệu năng cao.
 
-## 🛠️ Công Nghệ Sử Dụng
+## Công Nghệ Sử Dụng
 
 ### Lõi & Framework
 - **[React 19](https://react.dev/)**: Thư viện UI cốt lõi.
@@ -25,7 +25,7 @@ Dự án Frontend cho hệ thống EZ-Room, được xây dựng với các côn
 - **[i18next / React-i18next](https://react.i18next.com/)**: Hỗ trợ đa ngôn ngữ (Internationalization).
 - **[ESLint](https://eslint.org/)**: Đảm bảo chất lượng code và chuẩn hóa convention.
 
-## 🚦 Cài Đặt và Khởi Chạy
+## Cài Đặt và Khởi Chạy
 
 1. **Cài đặt thư viện:**
    ```bash
@@ -47,7 +47,7 @@ Dự án Frontend cho hệ thống EZ-Room, được xây dựng với các côn
    npm run preview
    ```
 
-## 📁 Cấu Trúc Dự Án
+## Cấu Trúc Dự Án
 
 * `src/`: Chứa toàn bộ source code (components, pages, hooks, utils,...).
 * `public/`: Chứa các tài nguyên tĩnh (images, fonts,...).
