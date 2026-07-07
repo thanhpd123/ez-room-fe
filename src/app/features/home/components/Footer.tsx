@@ -1,4 +1,4 @@
-import { HomeOutlined, AppleOutlined, AndroidOutlined } from '@ant-design/icons';
+import { HomeOutlined, AppleOutlined, AndroidOutlined, GithubOutlined } from '@ant-design/icons';
 import { Button, Typography } from 'antd';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -61,7 +61,18 @@ export function Footer() {
                 </div>
 
                 <div className="border-t border-border pt-6 sm:pt-8 text-center">
-                    <Text type="secondary" className="text-xs sm:text-sm">{t('footer.copyright')}</Text>
+                    <div className="inline-flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                        <span>Made by</span>
+                        <a
+                            href="https://github.com/thanhpd123"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors"
+                        >
+                            <GithubOutlined className="text-lg" />
+                        </a>
+                        <span>thanhpd123 and his team</span>
+                    </div>
                 </div>
             </div>
         </footer>
