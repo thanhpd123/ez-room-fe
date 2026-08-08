@@ -38,6 +38,7 @@ import {
     getUserDetail,
     updateUserRole,
     updateUserStatus,
+    getSystemSettings,
     type User,
     type UserDetail,
     type PaginationInfo,
@@ -47,12 +48,14 @@ import { useTranslation } from 'react-i18next';
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-const ROLE_OPTIONS = [
-    { value: 'ADMIN', color: 'red' },
-    { value: 'MODERATOR', color: 'purple' },
-    { value: 'LANDLORD', color: 'blue' },
-    { value: 'TENANT', color: 'green' },
-    { value: 'GUEST', color: 'default' },
+type RoleOption = { value: string; label: string; color: string; permissions: string[] };
+
+const FALLBACK_ROLE_OPTIONS: RoleOption[] = [
+    { value: 'ADMIN', label: 'Admin', color: 'red', permissions: [] },
+    { value: 'MODERATOR', label: 'Moderator', color: 'purple', permissions: [] },
+    { value: 'LANDLORD', label: 'Landlord', color: 'blue', permissions: [] },
+    { value: 'TENANT', label: 'Tenant', color: 'green', permissions: [] },
+    { value: 'GUEST', label: 'Guest', color: 'default', permissions: [] },
 ];
 
 const STATUS_OPTIONS = [
@@ -74,6 +77,7 @@ const RENTAL_STATUS_MAP: Record<string, { color: string }> = {
 export function AdminUsersPage() {
     const { t, i18n } = useTranslation();
     const [users, setUsers] = useState<User[]>([]);
+    const [roleOptions, setRoleOptions] = useState<RoleOption[]>(FALLBACK_ROLE_OPTIONS);
     const [pagination, setPagination] = useState<PaginationInfo>({
         page: 1,
         limit: 10,
@@ -97,6 +101,24 @@ export function AdminUsersPage() {
     const [detailUser, setDetailUser] = useState<UserDetail | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadRoleConfig = async () => {
+            const settings = await getSystemSettings();
+            if (!cancelled) {
+                const configuredRoles = settings?.settings['site.homeLayout']?.rolePolicies || [];
+                if (configuredRoles.length > 0) {
+                    setRoleOptions(configuredRoles);
+                } else {
+                    setRoleOptions(FALLBACK_ROLE_OPTIONS);
+                }
+            }
+        };
+
+        void loadRoleConfig();
+        return () => { cancelled = true; };
+    }, []);
 
     // Fetch users when filters change
     useEffect(() => {
@@ -230,7 +252,7 @@ export function AdminUsersPage() {
             dataIndex: 'role',
             key: 'role',
             render: (role) => {
-                const option = ROLE_OPTIONS.find((r) => r.value === role);
+                const option = roleOptions.find((r) => r.value === role);
                 return <Tag color={option?.color}>{roleLabel(role)}</Tag>;
             },
         },
@@ -336,9 +358,9 @@ export function AdminUsersPage() {
                         style={{ width: 150 }}
                         allowClear
                     >
-                        {ROLE_OPTIONS.map((opt) => (
+                        {roleOptions.map((opt) => (
                             <Option key={opt.value} value={opt.value}>
-                                {roleLabel(opt.value)}
+                                {opt.label || roleLabel(opt.value)}
                             </Option>
                         ))}
                     </Select>
@@ -396,9 +418,9 @@ export function AdminUsersPage() {
                         onChange={setNewRole}
                         style={{ width: '100%' }}
                     >
-                        {ROLE_OPTIONS.map((opt) => (
+                        {roleOptions.map((opt) => (
                             <Option key={opt.value} value={opt.value}>
-                                <Tag color={opt.color}>{roleLabel(opt.value)}</Tag>
+                                <Tag color={opt.color}>{opt.label || roleLabel(opt.value)}</Tag>
                             </Option>
                         ))}
                     </Select>
@@ -438,7 +460,7 @@ export function AdminUsersPage() {
                                 </Title>
                                 <Text type="secondary">{detailUser.email}</Text>
                                 <div style={{ marginTop: 4 }}>
-                                    <Tag color={ROLE_OPTIONS.find((r) => r.value === detailUser.role)?.color}>
+                                    <Tag color={roleOptions.find((r) => r.value === detailUser.role)?.color}>
                                         {roleLabel(detailUser.role)}
                                     </Tag>
                                     <Tag color={STATUS_OPTIONS.find((s) => s.value === detailUser.status)?.color}>

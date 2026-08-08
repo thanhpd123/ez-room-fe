@@ -948,6 +948,7 @@ export interface SystemSettingsData {
         };
         'site.homeLayout': {
             sections: Array<{ key: string; enabled: boolean }>;
+            rolePolicies?: Array<{ value: string; label: string; color: string; permissions: string[] }>;
         };
     };
     meta: Record<string, { source: 'db' | 'default'; updatedAt: string | null; updatedBy: string | null }>;
@@ -986,6 +987,7 @@ export interface UpdateSystemSettingsInput {
         };
         'site.homeLayout': {
             sections: Array<{ key: string; enabled: boolean }>;
+            rolePolicies?: Array<{ value: string; label: string; color: string; permissions: string[] }>;
         };
     }>;
 }
